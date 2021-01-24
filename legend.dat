@@ -1,0 +1,66 @@
+# Star/system parameters
+star_name,str,Name of star
+simulated,bool,Is this system simulated?
+d, float, Distance to star (pc)
+x, float, Cartesian x position (pc)
+y, float, Cartesian y position (pc)
+z, float, Cartesian z position (pc)
+binary, bool, Is it a binary star?
+M_st, float, Stellar mass (solar mass)
+T_eff, float, Effective temperature (K)
+R_st, float, Stellar radius (solar radius)
+logL, float, Bolometric luminosity (log solar luminosity)
+L_st, float, Bolometric luminosity (solar luminosity)
+SpT0, str, Spectral type (approximate)
+SpT, str, Spectral type and luminosity class
+age, float, Age (Gyr)
+N_pl, int, Number of planets in system
+coplanar, bool, Is the system coplanar?
+cos(i)_st, float, cosine of mean system inclination
+P_in, float, Period of innermost planet (d)
+R_typical, float, Radius of innermost planet (Earth radius)
+N_EEC, int, Number of exo-Earth candidates in system
+
+# Planet parameters
+planetID, int, Unique index for this planet
+starID, int, Unique index of this planet's host star
+order, int, Order of planet from the star
+planet_name, str, Name of planet
+age_pl, float, Age (Gyr)
+cos(i), float, Cosine of orbital inclination
+d_inc, float, Angle between the planet's orbital plane and the mean system orbital plane
+P, float, Orbital period (d)
+Ratio, float, Period ratio versus the next planet in
+R, float, Radius (Earth radius)
+a, float, Semi-major axis (AU)
+S, float, Insolation (Earth insolation)
+e, float, Eccentricity
+M0, float, Mean anomaly at reference time (deg)
+w_LAN, float, Longitude of ascending node (deg)
+w_AP, float, Longitude of periapsis (deg)
+b, float, Impact parameter on stellar disk
+M, float, Mass (Earth mass)
+rho, float, Density (g/cm3)
+g, float, Surface gravity (cm/s2)
+class1, str, Insolation-based classification
+class2, str, Size-based classification
+a_in, float, Inner edge of the habitable zone (AU)
+a_out, float, Outer edge of the habitable zone (AU)
+a0, float, Mean distance from star (AU)
+zone, str, Location in system
+type, str, Corresponding Solar System template
+EEC, bool, Is this planet an exo-Earth candidate?
+habitable, bool, Is this planet habitable?
+life, bool, Is this planet inhabited?
+pO2, float, Abundance of O2 (log)
+pO3, float, Abundance of O3 (log)
+pCO2, float, Abudance of CO2 (log)
+Atmosphere, Atmosphere, Object describing the vertical pressure, temperature, and gas abundance profiles
+separation,float, Maximum angular separation of the planet from the star
+logcontrast,float, Planet-to-star contrast ratio
+depth,float, Transit depth corresponding to the planet's radius
+atmosphere_depth,float, Transit depth corresponding to the atmospheric scale height
+S_inner,float,Inner edge of the habitable zone (Earth insolation)
+S_outer,float,Outer edge of the habitable zone (Earth insolation)
+has_H2O,bool,Does the planet have atmospheric water vapor?
+has_O2,bool,Does the planet have atmospheric O2 (or O3)?
