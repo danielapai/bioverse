@@ -10,3 +10,5 @@ numpy
 scipy
 tqdm
 pandas
+
+bioverse
