@@ -1,3 +1,12 @@
 nbsphinx
 ipykernel
 sphinx-autoapi
+
+astroquery
+dynesty
+emcee
+matplotlib
+numpy
+scipy
+tqdm
+pandas
