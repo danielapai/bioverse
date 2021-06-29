@@ -78,4 +78,3 @@ Bioverse is compatible with Python 3.7+. It has the following dependencies, all 
    apidoc/bioverse.plots
    apidoc/bioverse.survey
    apidoc/bioverse.util
-
