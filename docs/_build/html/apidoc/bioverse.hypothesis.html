@@ -1,0 +1,485 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>bioverse.hypothesis module &mdash; Bioverse 1.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="bioverse.plots module" href="bioverse.plots.html" />
+    <link rel="prev" title="bioverse.generator module" href="bioverse.generator.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> Bioverse
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Overview</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../table.html">The <code class="xref py py-class docutils literal notranslate"><span class="pre">Table</span></code> class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module1.html">Simulated planetary systems</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module2.html">Simulated survey datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module3.html">Hypothesis testing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module4.html">Computing statistical power</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Notebooks/GettingStarted1.html">Tutorial 1: Generating planetary systems</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Notebooks/GettingStarted2.html">Tutorial 2: Simulating survey datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Notebooks/Example1.html">Example 1: Finding the habitable zone</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Notebooks/Example2.html">Example 2: Detecting the age-oxygen correlation</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Full Documentation</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="bioverse.analysis.html">bioverse.analysis module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.classes.html">bioverse.classes module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.constants.html">bioverse.constants module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.custom.html">bioverse.custom module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.functions.html">bioverse.functions module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.generator.html">bioverse.generator module</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">bioverse.hypothesis module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.plots.html">bioverse.plots module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.survey.html">bioverse.survey module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.util.html">bioverse.util module</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Bioverse</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>bioverse.hypothesis module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/apidoc/bioverse.hypothesis.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="module-bioverse.hypothesis">
+<span id="bioverse-hypothesis-module"></span><h1>bioverse.hypothesis module<a class="headerlink" href="#module-bioverse.hypothesis" title="Permalink to this headline">¶</a></h1>
+<p>Defines the Hypothesis class as well as two hypotheses used in Bixel &amp; Apai (2021).</p>
+<dl class="py class">
+<dt id="bioverse.hypothesis.Hypothesis">
+<em class="property">class </em><code class="sig-prename descclassname">bioverse.hypothesis.</code><code class="sig-name descname">Hypothesis</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">f</span></em>, <em class="sig-param"><span class="n">bounds</span></em>, <em class="sig-param"><span class="n">prior_function</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">guess_function</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">tfprior_function</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">log</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">h_null</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.Hypothesis" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Describes a Bayesian hypothesis. The hypothesis function <cite>f</cite> should be defined with the following annotations:</p>
+<p>def f(theta:params, X:features) -&gt; labels</p>
+<p>where <cite>params</cite>, <cite>features</cite>, and <cite>labels</cite> are tuples naming the parameters, independent, and dependent variables.
+An example:</p>
+<p>def h_HZ_func(theta:(‘a_inner’, ‘a_outer’, ‘f_HZ’, ‘f_notHZ’), X:(‘a_eff’,)) -&gt; (‘has_H2O’,):</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>f</strong> (<em>function</em>) – Function describing the hypothesis. Must be annotated as described above.</p></li>
+<li><p><strong>bounds</strong> (<em>array</em>) – Nx2 array describing the [min, max] limits of each parameter. These are enforced even if a different prior
+distribution is defined by <cite>prior_function</cite>.</p></li>
+<li><p><strong>prior_function</strong> (<em>function</em><em>, </em><em>optional</em>) – Used by emcee. Function which returns ln(P_prior), must be defined as prior(theta). If None, assume a
+uniform distribution.</p></li>
+<li><p><strong>guess_function</strong> (<em>function</em><em>, </em><em>optional</em>) – Used by emcee. Function which guesses valid sets of parameters. Must be defined as guess_function(n), and
+should return an n x m set of parameter guesses. If None, draw parameters randomly within <cite>bounds</cite>.</p></li>
+<li><p><strong>tfprior_function</strong> (<em>function</em><em>, </em><em>optional</em>) – Used by dynesty. Function which transforms (0, 1) into (min, max) with the appropriate prior probability.
+If None, assume a uniform prior distribution.</p></li>
+<li><p><strong>log</strong> (<em>bool array</em><em>, </em><em>optional</em>) – Array of length N specifying which parameters should be sampled by a log-uniform distribution.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="bioverse.hypothesis.Hypothesis.guess_uniform">
+<code class="sig-name descname">guess_uniform</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">n</span></em>, <em class="sig-param"><span class="n">bounds</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.Hypothesis.guess_uniform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Default guess function. Guesses uniformly within self.bounds.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.hypothesis.Hypothesis.guess">
+<code class="sig-name descname">guess</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">n</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.Hypothesis.guess" title="Permalink to this definition">¶</a></dt>
+<dd><p>Guesses a set of values for theta, preferably where P(theta) &gt; -inf.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.hypothesis.Hypothesis.lnprior_uniform">
+<code class="sig-name descname">lnprior_uniform</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">theta</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.Hypothesis.lnprior_uniform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Default (log-)uniform prior distribution, checks that all values are within bounds.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.hypothesis.Hypothesis.lnprior">
+<code class="sig-name descname">lnprior</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">theta</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.Hypothesis.lnprior" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns P(theta) (for emcee).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.hypothesis.Hypothesis.tfprior">
+<code class="sig-name descname">tfprior</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">u</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.Hypothesis.tfprior" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.hypothesis.Hypothesis.tfprior_uniform">
+<code class="sig-name descname">tfprior_uniform</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">u</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.Hypothesis.tfprior_uniform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transforms the unit cube <cite>u</cite> into parameters drawn from (log-)uniform prior distributions.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.hypothesis.Hypothesis.lnlike_binary">
+<code class="sig-name descname">lnlike_binary</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">theta</span></em>, <em class="sig-param"><span class="n">x</span></em>, <em class="sig-param"><span class="n">y</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.Hypothesis.lnlike_binary" title="Permalink to this definition">¶</a></dt>
+<dd><p>Likelihood function L(y | x, theta) if y is binary.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.hypothesis.Hypothesis.lnlike_multivariate">
+<code class="sig-name descname">lnlike_multivariate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">theta</span></em>, <em class="sig-param"><span class="n">x</span></em>, <em class="sig-param"><span class="n">y</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.Hypothesis.lnlike_multivariate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Likelihood function L(y | x, theta) if y is continuous.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.hypothesis.Hypothesis.lnprob">
+<code class="sig-name descname">lnprob</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">theta</span></em>, <em class="sig-param"><span class="n">x</span></em>, <em class="sig-param"><span class="n">y</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.Hypothesis.lnprob" title="Permalink to this definition">¶</a></dt>
+<dd><p>Posterior probability function P(theta | x, y).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.hypothesis.Hypothesis.sample_posterior_dynesty">
+<code class="sig-name descname">sample_posterior_dynesty</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">X</span></em>, <em class="sig-param"><span class="n">Y</span></em>, <em class="sig-param"><span class="n">nlive</span><span class="o">=</span><span class="default_value">100</span></em>, <em class="sig-param"><span class="n">nburn</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">verbose</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.Hypothesis.sample_posterior_dynesty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Uses dynesty to sample the parameter posterior distributions and compute the log-evidence.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.hypothesis.Hypothesis.sample_posterior_emcee">
+<code class="sig-name descname">sample_posterior_emcee</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span></em>, <em class="sig-param"><span class="n">y</span></em>, <em class="sig-param"><span class="n">nsteps</span><span class="o">=</span><span class="default_value">500</span></em>, <em class="sig-param"><span class="n">nwalkers</span><span class="o">=</span><span class="default_value">32</span></em>, <em class="sig-param"><span class="n">nburn</span><span class="o">=</span><span class="default_value">100</span></em>, <em class="sig-param"><span class="n">autocorr</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.Hypothesis.sample_posterior_emcee" title="Permalink to this definition">¶</a></dt>
+<dd><p>Uses emcee to sample the parameter posterior distributions.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.hypothesis.Hypothesis.compute_AIC">
+<code class="sig-name descname">compute_AIC</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">theta_opt</span></em>, <em class="sig-param"><span class="n">x</span></em>, <em class="sig-param"><span class="n">y</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.Hypothesis.compute_AIC" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the Akaike information criterion for optimal parameter set <cite>theta_opt</cite>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.hypothesis.Hypothesis.compute_BIC">
+<code class="sig-name descname">compute_BIC</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">theta_opt</span></em>, <em class="sig-param"><span class="n">x</span></em>, <em class="sig-param"><span class="n">y</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.Hypothesis.compute_BIC" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the Bayesian information criterion for optimal parameter set <cite>theta_opt</cite>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.hypothesis.Hypothesis.get_observed">
+<code class="sig-name descname">get_observed</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.Hypothesis.get_observed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Identifies which planets in the data set have measurements of the relevant features/labels.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.hypothesis.Hypothesis.get_XY">
+<code class="sig-name descname">get_XY</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.Hypothesis.get_XY" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the X (features) and Y (labels) matrices for valid planets. Computes values as needed.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.hypothesis.Hypothesis.fit">
+<code class="sig-name descname">fit</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span></em>, <em class="sig-param"><span class="n">nsteps</span><span class="o">=</span><span class="default_value">500</span></em>, <em class="sig-param"><span class="n">nwalkers</span><span class="o">=</span><span class="default_value">16</span></em>, <em class="sig-param"><span class="n">nburn</span><span class="o">=</span><span class="default_value">100</span></em>, <em class="sig-param"><span class="n">nlive</span><span class="o">=</span><span class="default_value">100</span></em>, <em class="sig-param"><span class="n">return_chains</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">return_sampler</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">verbose</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">method</span><span class="o">=</span><span class="default_value">'dynesty'</span></em>, <em class="sig-param"><span class="n">mw_alternative</span><span class="o">=</span><span class="default_value">'greater'</span></em>, <em class="sig-param"><span class="n">return_data</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.Hypothesis.fit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Uses MCMC to sample the posterior distribution of h(theta | x, y) using a simulated data set, and compare
+to the null hypothesis via a model comparison metric.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<a class="reference internal" href="bioverse.classes.html#bioverse.classes.Table" title="bioverse.classes.Table"><em>Table</em></a>) – Simulated data set containing the features and labels.</p></li>
+<li><p><strong>nsteps</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of steps per MCMC walker.</p></li>
+<li><p><strong>return_chains</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, return the full MCMC posterior distribution samples.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><p><strong>results</strong> –</p>
+<dl class="simple">
+<dt>Dictionary containing the results of the model fit:</dt><dd><p>’h’ : this Hypothesis object
+‘means’ : mean value of each parameter’s posterior distribution
+‘stds’ : std dev of each parameter’s posterior distribution
+‘medians’ : median value of each parameter’s posterior distribution
+‘UCIs’ : 1-sigma confidence interval above the median
+‘LCIs’ : 1-sigma confidence interval below the median
+‘CIs’ : width of the +- 1 sigma confidence interval about the median
+‘AIC’ : Akaike information criterion compared to the null hypothesis (i.e. AIC_null - AIC_alt)
+‘BIC’ : Bayesian information criterion compared to the null hypothesis
+‘chains’ : full chain of MCMC samples (if <cite>return_chains</cite> is True)</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.hypothesis.f_null">
+<code class="sig-prename descclassname">bioverse.hypothesis.</code><code class="sig-name descname">f_null</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">theta</span><span class="p">:</span> <span class="n"><span class="p">(</span><span class="p">)</span></span></em>, <em class="sig-param"><span class="n">X</span><span class="p">:</span> <span class="n"><span class="p">(</span><span class="p">)</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.f_null" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.hypothesis.f_HZ">
+<code class="sig-prename descclassname">bioverse.hypothesis.</code><code class="sig-name descname">f_HZ</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">theta</span><span class="p">:</span> <span class="n">‘a_inner’, ‘delta_a’, ‘f_HZ’, ‘df_notHZ’</span></em>, <em class="sig-param"><span class="n">X</span><span class="p">:</span> <span class="n">‘a_eff’</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.f_HZ" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.hypothesis.f_age_oxygen">
+<code class="sig-prename descclassname">bioverse.hypothesis.</code><code class="sig-name descname">f_age_oxygen</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">theta</span><span class="p">:</span> <span class="n">‘f_life’, ‘t_half’</span></em>, <em class="sig-param"><span class="n">X</span><span class="p">:</span> <span class="n">‘age’</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.hypothesis.f_age_oxygen" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="bioverse.plots.html" class="btn btn-neutral float-right" title="bioverse.plots module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="bioverse.generator.html" class="btn btn-neutral float-left" title="bioverse.generator module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Alex Bixel.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+    
+
+  <style>
+  
+    /* Sidebar header (and topbar for mobile) */
+    .wy-side-nav-search {
+    display: block;
+    width: 300px;
+    padding: .809em;
+    margin-bottom: .809em;
+    z-index: 200;
+    background-color: #0b750a;
+    text-align: center;
+    color: #fcfcfc;
+    }
+    .wy-nav-top {
+      background: #0b750a;
+    }
+    
+    .wy-menu-vertical header, .wy-menu-vertical p.caption {
+    color: #0b750a;
+    line-height: 32px;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 85%;
+    white-space: nowrap;
+}
+
+html.writer-html4 .rst-content dl:not(.docutils) > dt, html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.glossary):not(.simple) > dt {
+    display: table;
+    margin: 6px 0;
+        margin-top: 6px;
+    font-size: 90%;
+    line-height: normal;
+    background: #edffed;
+    color: #0b750a;
+    border-top: 3px solid #0b750a;
+    padding: 6px;
+    position: relative;
+}
+
+  a {
+    color: #0b750a;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.wy-table-responsive table td, .wy-table-responsive table th {
+    white-space: normal;
+}
+
+  </style>
+  
+  
+  
+
+
+</body>
+</html>

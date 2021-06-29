@@ -2,21 +2,18 @@
 import matplotlib
 #matplotlib.use('Qt5Agg')
 from matplotlib import pyplot as plt
-from matplotlib.colors import LogNorm
-from matplotlib.ticker import NullFormatter, ScalarFormatter, StrMethodFormatter
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from mpl_toolkits.mplot3d import Axes3D,proj3d
+from matplotlib.ticker import ScalarFormatter
 from scipy.ndimage import gaussian_filter, zoom
 import numpy as np
 import pickle
 from warnings import warn
 
-# Bioverse modules
+# Bioverse modules and constants
 import analysis
 import classes
 import util
-from util import MODELS_DIR,ROOT_DIR,INT_TYPES,PLOTS_DIR
-from util import STR_TYPES
+from constants import MODELS_DIR,INT_TYPES
+from constants import STR_TYPES
 
 # Unmap the save key
 try:
@@ -219,149 +216,6 @@ def plot_system(d,starID,ax=None,mark=None):
     else:
         #plt.subplots_adjust(bottom=0.2)
         return ax
-    
-def plot_scatter(s,key1,key2):
-    # Makes a scatter plot between s[key1] and s[key2] and performs a simple correlation test
-    x,y = s[key1].flatten(),s[key2].flatten()
-
-    # Remove nan values
-    nans = np.isnan(x)|np.isnan(y)
-    x,y = x[~nans],y[~nans]
-
-    # Run Spearman's rank correlation test
-    r,p = stats.spearmanr(x,y)
-
-    # Create the scatter plot
-    fig,ax = plt.subplots(figsize=(12,6))
-    ax.scatter(x,y)
-
-    # Plot a linear fit if the p-value is small enough
-    if p < 0.1:
-        xs = np.arange(0.8*np.amin(x),1.2*np.amax(x))
-        ys = np.polyval(np.polyfit(x,y,deg=1),xs)
-        ax.plot(xs,ys,lw=1,color='red',linestyle='dashed',zorder=-10)
-        ax.annotate('Possible correlation, p = {:.1E}'.format(p),xy=(0.05,0.9),xycoords='axes fraction',color='red')
-
-    # Label the axes
-    ax.set_xlabel(key1.replace('/',' > '))
-    ax.set_ylabel(key2.replace('/',' > '))
-
-    plt.subplots_adjust(bottom=0.2)
-    plt.show()
-        
-def plot_binned_statistic(s,key1,key2,bins=10):
-    # Plots the typical value of s[key2] in bins of s[key1]
-    return
-
-def plot_model_grid(model_name,s=None,target='Planets'):
-    # Plots a model result grid; the output can be N-dimensional, but the input dimensions must be 1 or 2
-    grid = pickle.load(open(MODELS_DIR+'/{:s}.pkl'.format(model_name),'rb'))
-
-    x,y = grid['x'],grid['y']
-    xkeys,ykeys = grid['xkeys'],grid['ykeys']
-    
-    if len(xkeys) > 2:
-        print("Can't plot the model grid over 3+ input dimensions!")
-        return
-
-    # If a simulation is provided then extract the simulated data values for comparison
-    if s is not None:
-        mask = mask_from_model_subset(s[target],grid['subset'])
-        xdata = s[target][xkeys][:,mask]
-        ydata = s[target][ykeys][:,mask]
-
-    # Loop through each output key and imshow it
-    fig,ax = plt.subplots(1,len(ykeys),figsize=(6*len(ykeys),7))
-    if len(ykeys) == 1: ax = [ax]
-    for i in range(len(ykeys)):
-        # One dimensional: line plot (and 1D histogram for data)
-        if len(xkeys) == 1:
-            ax[i].plot(x[:,0],y[:,i],lw=5)
-            ax[i].set_xlabel(xkeys[0])
-            ax[i].set_ylabel(ykeys[i])
-            if s is not None:
-                y0,bins,_ = stats.binned_statistic(xdata[0,:],ydata[i,:],statistic='mean',range=(x[:,0].min(),x[:,0].max()))
-                dy0,bins,_ = stats.binned_statistic(xdata[0,:],ydata[i,:],statistic='std',bins=bins)
-                x0 = (bins[1:]+bins[:-1])/2.
-                ax[i].errorbar(x0,y0,yerr=dy0,marker='s',linestyle='None')
-        # Two dimensional: color map (and contour plot for data)
-        elif len(xkeys) == 2:
-            extent = [np.amin(x[:,:,1]),np.amax(x[:,:,1]),np.amin(x[:,:,0]),np.amax(x[:,:,0])]
-            im = ax[i].imshow(y[:,:,i],aspect='auto',extent=extent,origin='lower')
-            ax[i].set_title(ykeys[i])
-            ax[i].set_xlabel(xkeys[1])
-            ax[i].set_ylabel(xkeys[0])
-            cb = plt.colorbar(im,ax=ax[i])
-            cb.set_label('')
-    
-    plt.suptitle('Model: {:s}'.format(model_name))
-
-    plt.subplots_adjust(left=0.2,wspace=0.5)
-    plt.show()
-        
-def plot_atmosphere(d,starID,order,ax=None,lw=5):
-    """ Plots the profile of a planet's atmosphere. """
-    if ax is None:
-        show = True
-        fig,ax = plt.subplots(1,2,figsize=(14,6))
-    else:
-        show = False
-
-    pl = d[(d['starID']==starID)&(d['order']==order)][0]
-
-    title = 'Planet name: {:s}'.format(pl['planet_name'])
-
-    # Skip empty atmospheres
-    if 'Atmosphere' not in pl.keys() or pl['Atmosphere'] is None or len(pl['Atmosphere']) == 0:
-        ax[0].axis('off')
-        ax[1].axis('off')
-        title += '\n(no atmosphere)'
-    else:
-        atm = pl['Atmosphere']
-
-        # Name of planet
-        title += '   | Template: {:s}'.format(atm.template)
-        # Left panel: Pressure vs Temperature
-        if atm.layered:
-            P,T = atm['P'],atm['T']
-            ax[0].plot(T,P,lw=lw)
-        else:
-            P = atm['P']*np.exp(-np.arange(0,3,0.1))
-            T = atm['T']
-            ax[0].axvline(T,lw=lw)
-
-        ax[0].set_xlabel('Temperature (K)')
-        ax[0].set_ylabel('Pressure (bar)')
-        ax[0].set_ylim([max(P),min(P)])
-        ax[0].set_yscale('log')
-
-        # Right panel: Abundance vs Temperature
-        keys = atm.get_species_list()
-        for i in range(len(keys)):
-            key = keys[i]
-            c = 'C{:d}'.format(i)
-            if atm.layered:
-                ax[1].plot(atm[key],P,label=key,lw=lw,color=c)
-            else:
-                ax[1].axvline(atm[key],label=key,lw=lw,color=c)
-            ax[1].annotate(key,xy=(1.02,0.98-(0.09*i)),xycoords='axes fraction',ha='left',va='top',color=c)
-        ax[1].set_xlabel('Abundance')
-        ax[1].set_ylabel('Pressure (bar)')
-        ax[1].set_ylim([max(P),min(P)])
-        ax[1].set_xscale('log')
-        ax[1].set_yscale('log')
-    
-    if show:
-        plt.suptitle(title,fontsize=labelfontsize)
-    else:
-        ax[1].annotate(title,xy=(-0.,1.15),va='center',ha='center',xycoords='axes fraction',fontsize=labelfontsize)
-
-    if show:
-        plt.subplots_adjust(wspace=0.5,bottom=0.15)
-        plt.show()
-    else:
-        #plt.subplots_adjust(top=0.7)
-        return ax
 
 def plot_spectrum(x,y,dy=None,xunit=None,yunit=None,lw=2):
     """ Plots a spectrum with or without errorbars. """
@@ -377,43 +231,6 @@ def plot_spectrum(x,y,dy=None,xunit=None,yunit=None,lw=2):
     if yunit == 'albedo':
         ax.set_ylim([0,0.6])
 
-    plt.show()
-
-def yield_by_type(y,compare=True,comparison_file=ROOT_DIR+'/Yields/LUVOIR.dat',comparison_NEEC=[17,19,12,6]):
-    fig,ax = plt.subplots(2,2,figsize=(12,8))
-    ax = ax.flatten()
-
-    types = ['F','G','K','M']
-    classes1 = ['hot','warm','cold']
-    classes2 = ['rocky','super-Earth','sub-Neptune','sub-Jovian','Jovian']
-    for i in range(len(types)):
-        mask1 = y['SpT'] == types[i]
-        xv = np.arange(0,16,1).astype(int)
-        yv = np.zeros(len(xv)).astype(int)
-        color = np.append(['g'],['r','b','c']*len(classes2))
-        for j in range(len(classes1)):
-            mask2 = y['class1'] == classes1[j]
-            for k in range(len(classes2)):
-                mask3 = y['class2'] == classes2[k]
-                yv[1+j+3*k] = (mask1&mask2&mask3).sum()
-        
-        yv[0] = (mask1&y['EEC']).sum()
-        ax[i].bar(xv,yv,color=color)
-        ax[i].set_xlim([-0.5,16.5])
-        ax[i].set_ylim([0,60])
-        ax[i].set_xticks([])
-        ax[i].set_title('{:s} stars'.format(types[i]))
-
-    if compare:
-        for line in np.loadtxt(comparison_file,dtype='str'):
-            class2,class1,SpT,N = line
-            N = N.astype(int)
-            i,j,k = types.index(SpT),classes1.index(class1),classes2.index(class2)
-            ax[i].bar(xv[1+j+3*k],N,zorder=100,color='none',edgecolor='black',lw=2)
-        for i in range(len(types)):
-            ax[i].bar(xv[0],comparison_NEEC[i],zorder=100,color='none',edgecolor='black',lw=2)
-
-    plt.subplots_adjust(hspace=0.4)
     plt.show()
 
 def occurrence_by_class(d,compare=True):
@@ -538,157 +355,6 @@ def plot_binned_average(d,key1,key2,log=True,bins=10,method='mean',match_bin_cou
         return (x,y,dx,dy) if return_xy else None
     else:
         return (ax,x,y,dx,dy) if return_xy else ax
-
-def rf_performance(actual,predicted):
-    """ Plots the predicted vs actual abundances resulting from random forest retrievals of N spectra.
-
-    Parameters
-    ----------
-    actual : dict
-        Dict of N actual abundances, with each key being a species, e.g. {'H2O':[0.002,0.001,0.010,...]}.
-    predicted : dict
-        Dict of N predicted abundances, with the same format as `actual`.
-    """
-    # Determine how many panels to make based on the number of abundances
-    ncol = min(3,len(predicted))
-    nrow = int(len(predicted)/ncol) + int(bool(len(predicted)%ncol))
-    fig,ax = plt.subplots(nrow,ncol)
-    ax = ax.flatten() if np.ndim(ax) else [ax]
-    
-    # Plot predicted vs actual for each species
-    for i,species in enumerate(actual.keys()):
-        logx,logy = np.log10(actual[species]),np.log10(predicted[species])
-        ax[i].scatter(logx,logy)
-        ax[i].plot(*[np.linspace(logx.min(),logx.max(),10)]*2)
-    
-        # Axis labels
-        ax[i].set_xlabel('Actual')
-        ax[i].set_ylabel('Predicted')
-        ax[i].set_title(species,fontsize=labelfontsize)
-
-    plt.subplots_adjust(bottom=0.2,left=0.2)
-    plt.show()
-
-def habitable_zone_grid(results,S_inner=1.15,S_outer=0.37,levels=[],i_time=-1,smooth_sigma=None):
-    """ Summarizes the results of analysis.measure_habitable_zone_grid.
-
-    Parameters
-    ----------
-    results : dict
-        Dictionary containing the results from analysis.measure_habitable_zone_grid.
-    S_inner : float, optional
-        Truth value for the inner edge of the habitable zone, used to calculate the measurement accuracy.
-    S_outer : float, optional
-        Truth value for the outer edge of the habitable zone, used to calculate the measurement accuracy.
-    i_time : int, optional
-        Index of grid['t_total'] for which to produce the plot.
-    smooth_sigma : float, optional
-        If given, smooth the grid values by smooth_sigma.
-    """
-    # Compute the typical measurement accuracy for the inner, outer edge in AU (normalized to solar system)
-    #a_inner, a_outer = (10**grid['means'][1,:2,i_time])**-0.5
-    #z_inner, z_outer = np.mean(a_inner-S_inner**-0.5, axis=2), np.mean(a_outer-S_outer**-0.5, axis=2)
-    #z_inner, z_outer = np.abs(z_inner), np.abs(z_outer)
-    mean_stds = np.mean(0.5*results['stds'][i_time,:,:,:], axis=-1)
-    z_inner, z_outer = mean_stds[...,0], mean_stds[...,1]
-    z_inner = 10**(np.log10(S_inner**-0.5) - z_inner) - S_inner**-0.5
-    z_outer = 10**(np.log10(S_outer**-0.5) - z_outer) - S_outer**-0.5
-    z_inner, z_outer = np.abs(z_inner), np.abs(z_outer)
-
-    # Smooth the 2D data
-    if smooth_sigma:
-        z_inner,z_outer = gaussian_filter(z_inner,smooth_sigma),gaussian_filter(z_outer,smooth_sigma)
-
-    # Make a contour plot of the results with x = f_water_habitable and y = f_water_nonhabitable
-    grid = results['grid']
-    x,y = grid['f_water_habitable'],grid['f_water_nonhabitable']
-    fig,ax = plt.subplots(1,2,figsize=(14,6))
-
-    fmt = '    $\pm$ %r AU    '
-    ctr = ax[0].contour(x,y,z_inner.T,levels=[0.2,.3,.4],colors='black')
-    ax[0].clabel(ctr,ctr.levels,inline=True,fmt=fmt)
-    ctr = ax[1].contour(x,y,z_outer.T,levels=[0.4,0.5,.6,.7],colors='black')
-    ax[1].clabel(ctr,ctr.levels,inline=True,fmt=fmt)
-
-    ax[0].imshow(z_inner.T, origin='lower')
-    ax[1].imshow(z_outer.T, origin='lower')
-
-    # ax[0].set_xlim([x.min(),x.max()])
-    # ax[0].set_ylim([y.min(),y.max()])
-    # ax[1].set_xlim([x.min(),x.max()])
-    # ax[1].set_ylim([y.min(),y.max()])
-
-    fig.text(0.5,0.05,'Fraction of habitable planets with H$_2$O',fontsize=labelfontsize,ha='center',va='center')
-    fig.text(0.05,0.5,'Fraction of non-habitable\nplanets with H$_2$O',fontsize=labelfontsize,
-             ha='center',va='center',rotation=90)
-    ax[0].set_title('Inner edge',y=1.02)
-    ax[1].set_title('Outer edge',y=1.02)
-
-    plt.subplots_adjust(bottom=0.2,left=0.15,wspace=0.4)
-    plt.show()
-
-def accuracy_vs_time(result,idx1=0,idx2=0,S_inner=1.15,S_outer=0.37,show=True,smooth_sigma=None,xlim=[10,200],do_mask=True):
-    """ Plots the accuracy of habitable zome measurements (from analysis.measure_habitable_zone_grid) versus
-    allotted follow-up time for a single grid cell.
-
-    Parameters
-    ----------
-    result : dict
-        Dictionary containing the results from analysis.measure_habitable_zone_grid.
-    idx1 : int
-        Index of grid['f_water_habitable'] corresponding to the grid cell.
-    idx2 : int
-        Index of grid['f_water_nonhabitable'] corresponding to the grid cell.
-    S_inner : float, optional
-        Truth value for the inner edge of the habitable zone, used to calculate the measurement accuracy.
-    S_outer : float, optional
-        Truth value for the outer edge of the habitable zone, used to calculate the measurement accuracy.
-    smooth_sigma : float, optional
-        If given, smooth the values by smooth_sigma.
-    show : bool, optional
-        If True, show the plot, else save it as ./Plots/accuracy_vs_time.pdf.
-    xlim : float array, optional
-        Limits of the x-axis.
-    """
-    # Compute the typical measurement accuracy for the inner, outer edge in AU (normalized to solar system)
-    stds = np.mean(0.5*result['stds'][:,idx1,idx2], axis=-1)
-    y_inner, y_outer = stds[:,...,0], stds[:,...,1]
-    y_inner = 10**(np.log10(S_inner**-0.5) - y_inner) - S_inner**-0.5
-    y_outer = 10**(np.log10(S_outer**-0.5) - y_outer) - S_outer**-0.5
-    y_inner, y_outer = np.abs(y_inner), np.abs(y_outer)
-
-    # Also plot the number of planets versus allotted time
-    #N_pl= np.mean(grid['N_pl'][:,idx1,idx2],axis=1)
-
-    # Smooth the 2D data
-    if smooth_sigma:
-        y_inner,y_outer = gaussian_filter(y_inner,smooth_sigma),gaussian_filter(y_outer,smooth_sigma)
-        #N_pl = gaussian_filter(N_pl,smooth_sigma)
-
-    # Plot versus time
-    grid = result['grid']
-    x = grid['t_total']
-    fig,ax = plt.subplots(1,2,figsize=(14,5))
-    
-    ax[0].plot(x, y_inner)
-    ax[1].plot(x, y_outer)
-
-    ax[0].set_xlim(xlim)
-    ax[1].set_xlim(xlim)
-
-    fig.text(0.5,0.05,'Total follow-up observing time (d)',fontsize=labelfontsize,ha='center',va='center')
-    fig.text(0.05,0.5,'Measurement accuracy (AU)',fontsize=labelfontsize,
-            ha='center',va='center',rotation=90)
-    #fig.text(0.95,0.5,'Number of\nplanets observed',fontsize=labelfontsize,
-    #        color='grey',ha='center',va='center',rotation=90)
-    ax[0].set_title('Inner edge',y=1.02)
-    ax[1].set_title('Outer edge',y=1.02)
-
-    plt.subplots_adjust(bottom=0.2,left=0.12)#,right=0.85)
-    if show:
-        plt.show()
-    else:
-        plt.savefig(PLOTS_DIR+'/accuracy_vs_time.pdf')
 
 def Example1_priority(generator, survey, fig=None, ax=None, show=True):
     """ Plots the prioritization of targets according to a_eff and R (or R_eff). """

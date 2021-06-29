@@ -1,6 +1,6 @@
 # System modules
 import numpy as np
-from util import ARRAY_TYPES,INT_TYPES,ROOT_DIR
+from constants import ARRAY_TYPES, INT_TYPES, ROOT_DIR
 
 # PDMF
 def Chabrier_2003_PDMF(M_st_min=0.07,M_st_max=5.0):
@@ -27,82 +27,6 @@ def Chabrier_2003(s,st,p):
     draw = np.random.uniform(0,1,size=N)
     
     return 10**np.interp(draw,y2,x)
-
-# STELLAR PROPERTIES
-def Pecaut2013(st):
-    # Read in the table containing spectral types, temperatures, masses, and radii
-    SpT,T_eff,logL,R,M = np.loadtxt(ROOT_DIR+'/Pecaut2013.dat',unpack=True,usecols=(0,1,3,28,29),dtype=str,skiprows=1)
-    
-    # Replace empty spaces with nan, then convert everything to floats
-    for arr in [T_eff,logL,R,M]:
-        arr[(arr=='...')|(arr=='....')] = np.nan
-    T_eff,logL,R,M = T_eff.astype(float),logL.astype(float),R.astype(float),M.astype(float)
-    
-    # Interpolate along mass to determine each star's temperature, radius, and luminosity; mask the NaNs
-    keys,arrs = ['T_eff_st','R_st','logL'],[T_eff,R,logL]
-    for i in range(len(keys)):
-        key,arr = keys[i],arrs[i]
-        mask = ~np.isnan(arr)
-        idx = np.argsort(M[mask])
-        st[key] = np.interp(st['M_st'],M[mask][idx],arr[mask][idx])
-    st['L_st'] = 10**st['logL']
-    del st['logL']
-    
-    # Convert grid spectral types to a float and interpolate that float onto the simulated temperatures
-    t0 = ['O','B','A','F','G','K','M','L','T','Y'] 
-    ft0 = np.array([10*t0.index(typ[0])+(float(typ[1:].replace('V',''))) for typ in SpT])
-    idx = np.argsort(T_eff)
-    ft = np.interp(st['T_eff_st'],T_eff[idx],ft0[idx])
-    subtype = np.round(ft-10*(ft/10.).astype(int),1).astype(str).astype(object)
-    
-    # Finally re-convert the float into a spectral type (precise to 0.5)
-    st['SpT'] = np.full(len(st),None).astype('<U8')
-    for i in range(len(t0)):
-        mask = (ft/10.).astype(int)==i
-        st['SpT'][mask] = t0[i]
-        
-# OCCURRENCE RATES
-def Mulders_2018_R(star):
-    R_break = 3.3
-    a,b = -0.5,-6
-    return power_law_broken(1/R_break,a,b,R_break,0.2,10.,size=len(star))
-
-def Mulders_2018_P(star):
-    P_break = 12.
-    a,b = 1.5,0.3
-    return power_law_broken(1/P_break,a,b,P_break,0.5,5000,size=len(star))
-
-def Mulders_2018_P_in(star):
-    P_break = 12.
-    a,b = 1.6,-0.9
-    return power_law_broken(1/P_break,a,b,P_break,0.5,5000,size=len(star))
-
-# MASS
-def Wolfgang_2016(s,pl):
-    # Extract the radius of each planet
-    R = pl['R']
-    M = np.zeros(R.shape)
-    
-    # Determine which are small, large planets
-    mask1 = R>=1.6
-    mask2 = (R>0.8)&(R<1.6)
-    mask3 = R<=0.8
-    
-    # Draw masses for larger planets, with a spread of 1.9 M_E, with a minimum of 0.01 M_E
-    M[mask1] = normal(2.7*R[mask1]**1.3,1.9,0.01,10000,mask1.sum())
-    
-    # Compute the maximum mass for each planet (Wolfgang 2016, Equation 5) where R > 0.2
-    a,b,c = 0.0975,0.4938,0.7932
-    M_max = 10**((-b+(b**2-4*a*(c-R[mask2]))**0.5)/(2*a))
-    
-    # Draw masses for the small planets from a truncated normal distribution (minimum: 0.1 Earth density)
-    mu = 1.4*R[mask2]**2.3
-    M[mask2] = normal(mu,0.3*mu,0.1*R[mask2]**3,M_max,mask2.sum())
-    
-    # For planets smaller than R < 0.2, assume Earth density
-    M[mask3] = R[mask3]**3
-    
-    return M
 
 # HABITABLE ZONE
 def Kopparapu_2014(d,pl):

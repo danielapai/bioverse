@@ -1,66 +1,13 @@
+""" Miscellanous functions used elsewhere in the code. """
+
 # Python imports
-from astropy.modeling.blackbody import blackbody_lambda
-from astropy import units as u
-from ast import literal_eval as ast_literal_eval
-import copy
-import gc
-import glob
 import importlib.util
-import inspect
-import matplotlib
-#matplotlib.use('Qt5Agg')
-from matplotlib import pyplot as plt
 import numpy as np
-import os
-from pandas import DataFrame
-import pickle
-import scipy
-from scipy import stats
-import shutil
-import sys
-import time
 from warnings import warn
 
-# Top-level code directory
-ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
-UI_DIR = ROOT_DIR+'/UI/'
-ATMOSPHERE_TEMPLATES_DIR = ROOT_DIR+'/Templates/Atmospheres/'
-SURVEYS_DIR = ROOT_DIR+'/Surveys/'
-MODELS_DIR = ROOT_DIR+'/Objects/Models/'
-GENERATORS_DIR = ROOT_DIR+'/Generators/'
-INSTRUMENTS_DIR = ROOT_DIR+'/Instruments/'
-OBJECTS_DIR = ROOT_DIR+'/Objects/'
-PLOTS_DIR = ROOT_DIR+'/Plots/'
-RESULTS_DIR = ROOT_DIR+'/Results/'
-CATALOG_FILE = ROOT_DIR+'/Gaia.csv'
-
-# Program version
-VERSION = "0.0.1"
-
-# HELA install directory (this will be moved to a config file later)
-# HELA_DIR = ROOT_DIR+'/../HELA/'
-# sys.path.append(HELA_DIR)
-# import rfretrieval
-
-# Physical constants (in cgs where applicable)
-CONST = {}
-CONST['T_eff_sol'] = 5777.
-CONST['yr_to_day'] = 365.2422
-CONST['AU_to_solRad'] = 215.03215567054767
-CONST['rho_Earth'] = 5.51
-CONST['g_Earth'] = 980.7
-CONST['amu_to_kg'] = 1.66054e-27
-CONST['R_Earth'] = 6.371e8
-CONST['R_Sun'] = 6.9634e10
-CONST['h_Earth'] = 8.5e5
-
-# Data types
-ARRAY_TYPES = (np.ndarray,list,tuple)
-LIST_TYPES = ARRAY_TYPES
-FLOAT_TYPES = (float,np.float,np.float_,np.float64)
-INT_TYPES = (int,np.int_,np.int64,np.integer,np.int8)
-STR_TYPES = (str,np.str_)
-BOOL_TYPES = (bool,np.bool_)
+# Bioverse modules and constants
+from constants import LIST_TYPES, CATALOG_FILE
+import truncnorm_hack
 
 # Load the Gaia stellar target catalog into memory for fast access
 try:
@@ -74,7 +21,22 @@ try:
 except ImportError:
     tqdm = None
     
-def bar(arg,do_bar=True):
+def bar(arg, do_bar=True):
+    """ Given an iterable, returns a progress bar if tqdm is installed. Otherwise, returns the iterable.
+    
+    Parameters
+    ----------
+    arg : iterable
+        Iterable for which to return a progress bar.
+    do_bar : bool
+        If False, return `arg` and don't display a progress bar.
+    
+    Returns
+    -------
+    tqdm : iterable
+        If tqdm is installed, return a progress bar formed from `arg`. Otherwise, just return `arg`.
+    
+    """
     if tqdm is not None and do_bar:
         return tqdm(arg)
     else:
@@ -95,6 +57,16 @@ def get_type(x):
             else:
                 return str
 
+# Determines whether `a` is a binary array (including float arrays e.g. [0., 1., 1., 0., ...]))
+def is_bool(a):
+    unique = np.unique(a[~np.isnan(a)])
+    if len(unique) == 2 and 0 in unique and 1 in unique:
+        return True
+    elif len(unique) == 1 and (0 in unique or 1 in unique):
+        return True
+    else:
+        return False
+
 # Imports a function given the filename and the name of the function
 def import_function_from_file(function_name,filename):
         # Get the module name from the filename (assume they are the same minus .py)
@@ -107,72 +79,6 @@ def import_function_from_file(function_name,filename):
 
         # Return the function
         return mod.__dict__[function_name]
-
-def get_description_from_function(function):
-    """ Gets a function description from its docstring. Reads up until the first double
-    line break. For example, this second line will be read.
-
-    This third line will not be read.
-
-    Parameters
-    ----------
-    function : function
-        Function to pull the description from.
-
-    Returns
-    -------
-    description : str
-        Returns the first paragraph of the function's docstring, or '' if there isn't one.
-    """
-    docstring = function.__doc__
-    if docstring is None:
-        return ''
-    
-    # Get the lines corresponding to the first paragraph
-    description = ''
-    for line in docstring.strip().split('\n'):
-        if line == '':
-            break
-        description += line.replace('  ',' ').replace('  ',' ').replace('  ',' ')
-    return description
-
-# Creates a new "program" using the list of functions from a CSV file (e.g. program.dat)
-def create_program(filename=ROOT_DIR+'/program.dat'):
-    program = []
-    with open(filename,'r') as f:
-        for line in f.readlines():
-            if line[0].strip() == '#': continue
-            function_name,path = line.split('#')[0].split(',')[:2]
-            description = ','.join(line.split('#')[0].split(',')[2:])
-
-            # Load the function and gets its default arguments
-            func = import_function_from_file(function_name,path)
-            items = list(inspect.signature(func).parameters.items())[1:] # Chops off the first two arguments (s,p)
-            args = {}
-            for k,v in items:
-                # Default argument description is "None"
-                args[k] = [v.default,None]
-
-            program.append([function_name,path,description,args])
-    return np.array(program)
-
-# Load the program from a .pkl file
-def import_program(filename=ROOT_DIR+'/program.pkl'):
-    return np.array(pickle.load(open(filename,'rb')))
-
-# Saves the program to a .pkl file, including modified arguments
-def export_program(program,filename=ROOT_DIR+'/program.pkl'):
-    pickle.dump(program,open(filename,'wb'))
-
-# Adjusts the position of an item in the program
-def program_adjust(program,idx,shift):
-    shift = int(shift)
-    s2 = np.copy(program)
-    if shift == 1 and (idx < len(program)-1):
-        s2[[idx,idx+1]] = s2[[idx+1,idx]]
-    elif shift == -1 and (idx > 0):
-        s2[[idx-1,idx]] = s2[[idx,idx-1]]
-    return s2
 
 # Returns the "colors" of a planet based on its class and orbit
 def get_planet_colors(d):
@@ -365,3 +271,63 @@ def get_xyz(pl,t=0,M=None,n=3):
     
     return x,y,z
 
+# Draws N samples from a normal PDF with mean value a and standard deviation b
+# (optional) bounded to xmin < x < xmax
+def normal(a,b,xmin=None,xmax=None,size=1):
+    if b is None: return np.full(size,a)    
+    else:
+        aa = -100 if xmin is None else (xmin-a)/b
+        bb = 100 if xmax is None else (xmax-a)/b
+        # Deal with nan values bug
+        if xmin is not None and np.size(aa)>1:
+            aa[np.isnan(aa)] = -100
+        if xmax is not None and np.size(bb)>1:
+            bb[np.isnan(bb)] = 100
+        
+        # truncnorm.rvs is extremely slow in newer SciPy versions; this line can be uncommented once that issue is fixed
+        #return scipy.stats.truncnorm.rvs(a=aa,b=bb,loc=a,scale=b,size=size)
+        
+        # This module reproduces truncnorm as of SciPy v1.3.3
+        return truncnorm_hack.truncnorm.rvs(a=aa,b=bb,loc=a,scale=b,size=size)
+
+def binned_average(x, y, bins=10, match_counts=True):
+    """ Computes the average value of a variable in bins of another variable.
+
+    Parameters
+    ----------
+    x : float array
+        Array of independent values along which to perform the binning.
+    y : float array
+        Array of dependent values to be averaged.
+    bins : int or float array, optional
+        Number of bins or array of bin edges.
+    match_counts : bool, optional
+        If True, adjust the bin sizes so that an equal number of data points fall in each bin. Passing
+        an array of bin edges for `bins` will override this setting.
+
+    Returns
+    -------
+    bins : float array
+        Array of bin edges.
+    values : float array
+        Average value of `y` in each bin. 
+    errors : float array
+        Uncertainty on `values` in each bin, i.e. the standard error on the mean.
+    """
+    # Unless given, compute the bin edges
+    if isinstance(bins,(INT_TYPES,FLOAT_TYPES)):
+        bins = int(bins)
+        if match_counts:
+            bins = np.percentile(x,np.linspace(0,100,bins+1))
+        else:
+            binsize = np.ptp(x)/bins
+            bins = np.arange(np.amin(x),np.amax(x)+binsize,binsize)
+    
+    # Compute the average value of `y` in each bin
+    values, errors = np.full((2,len(bins)-1), np.nan)
+    for i in range(len(bins)-1):
+        inbin = (x>=bins[i])&(x<=bins[i+1])
+        if inbin.sum() > 0:
+            values[i], errors[i] = np.mean(y[inbin]), np.std(y[inbin])/(inbin.sum())**0.5
+
+    return bins,values,errors

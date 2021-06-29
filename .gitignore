@@ -1,3 +1,5 @@
 .DS_Store
 Results/
 .ipynb_checkpoints
+.code-workspace
+__pycache__/

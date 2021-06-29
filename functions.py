@@ -1,22 +1,45 @@
+""" Contains all functions currently used to simulate planetary systems. To define new functions, add them to custom.py. """
+
 # Python imports
-from copy import deepcopy
 import numpy as np
 import os
-import pickle
-import scipy
-from scipy import stats
-from time import time
+import sys
 
-# Bioverse modules
-from classes import Table,Atmosphere,Stopwatch
+# Bioverse modules and constants
+sys.path = ['../'] + sys.path
+from classes import Table
 import util
-from util import CONST,ROOT_DIR,MODELS_DIR,CATALOG_FILE,CATALOG
-from pdfs import normal,power_law_broken
+from util import CATALOG
+from constants import CONST, ROOT_DIR
 import priors
 
-def create_stars_Gaia(d, d_max=20, M_st_min=0.08, M_st_max=2.0, T_min=0., T_max=10., T_eff_split=4500., use_Gaia=True):
-    """ Reads temperatures and coordinates for high-mass stars from Gaia DR2. Simulates low-mass stars from a PDMF. 
-    Calculates all other stellar properties using the scaling relations of Pecaut+2013. """
+def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_max=10., T_eff_split=4500.):
+    """ Reads temperatures and coordinates for high-mass stars from Gaia DR2. Simulates low-mass stars from the
+    Chabrier+2003 PDMF.  Ages are drawn from a uniform distribution, by default from 0 - 10 Gyr. All other
+    stellar properties are calculated using the scaling relations of Pecaut+2013.
+    
+    Parameters
+    ----------
+    d : Table
+        An empty Table object.
+    d_max : float, optional
+        Maximum distance to which to simulate stars, in parsecs.
+    M_st_min : float, optional
+        Minimum stellar mass, in solar units.
+    M_st_max : float, optional
+        Maximum stellar mass, in solar units.
+    T_min : float, optional
+        Minimum stellar age, in Gyr.
+    T_max : float, optional
+        Maximum stellar age, in Gyr.
+    T_eff_split : float, optional
+        Effective temperature (in Kelvin) below which to simulate stars from a PDMF instead of using Gaia data.
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated stars.  
+    """
 
     # Create a stellar property conversion table from Pecaut+2013, sorted by ascending temperature
     # Note: the table from Pecaut+2013 was filtered down to A0V - L2V
@@ -91,11 +114,28 @@ def create_stars_Gaia(d, d_max=20, M_st_min=0.08, M_st_max=2.0, T_min=0., T_max=
 
     return d
 
-def read_stellar_catalog(d,filename='LUVOIR_targets.dat',T_min=0.,T_max=10.,d_max=30.,mult=1):
-    """ Reads a list of stellar properties from a target catalog and fills in missing values.
+def read_stellar_catalog(d, filename='LUVOIR_targets.dat', d_max=30., T_min=0., T_max=10., mult=1):
+    """ Reads a list of stellar properties from the LUVOIR target catalog and fills in missing values.
+
+    Parameters
+    ----------
+    d : Table
+        An empty Table object.
+    filename : str, optional
+        Filename containing the LUVOIR target catalog.
+    d_max : float, optional
+        Maximum distance to which to simulate stars, in parsecs.
+    T_min : float, optional
+        Minimum stellar age, in Gyr.
+    T_max : float, optional
+        Maximum stellar age, in Gyr.
+    mult : float, optional
+        Multiple on the total number of stars simulated. If > 1, duplicates some entries from the LUVOIR catalog.
     
-    The file should consist of space or tab-separated columns, and the first row of the file should be
-    a header listing the stellar property keywords, e.g.: "# M_st R_st T_eff"
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated stars.  
     """
     # Read the catalog with column names
     path = filename if os.path.exists(filename) else ROOT_DIR+'/'+filename
@@ -105,49 +145,65 @@ def read_stellar_catalog(d,filename='LUVOIR_targets.dat',T_min=0.,T_max=10.,d_ma
 
     # Missing values (TODO: this part is ironically incomplete)
     if 'd' not in d.keys():
-        d['d'] = np.cbrt(np.random.uniform(0,d_max**3,len(d)))
+        d['d'] = np.cbrt(np.random.uniform(0, d_max**3, len(d)))
     if 'x' not in d.keys():
-        cost,phi = np.random.uniform(-1,1,len(d)),np.random.uniform(0,2*np.pi,len(d))
+        cost,phi = np.random.uniform(-1, 1, len(d)), np.random.uniform(0, 2*np.pi, len(d))
         r = d['d']*np.sin(np.arccos(cost))
-        d['x'],d['y'],d['z'] = r*np.cos(phi),r*np.sin(phi),d['d']*cost
+        d['x'], d['y'], d['z'] = r*np.cos(phi), r*np.sin(phi), d['d']*cost
     if 'age' not in d.keys():
-        d['age'] = np.random.uniform(T_min,T_max,size=len(d))
+        d['age'] = np.random.uniform(T_min, T_max, size=len(d))
     if 'logL' not in d.keys(): 
         d['logL'] = np.log10(d['L_st'])
     if 'binary' not in d.keys():
-        d['binary'] = np.random.uniform(0,1,len(d))<0.5
+        d['binary'] = np.random.uniform(0, 1, len(d))<0.5
 
     # Enforce a maximum distance
     d = d[d['d']<d_max]
 
     # Assign stellar IDs and names
-    d['starID'] = np.arange(len(d),dtype=int)
-    d['star_name'] = np.char.array(np.full(len(d),'SIM-'))+np.char.array(np.arange(len(d)).astype(str))
-    d['simulated'] = np.zeros(len(d),dtype=bool)
+    d['starID'] = np.arange(len(d), dtype=int)
+    d['star_name'] = np.char.array(np.full(len(d), 'SIM-'))+np.char.array(np.arange(len(d)).astype(str))
+    d['simulated'] = np.zeros(len(d), dtype=bool)
 
     return d
 
-def compute_habitable_zone_boundaries_old(d):
-    """ Computes the Kopparapu+2014 habitable zone boundaries for each star, assuming an Earth-mass planet. """
-    # Coefficients from Kopparapu+2014, Table 1 for the runaway and maximum greenhouse boundaries of an Earth-mass planet
-    S_eff_sol = [1.107, 0.356]
-    a = [1.332e-4, 6.171e-5]
-    b = [1.58e-8, 1.698e-9]
-    c = [-8.308e-12, -3.198e-12]
-    d0 = [-1.931e-15, -5.575e-16]
-    S_eff_sol, a, b, c, d0 = np.array([S_eff_sol, a, b, c, d0])
-
-    # Compute the inner, outer boundaries in units of insolation and semi-major axis
-    T = (d['T_eff_st'] - 5780)[:, None]
-    d['S_inner'], d['S_outer'] = (S_eff_sol + a*T + b*T**2 + c*T**3 + d0*T**4).T
-    d['a_inner'], d['a_outer'] = (d['L_st']/d['S_inner'])**0.5, (d['L_st']/d['S_outer'])**0.5
-
-    return d
-
-def create_planets_SAG13(d, R_min=0.5, R_max=14.3, P_min=0.0027, P_max=10., normalize_SpT=True, eta_Earth=None,
-                         transit_mode=False, optimistic=False, optimistic_factor=10):
+def create_planets_SAG13(d, eta_Earth=0.075, R_min=0.5, R_max=14.3, P_min=0.01, P_max=10., normalize_SpT=True,
+                         transit_mode=False, optimistic=False, optimistic_factor=5):
     """ Generates planets with periods and radii according to SAG13 occurrence rate estimates, but incorporating
-    the dependence of occurrence rates on spectral type from Mulders+2015. """
+    the dependence of occurrence rates on spectral type from Mulders+2015.
+
+    Parameters
+    ----------
+    d : Table
+        Table containing simulated host stars.
+    eta_Earth : float, optional
+        The number of Earth-sized planets in the habitable zones of Sun-like stars. All occurrence
+        rates are uniformly scaled to produce this estimate.
+    R_min : float, optional
+        Minimum planet radius, in Earth units.
+    R_max : float, optional
+        Maximum planet radius, in Earth units.
+    P_min : float, optional
+        Minimum orbital period, in years.
+    P_max : float, optional
+        Maximum orbital period, in years.
+    normalize_SpT : bool, optional
+        If True, modulate occurrence rates by stellar mass according to Mulders+2015. Otherwise, assume no
+        dependency on stellar mass.
+    transit_mode : bool, optional
+        If True, only transiting planets are simulated. Occurrence rates are modified to reflect the R_*/a transit probability.
+    optimistic : bool, optional
+        If True, extrapolate the results of Mulders+2015 by assuming rocky planets are much more common around late-type M dwarfs. If False,
+        assume that occurrence rates plateau with stellar mass for stars cooler than ~M3.
+    optimistic_factor : float, optional
+        If optimistic = True, defines how many times more common rocky planets are around late-type M dwarfs compared to Sun-like stars.
+
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets. Replaces the input Table.
+    """
 
     # SAG13 power law parameters
     R_break = 3.4
@@ -219,125 +275,20 @@ def create_planets_SAG13(d, R_min=0.5, R_max=14.3, P_min=0.0027, P_max=10., norm
 
     return d
 
-def create_planets_EPOS(d,P_max=3652.5,sigma_R=0.1,similar_radii=False,Rmax=14.3,transit_mode=False):
-    """ Generates planetary systems following the multi-planet mode of EPOS (Mulders+2018). """
-
-    # Best fit parameters from Mulders+2018, Table 2
-    eta_s,m = 0.67,10           # Fraction of stars with planets, number of planets per typical system
-    P_in,aP,bP = 12,1.6,-0.9    # Broken power law for the inner planet period
-    R_break,aR,bR = 3.3,-0.5,-6 # Broken power law for the planet radius distribution
-    logD,sigma = -0.39,0.18     # Parameters of the period ratio distribution for the outer planets
-    delta_i,f_iso = 2.1,0.38    # Typical mutual inclination for multi-planet systems, fraction of systems with non-mutual orbits
-
-    # Scaling factors for semi-major axis and number of planets versus spectral type (Mulders+2015, Table 1 and Figure 4)
-    T_eff_0 = np.array([3050.,4450.,5600.,6750.])
-    f_N = 1/np.array([0.35,0.55,0.75,1.0])
-    f_a = 1/np.array([1.,1.4,1.2,1.0])
-
-    # SYSTEM PROPERTIES
-    # Determine the number of planets for each star based on T_eff, assuming G stars have m planets
-    N_pl_0 = m*f_N/f_N[2]
-    d['N_pl'] = np.round(np.interp(d['T_eff_st'],T_eff_0,N_pl_0),0).astype(int)
-    
-    # Determine which stars have no planets; these are discarded
-    d['N_pl'][np.random.uniform(0,1,len(d))>eta_s] = 0
-
-    # Determine which stars have coplanar systems and draw a random inclination for each system
-    d['coplanar'] = np.random.uniform(0,1,len(d))>f_iso
-    d['cos(i)_st'] = np.random.uniform(-1,1,len(d))
-
-    # Determine the period of the innermost planet in each system with planets
-    # and modify it according to the host star temperature (Mulders+2015)
-    d['P_in'] = power_law_broken(1/P_in, aP, bP, P_in, 0.5, P_max,size=len(d))
-    d['P_in'] *= np.interp(d['T_eff_st'],T_eff_0,f_a/f_a[1])**1.5
-
-    # Determine the typical radius for planets in each system, cutting off at 6 R_E
-    d['R_typical'] = power_law_broken(1/R_break, aR, bR, R_break, 0.5, Rmax, size=len(d))
-
-    # PLANET PROPERTIES
-    # For simplicity, assign the same number of planets to all stars w/ planets, and remove excess planets later
-    N_pl_max = int(d['N_pl'].max())
-    N0 = np.full(len(d),N_pl_max) 
-    N0[d['N_pl']==0] = 0
-    d = d[np.repeat(d['starID'],N0).astype(int)] # TODO: This line takes a while (2s)
-
-    # Determine each planet's order in the system
-    d['order'] = util.get_order(N0)
-
-    # Draw inclinations for planets in coplanar systems, assuming they are evenly distributed above and below the common plane
-    coplanar = d['coplanar']
-    i_st = np.arccos(d['cos(i)_st'])
-    # TODO: Check the mutual inclination distribution
-    # TODO: The next several lines take a while (2s)
-    d['cos(i)'] = np.cos(i_st)
-    d['cos(i)'][coplanar] = np.cos(i_st[coplanar] + \
-        stats.rayleigh.rvs(scale=delta_i*np.pi/180.,size=coplanar.sum())*np.random.choice([-1,1],size=coplanar.sum()))
-
-    # For non-coplanar systems, randomly draw inclinations for the planets
-    d['cos(i)'][~coplanar] = np.random.uniform(-1,1,size=(~coplanar).sum())
-
-    # Calculate the mutual inclinations in the range -pi/2 to pi/2
-    d_inc = np.arccos(d['cos(i)'])-i_st
-    d_inc[d_inc>np.pi/2.] -= np.pi
-    d_inc[d_inc<-np.pi/2.] += np.pi
-    d['d_inc'] = d_inc
-
-    # (Transit mode) Remove systems where none of the planets will transit, even if P = P_in
-    # TODO: This if-chunk takes a while (2s)
-    if transit_mode:
-        # Determine which transits are *possibly* transiting (i.e. b < 1 if P = P_in)
-        a_min = (d['M_st']*d['P_in']**2)**(1/3)
-        possible_tr_pl = np.abs(a_min*CONST['AU_to_solRad']*d['cos(i)']/d['R_st'])<1
-
-        # Determine which star systems have at least one possible transiting planet, and discard all others
-        starIDs = np.unique(d['starID'])
-        possible_tr_star = np.reshape(possible_tr_pl,(len(starIDs),N_pl_max)).sum(axis=1).astype(bool)
-        t2 = time()
-        d = d[np.in1d(d['starID'],starIDs[possible_tr_star])]
-    
-    # PERIOD
-    # Draw each planet's dimensionless spacing (Dk, Equation 11) and calculate the period ratio versus the previous planet R=P(k)/P(k-1)
-    Dk = np.exp(np.random.normal(logD,sigma,size=len(d)))
-    R = ((Dk+2)/(2-Dk))**1.5
-    
-    # Use a cumulative product to calculate each planet's period ratio to the *inner* planet, and thus its period
-    R[d['order']==0] = 1.
-    inner_ratio = np.cumprod(R.reshape(len(np.unique(d['starID'])),N_pl_max),axis=1).reshape(len(d))
-    d['P'] = inner_ratio*d['P_in']
-    d['Ratio'] = R
-
-    # Remove planets with long periods and planets which don't exist (i.e. order >= N_pl)
-    large = d['P'] > P_max
-    nonexist = d['order'] >= d['N_pl']
-    d = d[~(large|nonexist)]
-
-    # Re-compute the number of planets per star
-    starIDs,N_pl = np.unique(d['starID'],return_counts=True)
-    d['N_pl'] = np.interp(d['starID'],starIDs,N_pl).astype(int)
-    
-    # RADIUS
-    # Option 1: Draw planet radii with +- 10% values
-    if similar_radii:
-        Rtyp = d['R_typical']
-        d['R'] = np.random.normal(Rtyp,Rtyp*sigma_R,size=len(d))
-
-    # Option 2: Draw planet radii independently from the power law distribution
-    else:
-        d['R'] = power_law_broken(1/R_break,aR,bR,R_break,0.5,Rmax,size=len(d))
-
-    # Convert period to semi-major axis
-    d['a'] = ((d['M_st']*(d['P']/CONST['yr_to_day'])**2)**(1./3.))
-
-    # Compute the insolation
-    d['S'] = d['L_st']/d['a']**2
-
-    # Give remaining planets a unique identifier
-    d['planetID'] = np.arange(len(d)).astype(int)
-
-    return d
-
 def name_planets(d):
-    """ Assign a name to each star and each planet based on its order in the system. """
+    """ Assign a name to each star and each planet based on its order in the system.
+    
+    Parameters
+    ----------
+    d : Table
+        Table containing the sample of simulated planets.
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets.
+
+    """
     alph = np.char.array(list('bcdefghijklmnopqrstuvwxyz'*3))
     d['star_name'] = np.char.array('SIM-')+d['starID'].astype(str)
     d['planet_name'] = d['star_name'] + alph[d['order']]
@@ -346,6 +297,19 @@ def name_planets(d):
 def assign_orbital_elements(d, transit_mode=False):
     """ Draws values for any remaining Keplerian orbital elements. Eccentricities
     are drawn from a beta distribution following Kipping et al. (2013).
+
+    Parameters
+    ----------
+    d : Table
+        Table containing the sample of simulated planets.
+    transit_mode : bool, optional
+        If True, only transiting planets are simulated, so cos(i) < R_*/a for all planets.
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets.
+
     """
 
     for key in ['e','cos(i)','M0','w_LAN','w_AP']:
@@ -369,7 +333,21 @@ def assign_orbital_elements(d, transit_mode=False):
     return d
 
 def impact_parameter(d, transit_mode=False):
-    """ Calculates the impact parameter/transit duration and discards non-transiting planets if transit_mode == True. """
+    """ Calculates the impact parameter/transit duration.
+    
+    Parameters
+    ----------
+    d : Table
+        Table containing the sample of simulated planets.
+    transit_mode : bool, optional
+        If True, only transiting planets are simulated, so planets with b > 1 are discarded.
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets.
+    
+    """
     # Transit impact parameter (> 1 means not transiting)
     # TODO: currently only valid for circular orbits
     a = d['a']*CONST['AU_to_solRad']
@@ -391,6 +369,16 @@ def impact_parameter(d, transit_mode=False):
 def assign_mass(d):
     """ Determines planet masses using a probabilistic mass-radius relationship,
     following Wolfgang et al. (2016). Also calculates density and surface gravity.
+
+    Parameters
+    ----------
+    d : Table
+        Table containing the sample of simulated planets.
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets.
     """
     # Extract the radius of each planet
     R = d['R']
@@ -402,7 +390,7 @@ def assign_mass(d):
     mask3 = R<=0.8
     
     # Draw masses for larger planets, with a spread of 1.9 M_E, with a minimum of 0.01 M_E
-    M[mask1] = normal(2.7*R[mask1]**1.3,1.9,0.01,10000,mask1.sum())
+    M[mask1] = util.normal(2.7*R[mask1]**1.3,1.9,0.01,10000,mask1.sum())
     
     # Compute the maximum mass for each planet (Wolfgang 2016, Equation 5) where R > 0.2
     a,b,c = 0.0975,0.4938,0.7932
@@ -410,7 +398,7 @@ def assign_mass(d):
     
     # Draw masses for the small planets from a truncated normal distribution (minimum: 0.1 Earth density)
     mu = 1.4*R[mask2]**2.3
-    M[mask2] = normal(mu,0.3*mu,0.1*R[mask2]**3,M_max,mask2.sum())
+    M[mask2] = util.normal(mu,0.3*mu,0.1*R[mask2]**3,M_max,mask2.sum())
     
     # For planets smaller than R < 0.2, assume Earth density
     M[mask3] = R[mask3]**3
@@ -427,7 +415,19 @@ def assign_mass(d):
     return d
 
 def classify_planets(d):
-    """ Classifies planets by size and insolation following Kopparapu et al. (2018). """
+    """ Classifies planets by size and insolation following Kopparapu et al. (2018).
+    
+    Parameters
+    ----------
+    d : Table
+        Table containing the sample of simulated planets.
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets.
+    
+    """
     R,S = d['R'],d['S']
 
     class1 = np.full(len(d),'NONE',dtype='<U30')
@@ -472,6 +472,16 @@ def classify_planets(d):
 def compute_habitable_zone_boundaries(d):
     """ Computes the habitable zone boundaries from Kopparapu et al. (2014), including
     dependence on planet mass.
+
+    Parameters
+    ----------
+    d : Table
+        Table containing the sample of simulated planets.
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets.
     """
     L,T_eff = d['L_st'],d['T_eff_st']
     M_pl = d['M']
@@ -535,7 +545,19 @@ def compute_habitable_zone_boundaries(d):
 
 def scale_height(d):
     """ Computes the equilibrium temperature and isothermal scale height
-    by assigning a mean molecular weight based on size. """
+    by assigning a mean molecular weight based on size.
+    
+    Parameters
+    ----------
+    d : Table
+        Table containing the sample of simulated planets.
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets.
+
+    """
     # Assign the mean molecular weight based on planet size
     rocky = np.in1d(d['class2'], ['rocky', 'super-Earth'])
 
@@ -583,7 +605,22 @@ def scale_height(d):
     return d
 
 def geometric_albedo(d, A_g_min=0.1, A_g_max=0.7):
-    """ Assigns each planet a random geometric albedo from 0.1 -- 0.7, and computes the contrast ratio when viewed at quadrature. """
+    """ Assigns each planet a random geometric albedo from 0.1 -- 0.7, and computes the contrast ratio when viewed at quadrature.
+    
+    Parameters
+    ----------
+    d : Table
+        Table containing the sample of simulated planets.
+    A_g_min : float, optional
+        Minimum geometric albedo.
+    A_g_max : float, optional
+        Maximum geometric albedo.
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets.
+    """
     # Random albedo
     d['A_g'] = np.random.uniform(A_g_min, A_g_max, len(d))
 
@@ -593,7 +630,18 @@ def geometric_albedo(d, A_g_min=0.1, A_g_max=0.7):
     return d
 
 def effective_values(d):
-    """ Computes the "effective" radius and semi-major axis (i.e. assuming an Earth-like planet). """
+    """ Computes the "effective" radius and semi-major axis (i.e. assuming an Earth-like planet).
+    
+    Parameters
+    ----------
+    d : Table
+        Table containing the sample of simulated planets.
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets.
+    """
     # Effective semi-major axis = sma corresponding to the same insolation in the Solar System
     d['a_eff'] = d['a'] * d['L_st']**-0.5
 
@@ -602,91 +650,25 @@ def effective_values(d):
 
     return d
 
-def model_grid(d,model_name='age-oxygen-correlation'):
-    """ Applies a model grid to the sample. """
-    # Open the model grid
-    grid = pickle.load(open(MODELS_DIR+'/{:s}.pkl'.format(model_name),'rb'))
-    x,y,xkeys,ykeys,defaults,subset = grid['x'],grid['y'],grid['xkeys'],grid['ykeys'],grid['defaults'],grid['subset']
+def compute_transit_params(d):
+    """ Computes the transit depth of each planet.
 
-    # If output parameter uncertainties are specified, apply them; otherwise zeros
-    if 'sigma' in grid.keys():
-        sigma = grid['sigma']
-    else:
-        sigma = np.zeros(len(ykeys))
+    Parameters
+    ----------
+    d : Table
+        Table containing the sample of simulated planets.
 
-    # If output parameter bounds are specified, apply them; otherwise None
-    if 'bounds' in grid.keys():
-        bounds = grid['bounds']
-    else:
-        bounds = [(None,None)]*10
-
-    # Determine which planets belong in the defined subset
-    mask = util.mask_from_model_subset(d,subset)
-    
-    # Default values
-    for i in range(len(ykeys)):
-        d[ykeys[i]] = np.full(len(d),defaults[i])
-
-    # Grab the xkey values for the appropriate subset of planets
-    xi = np.swapaxes([d[xk][mask] for xk in xkeys],0,1)
-
-    # Interpolate onto the grid values
-    if len(x.shape) == 2:
-        points = x[:,0]
-    else:
-        points = x.reshape(-1,x.shape[-1])
-    if len(y.shape) == 2:
-        values = y[:,0]
-    else:
-        values = y.reshape(-1,y.shape[-1])
-    yi = scipy.interpolate.griddata(points,values,xi,fill_value=-12,method='linear')
-    for i in range(len(ykeys)):
-        if sigma[i] > 0.:
-            d[ykeys[i]][mask] = normal(yi[:,i],sigma[i],xmin=bounds[i][0],xmax=bounds[i][1],size=len(yi[:,i]))
-        else:
-            d[ykeys[i]][mask] = yi[:,i]
-
-    return d
-
-def create_atmosphere_from_template(d,template='Earth',subset='EEC'):
-    """ Creates planet atmospheres from a template. """
-    # If no planets have atmospheres yet, create blank atmospheres
-    if 'Atmosphere' not in d.keys():
-        atm = Atmosphere()
-        d['Atmosphere'] = [deepcopy(atm) for i in range(len(d))]
-
-    # Assign the template atmosphere to the subet of planets
-    atm = Atmosphere()
-    atm.load(template=template)
-    mask = d[subset]
-    d['Atmosphere'][mask] = [deepcopy(atm) for i in range(mask.sum())]
-
-    return d
-
-def compute_transit_params(d,albedo=0.3):
-    Rp,Rs = d['R']*CONST['R_Earth'],d['R_st']*CONST['R_Sun']
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets.
+    """
+    Rp, Rs = d['R']*CONST['R_Earth'], d['R_st']*CONST['R_Sun']
     d['depth'] = (Rp/Rs)**2
-    #d['atmosphere_depth'] = ((Rp+d['H']*100000)/Rs)**2-d['depth']
 
     return d
 
-def compute_separation_contrast(d,albedo=0.3):
-    """ Estimates the angular separation and log-contrast of each planet when observed at quadrature.
-    Also estimates the transit depth corresponding to one atmospheric scale height. """
-    # Compute the angular separation at quadrature (milli-arcseconds)
-    d['separation'] = d['a']/d['d'] * 1000
-
-    # Compute the planet-to-star contrast ratio, assuming some fixed geometric albedo
-    d['logcontrast'] = np.log10(albedo * (4.258756e-5*d['R']/d['a'])**2 / np.pi)
-
-    # Compute the transit depth of the planet AND of one atmosheric scale height
-    Rp,Rs = d['R']*CONST['R_Earth'],d['R_st']*CONST['R_Sun']
-    d['depth'] = (Rp/Rs)**2
-    #d['atmosphere_depth'] = ((Rp+d['H']*100000)/Rs)**2-d['depth']
-
-    return d
-
-def Example1_water(d,f_water_habitable=0.75,f_water_nonhabitable=0.1,minimum_size=True):
+def Example1_water(d, f_water_habitable=0.75, f_water_nonhabitable=0.1, minimum_size=True):
     """ Determines which planets have water, according to the following model:
 
     f(S,R)  = f_water_habitable     if S_inner < S < S_outer and 0.8 S^0.25 < R < 1.4
@@ -694,17 +676,24 @@ def Example1_water(d,f_water_habitable=0.75,f_water_nonhabitable=0.1,minimum_siz
     
     Parameters
     ----------
+    d : Table
+        Table containing the sample of simulated planets.
     f_water_habitable : float, optional
         Fraction of potentially habitable planets ("exo-Earth candidates") with atmospheric water vapor.
     f_water_nonhabitable : float, optional
         Fraction of non-habitable planets with atmospheric water vapor.
     minimum_size : bool, optional
         Whether or not to enforce a minimum size for non-habitable planets to have H2O atmospheres.
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets.
     """
     d['has_H2O'] = np.zeros(len(d),dtype=bool)
 
     # Non-habitable planets with atmospheres
-    m1 = d['R']>0.8*d['S']**0.25 if minimum_size else np.ones(len(d), dtype=bool)
+    m1 = d['R'] > 0.8*d['S']**0.25 if minimum_size else np.ones(len(d), dtype=bool)
     d['has_H2O'][m1] = np.random.uniform(0,1,size=m1.sum()) < f_water_nonhabitable
 
     # Potentially habitable planets
@@ -713,19 +702,26 @@ def Example1_water(d,f_water_habitable=0.75,f_water_nonhabitable=0.1,minimum_siz
 
     return d
 
-def Example2_oxygen(d,f_life=0.7,t_half=2.3):
+def Example2_oxygen(d, f_life=0.7, t_half=2.3):
     """ Applies the age-oxygen correlation from Example 2.
 
     Parameters
     ----------
+    d : Table
+        Table containing the sample of simulated planets.
     f_life : float, optional
         Fraction of EECs (Earth-sized planets in the habitable zone) with life.
     tau : float, optional
         Timescale of atmospheric oxygenation (in Gyr), i.e. the age by which 63% of inhabited planets have oxygen.
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets.
     """
     
     # Determine which planets have life
-    d['life'] = d['EEC'] & (np.random.uniform(0,1,len(d)) < f_life)
+    d['life'] = d['EEC'] & (np.random.uniform(0, 1, len(d)) < f_life)
     
     # Determine which planets have oxygenated atmospheres
     f_oxy = 1 - 0.5**(d['age']/t_half)

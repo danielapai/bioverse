@@ -1,0 +1,441 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>bioverse.gui module &mdash; Bioverse 1.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> Bioverse
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Overview</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../table.html">The <code class="xref py py-class docutils literal notranslate"><span class="pre">Table</span></code> class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module1.html">Simulated planetary systems</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module2.html">Simulated survey datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module3.html">Hypothesis testing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module4.html">Computing statistical power</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Notebooks/GettingStarted1.html">Tutorial 1: Generating planetary systems</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Notebooks/GettingStarted2.html">Tutorial 2: Simulating survey datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Notebooks/Example1.html">Example 1: Finding the habitable zone</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Notebooks/Example2.html">Example 2: Detecting the age-oxygen correlation</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Full Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.analysis.html">bioverse.analysis module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.classes.html">bioverse.classes module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.constants.html">bioverse.constants module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.custom.html">bioverse.custom module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.functions.html">bioverse.functions module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.generator.html">bioverse.generator module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.hypothesis.html">bioverse.hypothesis module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.plots.html">bioverse.plots module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.survey.html">bioverse.survey module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.util.html">bioverse.util module</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Bioverse</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>bioverse.gui module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/apidoc/bioverse.gui.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="module-bioverse.gui">
+<span id="bioverse-gui-module"></span><h1>bioverse.gui module<a class="headerlink" href="#module-bioverse.gui" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt id="bioverse.gui.mainGUI">
+<em class="property">class </em><code class="sig-prename descclassname">bioverse.gui.</code><code class="sig-name descname">mainGUI</code><a class="headerlink" href="#bioverse.gui.mainGUI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">PyQt5.QtWidgets.QMainWindow</span></code></p>
+<dl class="py method">
+<dt id="bioverse.gui.mainGUI.load_params">
+<code class="sig-name descname">load_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.mainGUI.load_params" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.gui.mainGUI.save_params">
+<code class="sig-name descname">save_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.mainGUI.save_params" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.gui.mainGUI.generate_universe">
+<code class="sig-name descname">generate_universe</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.mainGUI.generate_universe" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.gui.mainGUI.open_plotGUI">
+<code class="sig-name descname">open_plotGUI</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.mainGUI.open_plotGUI" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.gui.mainGUI.open_programGUI">
+<code class="sig-name descname">open_programGUI</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.mainGUI.open_programGUI" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.gui.mainGUI.print_legend">
+<code class="sig-name descname">print_legend</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.mainGUI.print_legend" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="bioverse.gui.programGUI">
+<em class="property">class </em><code class="sig-prename descclassname">bioverse.gui.</code><code class="sig-name descname">programGUI</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">parent</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.programGUI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">PyQt5.QtWidgets.QMainWindow</span></code></p>
+<dl class="py method">
+<dt id="bioverse.gui.programGUI.load_program">
+<code class="sig-name descname">load_program</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.programGUI.load_program" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.gui.programGUI.save_program">
+<code class="sig-name descname">save_program</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.programGUI.save_program" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.gui.programGUI.move_up">
+<code class="sig-name descname">move_up</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.programGUI.move_up" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.gui.programGUI.move_down">
+<code class="sig-name descname">move_down</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.programGUI.move_down" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.gui.programGUI.add_row">
+<code class="sig-name descname">add_row</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.programGUI.add_row" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.gui.programGUI.remove_row">
+<code class="sig-name descname">remove_row</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.programGUI.remove_row" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.gui.programGUI.load_program_table">
+<code class="sig-name descname">load_program_table</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">g</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.programGUI.load_program_table" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.gui.programGUI.load_arguments_table">
+<code class="sig-name descname">load_arguments_table</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.programGUI.load_arguments_table" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="bioverse.gui.plotGUI">
+<em class="property">class </em><code class="sig-prename descclassname">bioverse.gui.</code><code class="sig-name descname">plotGUI</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">parent</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.plotGUI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">PyQt5.QtWidgets.QMainWindow</span></code></p>
+</dd></dl>
+
+<dl class="py class">
+<dt id="bioverse.gui.parametersTable">
+<em class="property">class </em><code class="sig-prename descclassname">bioverse.gui.</code><code class="sig-name descname">parametersTable</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">table</span></em>, <em class="sig-param"><span class="n">p</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">console</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">parent</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">ncol</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.parametersTable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt id="bioverse.gui.parametersTable.set_values">
+<code class="sig-name descname">set_values</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.parametersTable.set_values" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.gui.parametersTable.cell_changed">
+<code class="sig-name descname">cell_changed</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.parametersTable.cell_changed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.gui.parametersTable.load_params">
+<code class="sig-name descname">load_params</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">filename</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.parametersTable.load_params" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt id="bioverse.gui.parametersTable.save_params">
+<code class="sig-name descname">save_params</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">filename</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.parametersTable.save_params" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="bioverse.gui.Console">
+<em class="property">class </em><code class="sig-prename descclassname">bioverse.gui.</code><code class="sig-name descname">Console</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">widget</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.Console" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt id="bioverse.gui.Console.write">
+<code class="sig-name descname">write</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">text</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.Console.write" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.gui.start_GUI">
+<code class="sig-prename descclassname">bioverse.gui.</code><code class="sig-name descname">start_GUI</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">exec</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.gui.start_GUI" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Alex Bixel.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+    
+
+  <style>
+  
+    /* Sidebar header (and topbar for mobile) */
+    .wy-side-nav-search {
+    display: block;
+    width: 300px;
+    padding: .809em;
+    margin-bottom: .809em;
+    z-index: 200;
+    background-color: #0b750a;
+    text-align: center;
+    color: #fcfcfc;
+    }
+    .wy-nav-top {
+      background: #0b750a;
+    }
+    
+    .wy-menu-vertical header, .wy-menu-vertical p.caption {
+    color: #0b750a;
+    line-height: 32px;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 85%;
+    white-space: nowrap;
+}
+
+html.writer-html4 .rst-content dl:not(.docutils) > dt, html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.glossary):not(.simple) > dt {
+    display: table;
+    margin: 6px 0;
+        margin-top: 6px;
+    font-size: 90%;
+    line-height: normal;
+    background: #edffed;
+    color: #0b750a;
+    border-top: 3px solid #0b750a;
+    padding: 6px;
+    position: relative;
+}
+
+  a {
+    color: #0b750a;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.wy-table-responsive table td, .wy-table-responsive table th {
+    white-space: normal;
+}
+
+  </style>
+  
+  
+  
+
+
+</body>
+</html>

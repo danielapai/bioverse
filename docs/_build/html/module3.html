@@ -1,0 +1,415 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>Hypothesis testing &mdash; Bioverse 1.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Computing statistical power" href="module4.html" />
+    <link rel="prev" title="Simulated survey datasets" href="module2.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Bioverse
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Overview</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="table.html">The <code class="xref py py-class docutils literal notranslate"><span class="pre">Table</span></code> class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="module1.html">Simulated planetary systems</a></li>
+<li class="toctree-l1"><a class="reference internal" href="module2.html">Simulated survey datasets</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Hypothesis testing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#the-hypothesis-class">The <code class="xref py py-class docutils literal notranslate"><span class="pre">Hypothesis</span></code> class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-null-hypothesis">The null hypothesis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#testing-the-hypothesis">Testing the hypothesis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#likelihood-functions">Likelihood functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#prior-distributions">Prior distributions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#posterior-distributions">Posterior distributions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="module4.html">Computing statistical power</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Notebooks/GettingStarted1.html">Tutorial 1: Generating planetary systems</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Notebooks/GettingStarted2.html">Tutorial 2: Simulating survey datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Notebooks/Example1.html">Example 1: Finding the habitable zone</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Notebooks/Example2.html">Example 2: Detecting the age-oxygen correlation</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Full Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apidoc/bioverse.analysis.html">bioverse.analysis module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apidoc/bioverse.classes.html">bioverse.classes module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apidoc/bioverse.constants.html">bioverse.constants module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apidoc/bioverse.custom.html">bioverse.custom module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apidoc/bioverse.functions.html">bioverse.functions module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apidoc/bioverse.generator.html">bioverse.generator module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apidoc/bioverse.hypothesis.html">bioverse.hypothesis module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apidoc/bioverse.plots.html">bioverse.plots module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apidoc/bioverse.survey.html">bioverse.survey module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apidoc/bioverse.util.html">bioverse.util module</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Bioverse</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Hypothesis testing</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/module3.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="hypothesis-testing">
+<h1>Hypothesis testing<a class="headerlink" href="#hypothesis-testing" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="the-hypothesis-class">
+<h2>The <a class="reference internal" href="apidoc/bioverse.hypothesis.html#bioverse.hypothesis.Hypothesis" title="bioverse.hypothesis.Hypothesis"><code class="xref py py-class docutils literal notranslate"><span class="pre">Hypothesis</span></code></a> class<a class="headerlink" href="#the-hypothesis-class" title="Permalink to this headline">¶</a></h2>
+<p>The combined result of the first two modules is a simulated dataset representing the output of the exoplanet survey. The third module addresses the power of that dataset for testing statistical hypotheses. The first step in this exercise involves defining the hypotheses you want to test, and in <code class="docutils literal notranslate"><span class="pre">Bioverse</span></code> this is done via a <a class="reference internal" href="apidoc/bioverse.hypothesis.html#bioverse.hypothesis.Hypothesis" title="bioverse.hypothesis.Hypothesis"><code class="xref py py-class docutils literal notranslate"><span class="pre">Hypothesis</span></code></a> object. This object includes:</p>
+<ul class="simple">
+<li><p>a set of dependent variable(s) <code class="docutils literal notranslate"><span class="pre">X</span></code>, called features</p></li>
+<li><p>a set of independent variable(s) <code class="docutils literal notranslate"><span class="pre">Y</span></code>, called labels</p></li>
+<li><p>a set of parameters <code class="docutils literal notranslate"><span class="pre">theta</span></code></p></li>
+<li><p>a Python function describing the quantitative relationship between <code class="docutils literal notranslate"><span class="pre">X</span></code> and <code class="docutils literal notranslate"><span class="pre">Y</span></code> in terms of <code class="docutils literal notranslate"><span class="pre">theta</span></code></p></li>
+<li><p>the prior distribution of values of <code class="docutils literal notranslate"><span class="pre">theta</span></code></p></li>
+<li><p>an alternative (or null) hypothesis against which to test</p></li>
+</ul>
+<p>For example, consider the hypothesis that planet mass and radius can be related by a simple power law: <span class="math notranslate nohighlight">\(M(R|M_0, \alpha) = M_0 R^{\alpha}\)</span>. In this case, X = R, Y = M, and theta = (M_0, alpha).</p>
+<p>The first step in defining this hypothesis is to write out the function <code class="docutils literal notranslate"><span class="pre">Y</span> <span class="pre">=</span> <span class="pre">f(X</span> <span class="pre">|</span> <span class="pre">theta)</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">theta</span><span class="p">:(</span><span class="s1">&#39;M_0&#39;</span><span class="p">,</span> <span class="s1">&#39;alpha&#39;</span><span class="p">),</span> <span class="n">X</span><span class="p">:(</span><span class="s1">&#39;R&#39;</span><span class="p">,))</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="s1">&#39;M&#39;</span><span class="p">,):</span>
+    <span class="n">M_0</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">=</span> <span class="n">theta</span>
+    <span class="n">R</span><span class="p">,</span> <span class="o">=</span> <span class="n">X</span>
+    <span class="k">return</span> <span class="n">M_0</span> <span class="o">*</span> <span class="n">R</span> <span class="o">**</span> <span class="n">alpha</span>
+</pre></div>
+</div>
+<p>The function annotations tell the code the number and names of the parameters and variables being related. In this case, planet radius (<code class="docutils literal notranslate"><span class="pre">R</span></code>) and mass (<code class="docutils literal notranslate"><span class="pre">M</span></code>) will be extracted from the simulated dataset as the features and labels.</p>
+<p>We must define the bounds on values for M_0 and alpha - conservative constraints might be 0.1 &lt; M_0 &lt; 10 and 2 &lt; alpha &lt; 5. We will also choose a log-uniform distribution for M_0, as its bounds span a few orders of magnitude.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">bounds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">0.1</span><span class="p">,</span> <span class="mi">10</span><span class="p">],</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">]])</span>
+<span class="n">log</span> <span class="o">=</span> <span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Next, we can initialize the Hypothesis:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">bio.hypothesis</span> <span class="kn">import</span> <span class="n">Hypothesis</span>
+<span class="n">h_mass_radius</span> <span class="o">=</span> <span class="n">Hypothesis</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">bounds</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="n">log</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="the-null-hypothesis">
+<h2>The null hypothesis<a class="headerlink" href="#the-null-hypothesis" title="Permalink to this headline">¶</a></h2>
+<p>In order to test the evidence in favor of <code class="docutils literal notranslate"><span class="pre">h_mass_radius</span></code>, we must define an alternative (or “null”) hypothesis. In this case, the hypothesis states that planetary mass is independent of radius, and ranges from 0.01 and 100 M_Earth:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">f_null</span><span class="p">(</span><span class="n">theta</span><span class="p">:(</span><span class="s1">&#39;M_random&#39;</span><span class="p">,),</span> <span class="n">X</span><span class="p">:(</span><span class="s1">&#39;R&#39;</span><span class="p">,))</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="s1">&#39;M&#39;</span><span class="p">,):</span>
+     <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">X</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
+     <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">theta</span><span class="p">)</span>
+
+<span class="n">bounds_null</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">0.01</span><span class="p">,</span> <span class="mi">100</span><span class="p">]])</span>
+<span class="n">h_mass_radius</span><span class="o">.</span><span class="n">h_null</span> <span class="o">=</span> <span class="n">Hypothesis</span><span class="p">(</span><span class="n">f_null</span><span class="p">,</span> <span class="n">bounds</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="p">(</span><span class="kc">True</span><span class="p">,))</span>
+</pre></div>
+</div>
+<p>Note that <a class="reference internal" href="apidoc/bioverse.hypothesis.html#bioverse.hypothesis.f_null" title="bioverse.hypothesis.f_null"><code class="xref py py-func docutils literal notranslate"><span class="pre">f_null()</span></code></a> (defined in the <a class="reference internal" href="apidoc/bioverse.hypothesis.html#module-bioverse.hypothesis" title="bioverse.hypothesis"><code class="xref py py-mod docutils literal notranslate"><span class="pre">hypothesis</span></code></a> module) provides the same function as above for an arbitrary number of parameters, features, and labels.</p>
+</div>
+<div class="section" id="testing-the-hypothesis">
+<h2>Testing the hypothesis<a class="headerlink" href="#testing-the-hypothesis" title="Permalink to this headline">¶</a></h2>
+<p>Next, we can test <code class="docutils literal notranslate"><span class="pre">h_mass_radius</span></code> using a dataset from the previous examples:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">h_mass_radius</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The <a class="reference internal" href="apidoc/bioverse.hypothesis.html#bioverse.hypothesis.Hypothesis.fit" title="bioverse.hypothesis.Hypothesis.fit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">fit()</span></code></a> method will pull the measured values of ‘R’ and ‘M’ and test them using one or more of the following methods (set by the <cite>method</cite> keyword):</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">method</span> <span class="pre">=</span> <span class="pre">dynesty</span></code> (default) Uses nested sampling to sample the parameter space of <code class="docutils literal notranslate"><span class="pre">theta</span></code> and compute the Bayesian evidence for both the Hypothesis and the null hypothesis. Implemented by <code class="docutils literal notranslate"><span class="pre">dynesty</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">method</span> <span class="pre">=</span> <span class="pre">emcee</span></code> Uses Markov Chain Monte Carlo to sample the parameter space of <code class="docutils literal notranslate"><span class="pre">theta</span></code>. Implemented by <code class="docutils literal notranslate"><span class="pre">emcee</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">method</span> <span class="pre">=</span> <span class="pre">mannwhitney</span></code> Assuming <code class="docutils literal notranslate"><span class="pre">X</span></code> to be a single continuous variable and <code class="docutils literal notranslate"><span class="pre">Y</span></code> a single boolean, reports the probability that <code class="docutils literal notranslate"><span class="pre">X[Y]</span></code> and <code class="docutils literal notranslate"><span class="pre">X[~Y]</span></code> are drawn from the same parent distribution. Implemented by <code class="docutils literal notranslate"><span class="pre">scipy</span></code>.</p></li>
+</ul>
+<p>By default, nested sampling is used to estimate the Bayesian evidence in favor of the Hypothesis in comparison to the null hypothesis.</p>
+</div>
+<div class="section" id="likelihood-functions">
+<h2>Likelihood functions<a class="headerlink" href="#likelihood-functions" title="Permalink to this headline">¶</a></h2>
+<p>Both <code class="docutils literal notranslate"><span class="pre">dynesty</span></code> and <code class="docutils literal notranslate"><span class="pre">emcee</span></code> require a Bayesian likelihood function to be defined. The likelihood function is proportional to the probability that <cite>Y</cite> would be drawn given <cite>X</cite> and a set of values for <cite>theta</cite>. Currently, two likelihood functions are supported:</p>
+<ul>
+<li><p>binomial: If <cite>Y</cite> is a single boolean parameter (e.g., ‘has_H2O’) then <code class="docutils literal notranslate"><span class="pre">f</span></code> is interpreted as the likelihood that <code class="docutils literal notranslate"><span class="pre">Y</span> <span class="pre">==</span> <span class="pre">1</span></code> given <code class="docutils literal notranslate"><span class="pre">X</span></code>. In this case the likelihood function is:</p>
+<blockquote>
+<div><p><span class="math notranslate nohighlight">\(\ln\mathcal{L} = \sum_i \ln \left( Y_i f(X|\theta) + (1-Y_i)f(X|\theta) \right)\)</span></p>
+</div></blockquote>
+</li>
+<li><p>multivariate: If <cite>Y</cite> is one or more continuous variables then <code class="docutils literal notranslate"><span class="pre">f</span></code> is interpreted as the expectation values of <code class="docutils literal notranslate"><span class="pre">Y</span></code> given <code class="docutils literal notranslate"><span class="pre">X</span></code>. In this case the likelihood function is the multivariate Gaussian:</p>
+<blockquote>
+<div><p><span class="math notranslate nohighlight">\(\ln\mathcal{L} = \sum_i \left[ -(Y_i-f(X|\theta))^2/(2\sigma_i^2) \right]\)</span></p>
+</div></blockquote>
+</li>
+</ul>
+</div>
+<div class="section" id="prior-distributions">
+<h2>Prior distributions<a class="headerlink" href="#prior-distributions" title="Permalink to this headline">¶</a></h2>
+<p>The prior distributions of the parameters <code class="docutils literal notranslate"><span class="pre">theta</span></code> can be set to either uniform or log-uniform functions <em>or</em> defined by the user. For uniform and log-uniform, only the boundaries of these distributions must be given:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># For theta = (M_0, alpha)</span>
+<span class="n">bounds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">0.1</span><span class="p">,</span> <span class="mi">10</span><span class="p">],</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">]])</span>
+
+<span class="c1"># Log-uniform distribution for M_0, uniform distribution for alpha</span>
+<span class="n">h_mass_radius</span> <span class="o">=</span> <span class="n">Hypothesis</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">bounds</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>User-defined priors: TODO</p>
+</div>
+<div class="section" id="posterior-distributions">
+<h2>Posterior distributions<a class="headerlink" href="#posterior-distributions" title="Permalink to this headline">¶</a></h2>
+<p>When using <code class="docutils literal notranslate"><span class="pre">dynesty</span></code> or <code class="docutils literal notranslate"><span class="pre">emcee</span></code>, the <code class="docutils literal notranslate"><span class="pre">results</span></code> object will contain summary statistics of the posterior distributions for the values of <code class="docutils literal notranslate"><span class="pre">theta</span></code>, including the mean, median, and lower and upper 95% confidence intervals. Alternatively, by passing <code class="docutils literal notranslate"><span class="pre">return_chains</span> <span class="pre">=</span> <span class="pre">True</span></code> to the <code class="docutils literal notranslate"><span class="pre">fit()</span></code> method, the entire chain of sampled values will be return. Given enough time, the distribution of these values will converge onto the posterior distribution. In general, <code class="docutils literal notranslate"><span class="pre">emcee</span></code> converges much more efficiently and should be used to estimate (for example) the precision with which model parameters can be constrained.</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="module4.html" class="btn btn-neutral float-right" title="Computing statistical power" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="module2.html" class="btn btn-neutral float-left" title="Simulated survey datasets" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Alex Bixel.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+    
+
+  <style>
+  
+    /* Sidebar header (and topbar for mobile) */
+    .wy-side-nav-search {
+    display: block;
+    width: 300px;
+    padding: .809em;
+    margin-bottom: .809em;
+    z-index: 200;
+    background-color: #0b750a;
+    text-align: center;
+    color: #fcfcfc;
+    }
+    .wy-nav-top {
+      background: #0b750a;
+    }
+    
+    .wy-menu-vertical header, .wy-menu-vertical p.caption {
+    color: #0b750a;
+    line-height: 32px;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 85%;
+    white-space: nowrap;
+}
+
+html.writer-html4 .rst-content dl:not(.docutils) > dt, html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.glossary):not(.simple) > dt {
+    display: table;
+    margin: 6px 0;
+        margin-top: 6px;
+    font-size: 90%;
+    line-height: normal;
+    background: #edffed;
+    color: #0b750a;
+    border-top: 3px solid #0b750a;
+    padding: 6px;
+    position: relative;
+}
+
+  a {
+    color: #0b750a;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.wy-table-responsive table td, .wy-table-responsive table th {
+    white-space: normal;
+}
+
+  </style>
+  
+  
+  
+
+
+</body>
+</html>

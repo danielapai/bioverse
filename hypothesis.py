@@ -1,13 +1,17 @@
+""" Defines the Hypothesis class as well as two hypotheses used in Bixel & Apai (2021). """
+
 import dynesty
 import emcee
 import numpy as np
-from classes import Stopwatch
 from scipy.stats import mannwhitneyu
 
-class Hypothesis():
-    """ Describes a Bayesian hypothesis. The hypothesis `h` should be defined with the following annotations:
+# Bioverse modules
+from util import is_bool
 
-    def h(theta:params, X:features) -> labels
+class Hypothesis():
+    """ Describes a Bayesian hypothesis. The hypothesis function `f` should be defined with the following annotations:
+
+    def f(theta:params, X:features) -> labels
  
     where `params`, `features`, and `labels` are tuples naming the parameters, independent, and dependent variables.
     An example:
@@ -16,7 +20,7 @@ class Hypothesis():
     
     Parameters
     ----------
-    h : function
+    f : function
         Function describing the hypothesis. Must be annotated as described above.
     bounds : array
         Nx2 array describing the [min, max] limits of each parameter. These are enforced even if a different prior
@@ -33,14 +37,15 @@ class Hypothesis():
     log : bool array, optional
         Array of length N specifying which parameters should be sampled by a log-uniform distribution.
     """
-    def __init__(self, h, bounds, prior_function=None, guess_function=None, tfprior_function=None, log=None, h_null=None):
-        self.h, self.bounds = h, np.array(bounds)
+    def __init__(self, f, bounds, prior_function=None, guess_function=None, tfprior_function=None, log=None, h_null=None):
+        self.f, self.bounds = f, np.array(bounds)
         self.prior_function, self.guess_function, self.tfprior_function = prior_function, guess_function, tfprior_function
         self.log = np.zeros(len(self.bounds), dtype=bool) if log is None else np.array(log)
         self.h_null = h_null
+        self.lnlike = None
 
         # Save the parameter, feature, and label names
-        ann = self.h.__annotations__.copy()
+        ann = self.f.__annotations__.copy()
         keys = list(ann.keys())
         for key, val in ann.items():
             if isinstance(val, str):
@@ -49,8 +54,8 @@ class Hypothesis():
         self.nparams, self.nfeatures, self.nlabels = len(self.params), len(self.features), len(self.labels)
     
     def __call__(self, *args, **kwargs):
-        """ Returns h(theta, x). Alias for self.h. """
-        return self.h(*args, **kwargs)
+        """ Returns h(theta, x). Alias for self.f. """
+        return self.f(*args, **kwargs)
 
     def guess_uniform(self, n, bounds):
         """ Default guess function. Guesses uniformly within self.bounds. """
@@ -104,10 +109,18 @@ class Hypothesis():
 
         return theta
 
-    def lnlike(self, theta, x, y):
-        """ Likelihood function L(y | x, theta). """
-        yh = self.h(theta, x)
+    def lnlike_binary(self, theta, x, y):
+        """ Likelihood function L(y | x, theta) if y is binary. """
+        yh = self.f(theta, x)
         terms = np.log(y*yh + (1-y)*(1-yh))
+        return np.sum(terms) 
+
+    def lnlike_multivariate(self, theta, x, y):
+        """ Likelihood function L(y | x, theta) if y is continuous. """
+        # WIP: Assume 10% std dev on Y
+        std = 0.1*np.median(y, axis=0)
+        yh = self.f(theta, x)
+        terms = -(y-yh)**2 / (2*std**2)
         return np.sum(terms)
 
     def lnprob(self, theta, x, y):
@@ -203,6 +216,15 @@ class Hypothesis():
         # Extract the features and labels from the simulated data set
         X, Y = self.get_XY(data)
 
+        # Determine which likelihood function to use
+        if Y.shape[1] == 1 and is_bool(Y):
+            self.lnlike = self.lnlike_binary
+            self.h_null.lnlike = self.h_null.lnlike_binary
+        else:
+            print("using multivariate")
+            self.lnlike = self.lnlike_multivariate
+            self.h_null.lnlike = self.h_null.lnlike_multivariate
+
         # One test method or multiple?
         results = {}
         if np.ndim(method) == 0:
@@ -248,92 +270,35 @@ class Hypothesis():
 
         return results
 
-# # HABITABLE ZONE HYPOTHESIS (4-parameter)
-# # h(x) = f_HZ        if a_inner < a_eff < a_outer
-# #      = f_notHZ     otherwise
-# def h_HZ_func(theta:('a_inner', 'a_outer', 'f_HZ', 'f_notHZ'), X:('a_eff',)) -> ('has_H2O',):
-#     a_inner, a_outer, f_HZ, f_notHZ = theta
-#     in_HZ = (X > a_inner) & (X < a_outer)
-#     return in_HZ * f_HZ + (~in_HZ) * f_notHZ
-
-# # Prior function for emcee
-# def prior_HZ(theta):
-#     # Requires that a_inner < a_outer and f_HZ > f_notHZ
-#     #a_inner, a_outer, f_HZ, f_notHZ = theta
-#     #valid = ((a_inner < a_outer) & (f_HZ > f_notHZ))
-#     #return 0 if valid else -np.inf
-#     return 0
-
-# # Prior transform for dynesty
-# def tfprior_HZ(u):
-#     theta = np.copy(u)
-
-#     # a_inner: log-uniform
-#     # u[~log] * np.ptp(bnd, axis=1) + np.amin(bnd, axis=1)
-#     bnd = np.log10(bounds_HZ[0])
-#     theta[0] = 10**(u[0] * np.ptp(bnd) + np.amin(bnd))
-
-#     # a_outer: log-uniform, but a_outer > a_inner
-#     mn = max(theta[0], bounds_HZ[1, 0])
-#     bnd = np.log10([mn, bounds_HZ[1, 1]])
-#     theta[1] = 10**(u[1] * np.ptp(bnd) + np.amin(bnd))
-    
-#     # f_HZ: uniform
-#     bnd = bounds_HZ[2]
-#     theta[2] = u[2] * np.ptp(bnd) + np.amin(bnd)
-    
-#     # f_notHZ: uniform, but f_notHZ < f_HZ
-#     mx = min(theta[2], bounds_HZ[3, 1])
-#     bnd = [bounds_HZ[3, 0], mx]
-#     theta[3] = u[3] * np.ptp(bnd) + np.amin(bnd)
-
-#     return theta
-
-# def guess_HZ(n, bounds):
-#     # Initializes the walkers near the optimum
-#     center = np.array([0.2, 3.5, 0.3, 0.2])
-#     guess = np.random.normal(center, scale=[0.05,0.05,0.05,0.05], size=(n, len(bounds)))
-#     guess[guess[:,0]>=guess[:,1],0] = guess[guess[:,0]>=guess[:,1],1] - 0.03
-#     guess[guess[:,3]>=guess[:,2],3] = guess[guess[:,3]>=guess[:,2],2] - 0.001
-#     return guess
-
-# bounds_HZ = np.array([[0.1, 2], [1, 10], [0., 1.0], [0., 1.0]])
-# h_HZ_old = Hypothesis(h_HZ_func, bounds_HZ, prior_HZ, guess_HZ, tfprior_HZ, log=(True, True, False, False))
-
 # NULL HYPOTHESIS
-# h(x) = f_null
-# This one has a special definition; it can accept any number of features and parameters, and returns
-# a constant value for each output label.
-def h_null_func(theta:(), X:()) -> ():
+# Returns (theta1, theta2, ...) for each element in X
+def f_null(theta:(), X:()) -> ():
     shape = (np.shape(X)[0], np.shape(theta)[0])
     return np.full(shape, theta)
 
-bounds_null = np.array([[0, 1]])
-bounds_null_log = np.array([[0.001, 1]])
-
-h_null = Hypothesis(h_null_func, bounds_null)
-h_null_log = Hypothesis(h_null_func, bounds_null_log, log=(True,))
-
 # HABITABLE ZONE HYPOTHESIS (4-parameter, alternative)
-def h_HZ_func_2(theta:('a_inner', 'delta_a', 'f_HZ', 'df_notHZ'), X:('a_eff',)) -> ('has_H2O',):
+def f_HZ(theta:('a_inner', 'delta_a', 'f_HZ', 'df_notHZ'), X:('a_eff',)) -> ('has_H2O',):
     a_inner, delta_a, f_HZ, df_notHZ = theta
     in_HZ = (X > a_inner) & (X < (a_inner + delta_a))
     return in_HZ * f_HZ + (~in_HZ) * f_HZ*df_notHZ
-
-def prior_HZ(theta):
-    f_HZ, f_notHZ = theta[2:]
-    return 0 if f_HZ>=f_notHZ else -np.inf
-
 bounds_HZ = np.array([[0.1, 2], [0.01, 10], [0.001, 1.0], [0.001, 1.0]])
-h_HZ = Hypothesis(h_HZ_func_2, bounds_HZ, log=(True, True, True, True), h_null=h_null_log)
+
+# Null hypothesis: log-uniform from 0.001 to 1
+bounds_HZ_null = np.array([[0.001, 1.0]]) 
+h_HZ_null = Hypothesis(f_null, bounds_HZ_null, log=(True,))
+
+h_HZ = Hypothesis(f_HZ, bounds_HZ, log=(True, True, True, True), h_null=h_HZ_null)
 
 # AGE-OXYGEN CORRELATION HYPOTHESIS (2-parameter)
-# h(x) = f_life * (1 - exp(-x/tau))
-def h_age_oxygen_func(theta:('f_life', 't_half'), X:('age',)) -> ('has_O2',):
+# f(x) = f_life * (1 - exp(-x/tau))
+def f_age_oxygen(theta:('f_life', 't_half'), X:('age',)) -> ('has_O2',):
     f_life, t_half = theta
     return f_life * (1 - 0.5**(X/t_half))
-
 bounds_age_oxygen = np.array([[0.01, 1], [0.1, 100]])
 
-h_age_oxygen = Hypothesis(h_age_oxygen_func, bounds_age_oxygen, log=(True, True), h_null=h_null_log)
+# Null hypothesis: log-uniform from 0.001 to 1
+bounds_age_oxygen_null = np.array([[0.001, 1.0]])
+h_age_oxygen_null = Hypothesis(f_null, bounds_age_oxygen_null, log=(True,))
+
+h_age_oxygen = Hypothesis(f_age_oxygen, bounds_age_oxygen, log=(True, True), h_null=h_age_oxygen_null)
 

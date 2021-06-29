@@ -1,0 +1,506 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>bioverse.plots module &mdash; Bioverse 1.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="bioverse.survey module" href="bioverse.survey.html" />
+    <link rel="prev" title="bioverse.hypothesis module" href="bioverse.hypothesis.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> Bioverse
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Overview</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../table.html">The <code class="xref py py-class docutils literal notranslate"><span class="pre">Table</span></code> class</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module1.html">Simulated planetary systems</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module2.html">Simulated survey datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module3.html">Hypothesis testing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module4.html">Computing statistical power</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../Notebooks/GettingStarted1.html">Tutorial 1: Generating planetary systems</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Notebooks/GettingStarted2.html">Tutorial 2: Simulating survey datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Notebooks/Example1.html">Example 1: Finding the habitable zone</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Notebooks/Example2.html">Example 2: Detecting the age-oxygen correlation</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Full Documentation</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="bioverse.analysis.html">bioverse.analysis module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.classes.html">bioverse.classes module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.constants.html">bioverse.constants module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.custom.html">bioverse.custom module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.functions.html">bioverse.functions module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.generator.html">bioverse.generator module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.hypothesis.html">bioverse.hypothesis module</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">bioverse.plots module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.survey.html">bioverse.survey module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bioverse.util.html">bioverse.util module</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Bioverse</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>bioverse.plots module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/apidoc/bioverse.plots.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="module-bioverse.plots">
+<span id="bioverse-plots-module"></span><h1>bioverse.plots module<a class="headerlink" href="#module-bioverse.plots" title="Permalink to this headline">¶</a></h1>
+<dl class="py function">
+<dt id="bioverse.plots.plot">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">plot</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">d</span></em>, <em class="sig-param"><span class="n">starID</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">order</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">fig</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">canvas</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.plot" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.plot_universe">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">plot_universe</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">d</span></em>, <em class="sig-param"><span class="n">N_max</span><span class="o">=</span><span class="default_value">100</span></em>, <em class="sig-param"><span class="n">ax</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">mark</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.plot_universe" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.plot_system">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">plot_system</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">d</span></em>, <em class="sig-param"><span class="n">starID</span></em>, <em class="sig-param"><span class="n">ax</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">mark</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.plot_system" title="Permalink to this definition">¶</a></dt>
+<dd><p>Scatter plot for a single system with one or more planets.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>d</strong> (<a class="reference internal" href="bioverse.classes.html#bioverse.classes.Table" title="bioverse.classes.Table"><em>Table</em></a>) – Table of simulated planets.</p></li>
+<li><p><strong>starID</strong> (<em>int</em>) – Unique identifier of this system in the table (d[‘starID’]).</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em><em>, </em><em>optional</em>) – Matplotlib Axes to plot the figure on. If not given, a new figure is created.</p></li>
+<li><p><strong>mark</strong> (<em>int</em><em>, </em><em>optional</em>) – Indicates which planet to circle (if any).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.plot_spectrum">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">plot_spectrum</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span></em>, <em class="sig-param"><span class="n">y</span></em>, <em class="sig-param"><span class="n">dy</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">xunit</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">yunit</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">lw</span><span class="o">=</span><span class="default_value">2</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.plot_spectrum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots a spectrum with or without errorbars.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.occurrence_by_class">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">occurrence_by_class</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">d</span></em>, <em class="sig-param"><span class="n">compare</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.occurrence_by_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots the number of planets per star as a function of size and insolation.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.plot_binned_average">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">plot_binned_average</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">d</span></em>, <em class="sig-param"><span class="n">key1</span></em>, <em class="sig-param"><span class="n">key2</span></em>, <em class="sig-param"><span class="n">log</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">bins</span><span class="o">=</span><span class="default_value">10</span></em>, <em class="sig-param"><span class="n">method</span><span class="o">=</span><span class="default_value">'mean'</span></em>, <em class="sig-param"><span class="n">match_bin_counts</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">ax</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">return_xy</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">xm</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">ym</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.plot_binned_average" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots the average value of a parameter as a function of another parameter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>d</strong> (<a class="reference internal" href="bioverse.classes.html#bioverse.classes.Table" title="bioverse.classes.Table"><em>Table</em></a>) – Table of simulated planets or measurements.</p></li>
+<li><p><strong>key1</strong> (<em>str</em>) – Name of the parameter with which to bin the data set.</p></li>
+<li><p><strong>key2</strong> (<em>str</em>) – Name of the parameter for which to calculate the average value.</p></li>
+<li><p><strong>log</strong> (<em>bool</em><em>, </em><em>optional</em>) – Whether to bin the data in log-space.</p></li>
+<li><p><strong>bins</strong> (<em>int</em><em> or </em><em>float array</em><em>, </em><em>optional</em>) – Number of bins or list of bin edges.</p></li>
+<li><p><strong>method</strong> (<em>{'mean'</em><em>,</em><em>'median'}</em><em>, </em><em>optional</em>) – Whether to take the mean or median in each bin.</p></li>
+<li><p><strong>match_bin_counts</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, calculate bins with an equal number of planets in each.</p></li>
+<li><p><strong>xm</strong> (<em>float array</em><em>, </em><em>optional</em>) – X values of a model to be plotted along with the binned data.</p></li>
+<li><p><strong>ym</strong> (<em>float array</em><em>, </em><em>optional</em>) – Y values of a model to be plotted along with the binned data.</p></li>
+<li><p><strong>**kwargs</strong> – Keyword arguments, passed to matplotlib.pyplot.errorbar.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.Example1_priority">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">Example1_priority</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">generator</span></em>, <em class="sig-param"><span class="n">survey</span></em>, <em class="sig-param"><span class="n">fig</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">ax</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">show</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.Example1_priority" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots the prioritization of targets according to a_eff and R (or R_eff).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.Example1_targets">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">Example1_targets</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span></em>, <em class="sig-param"><span class="n">fig</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">ax</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">show</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">cbar</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">bins</span><span class="o">=</span><span class="default_value">10</span></em>, <em class="sig-param"><span class="n">vmin</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">vmax</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">cax</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">smooth_sigma</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.Example1_targets" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots the distribution of targets in log(a_eff) and R (or R_eff).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.Example1_dataset">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">Example1_dataset</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span></em>, <em class="sig-param"><span class="n">a_inner</span><span class="o">=</span><span class="default_value">0.944911182523068</span></em>, <em class="sig-param"><span class="n">a_outer</span><span class="o">=</span><span class="default_value">1.643989873053573</span></em>, <em class="sig-param"><span class="n">show</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.Example1_dataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots data[‘has_H2O’] versus data[‘S’] for a simulated data set. Also plots the habitable zone boundaries.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.Example2_priority">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">Example2_priority</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">generator</span></em>, <em class="sig-param"><span class="n">survey</span></em>, <em class="sig-param"><span class="n">fig</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">ax</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">show</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.Example2_priority" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.Example2_targets">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">Example2_targets</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span></em>, <em class="sig-param"><span class="n">fig</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">ax</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">bins</span><span class="o">=</span><span class="default_value">10</span></em>, <em class="sig-param"><span class="n">show</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.Example2_targets" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.Example2_dataset">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">Example2_dataset</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span></em>, <em class="sig-param"><span class="n">flife</span><span class="o">=</span><span class="default_value">0.8</span></em>, <em class="sig-param"><span class="n">thalf</span><span class="o">=</span><span class="default_value">5.0</span></em>, <em class="sig-param"><span class="n">show</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.Example2_dataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots data[‘has_O2’] versus data[‘age’] for a simulated data set. Also plots f(O2 | life)(t).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.Example2_model">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">Example2_model</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">show</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">t_half</span><span class="o">=</span><span class="default_value">2.3</span></em>, <em class="sig-param"><span class="n">f_life</span><span class="o">=</span><span class="default_value">0.75</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.Example2_model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots the distribution of O2/O3-rich planets versus age.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.compare_posteriors">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">compare_posteriors</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">results_dict</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.compare_posteriors" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.plot_posterior">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">plot_posterior</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">chains</span></em>, <em class="sig-param"><span class="n">params</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">bounds</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">log</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">nbins</span><span class="o">=</span><span class="default_value">30</span></em>, <em class="sig-param"><span class="n">plot_model</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">show</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">fig</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">axes</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">hist_kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.plot_posterior" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots the posterior distributions of a set of parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>chains</strong> (<em>float array</em><em> (</em><em>NxM</em><em>)</em>) – N samples from the posterior distribution of each of M parameters</p></li>
+<li><p><strong>params</strong> (<em>string list</em><em>, </em><em>optional</em>) – List of M parameter names in the order that they appear in <cite>chains</cite>. Use None to designate which
+parameters to exclude. If not specified, label as theta_0, theta_1, …</p></li>
+<li><p><strong>bounds</strong> (<em>float array</em><em> (</em><em>Mx2</em><em>)</em><em>, </em><em>optional</em>) – Describes each parameter’s min/max values.</p></li>
+<li><p><strong>log</strong> (<em>tuple</em><em>, </em><em>optional</em>) – Length M tuple of True/False values indicating which posterior distributions should be plotted in log-scale.</p></li>
+<li><p><strong>nbins</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of bins the posterior distribution plot.</p></li>
+<li><p><strong>plot_model</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, overplot a normal distribution with the same mean and variance as the sample.</p></li>
+<li><p><strong>show</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, display the plot. Otherwise, return the figure and axes.</p></li>
+<li><p><strong>fig</strong> (<em>Figure</em><em>, </em><em>optional</em>) – Figure in which to create the plot. <cite>axes</cite> must also be passed.</p></li>
+<li><p><strong>axes</strong> (<em>Axis list</em><em>, </em><em>optional</em>) – List of Axis objects in which to create the plots. <cite>fig</cite> must also be passed.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>fig, axes</strong> – Figure and flattened array of Axes objects containing the plots. Only returned if <cite>show</cite> if False.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>Figure, Axes array</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.plot_power_grid">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">plot_power_grid</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">results</span></em>, <em class="sig-param"><span class="n">axes</span><span class="o">=</span><span class="default_value">'f_water_habitable', 'f_water_nonhabitable'</span></em>, <em class="sig-param"><span class="n">log</span><span class="o">=</span><span class="default_value">True, True</span></em>, <em class="sig-param"><span class="n">labels</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">cbar</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">method</span><span class="o">=</span><span class="default_value">'dlnZ'</span></em>, <em class="sig-param"><span class="n">threshold</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">smooth_sigma</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">fig</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">ax</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">show</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">levels</span><span class="o">=</span><span class="default_value">[15, 60, 80]</span></em>, <em class="sig-param"><span class="n">cmap</span><span class="o">=</span><span class="default_value">'Greens'</span></em>, <em class="sig-param"><span class="n">zoom_factor</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">grid_kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.plot_power_grid" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.plot_requirements_grid">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">plot_requirements_grid</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">results</span></em>, <em class="sig-param"><span class="n">axes</span><span class="o">=</span><span class="default_value">'f_water_habitable', 'f_water_nonhabitable'</span></em>, <em class="sig-param"><span class="n">variable</span><span class="o">=</span><span class="default_value">'t_total'</span></em>, <em class="sig-param"><span class="n">log</span><span class="o">=</span><span class="default_value">True, True</span></em>, <em class="sig-param"><span class="n">labels</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">var_label</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">levels</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">method</span><span class="o">=</span><span class="default_value">'dlnZ'</span></em>, <em class="sig-param"><span class="n">threshold</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">smooth_sigma</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">show</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">min_power</span><span class="o">=</span><span class="default_value">0.8</span></em>, <em class="sig-param"><span class="n">fmt</span><span class="o">=</span><span class="default_value">' %.0f d '</span></em>, <em class="sig-param"><span class="n">N_key</span><span class="o">=</span><span class="default_value">'N_EEC'</span></em>, <em class="sig-param"><span class="n">vmin</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">vmax</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">fig</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">ax</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">cmap</span><span class="o">=</span><span class="default_value">'Greens_r'</span></em>, <em class="sig-param"><span class="n">zoom_factor</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">grid_kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.plot_requirements_grid" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.plot_habitable_zone_accuracy">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">plot_habitable_zone_accuracy</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">results</span></em>, <em class="sig-param"><span class="n">a_inner</span><span class="o">=</span><span class="default_value">0.931</span></em>, <em class="sig-param"><span class="n">a_outer</span><span class="o">=</span><span class="default_value">1.674</span></em>, <em class="sig-param"><span class="n">smooth_sigma</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.plot_habitable_zone_accuracy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.plot_Example1_constraints">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">plot_Example1_constraints</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">results</span></em>, <em class="sig-param"><span class="n">fig</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">ax</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">show</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">c</span><span class="o">=</span><span class="default_value">'black'</span></em>, <em class="sig-param"><span class="n">lw</span><span class="o">=</span><span class="default_value">1.0</span></em>, <em class="sig-param"><span class="n">truth</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">grid_kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.plot_Example1_constraints" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.plot_Example2_constraints">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">plot_Example2_constraints</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">results</span></em>, <em class="sig-param"><span class="n">fig</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">ax</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">show</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">c</span><span class="o">=</span><span class="default_value">'black'</span></em>, <em class="sig-param"><span class="n">lw</span><span class="o">=</span><span class="default_value">1.0</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">grid_kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.plot_Example2_constraints" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.image_contour_plot">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">image_contour_plot</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span></em>, <em class="sig-param"><span class="n">y</span></em>, <em class="sig-param"><span class="n">z</span></em>, <em class="sig-param"><span class="n">colorbar</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">labels</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">levels</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">fmt</span><span class="o">=</span><span class="default_value">' %.0f '</span></em>, <em class="sig-param"><span class="n">ticks</span><span class="o">=</span><span class="default_value">4</span></em>, <em class="sig-param"><span class="n">vmin</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">vmax</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">linecolor</span><span class="o">=</span><span class="default_value">'black'</span></em>, <em class="sig-param"><span class="n">log</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">fig</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">ax</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">return_ctr</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">zoom_factor</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">cmap</span><span class="o">=</span><span class="default_value">'Greens'</span></em>, <em class="sig-param"><span class="n">plus</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">smooth_sigma</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.image_contour_plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots z(x, y) with a colorbar and contours.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.plot_number_vs_time">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">plot_number_vs_time</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">results</span></em>, <em class="sig-param"><span class="n">smooth_sigma</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">exclude</span><span class="o">=</span><span class="default_value">['N_pl', 'N_EEC']</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">grid_kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.plot_number_vs_time" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.plot_precision_grid">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">plot_precision_grid</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">results</span></em>, <em class="sig-param"><span class="n">param</span><span class="o">=</span><span class="default_value">'a_inner'</span></em>, <em class="sig-param"><span class="n">axes</span><span class="o">=</span><span class="default_value">'f_water_habitable', 'f_water_nonhabitable'</span></em>, <em class="sig-param"><span class="n">labels</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">cbar</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">method</span><span class="o">=</span><span class="default_value">'dlnZ'</span></em>, <em class="sig-param"><span class="n">threshold</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">smooth_sigma</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">show</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">half</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">levels</span><span class="o">=</span><span class="default_value">3</span></em>, <em class="sig-param"><span class="n">log</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">fmt</span><span class="o">=</span><span class="default_value">'%.2f AU'</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">grid_kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.plot_precision_grid" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.plot_precision">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">plot_precision</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">results</span></em>, <em class="sig-param"><span class="n">params</span><span class="o">=</span><span class="default_value">'a_outer', 'a_inner'</span></em>, <em class="sig-param"><span class="n">axes</span><span class="o">=</span><span class="default_value">'f_water_habitable', 'f_water_nonhabitable'</span></em>, <em class="sig-param"><span class="n">labels</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">cbar</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">method</span><span class="o">=</span><span class="default_value">'dlnZ'</span></em>, <em class="sig-param"><span class="n">threshold</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">smooth_sigma</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">show</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">half</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">levels</span><span class="o">=</span><span class="default_value">[1.0, 3.0], [0.2, 0.6]</span></em>, <em class="sig-param"><span class="n">log</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">fmt</span><span class="o">=</span><span class="default_value">' %.2f AU '</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">grid_kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.plot_precision" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.plot_simulation_result">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">plot_simulation_result</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">results</span></em>, <em class="sig-param"><span class="n">log</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">method</span><span class="o">=</span><span class="default_value">'dlnZ'</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">grid_kwargs</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.plot_simulation_result" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="bioverse.plots.plot_clear_cloudy_spectra">
+<code class="sig-prename descclassname">bioverse.plots.</code><code class="sig-name descname">plot_clear_cloudy_spectra</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">x</span></em>, <em class="sig-param"><span class="n">y_clr</span></em>, <em class="sig-param"><span class="n">y_cld</span></em>, <em class="sig-param"><span class="n">f_clouds</span><span class="o">=</span><span class="default_value">0.75</span></em>, <em class="sig-param"><span class="n">lw</span><span class="o">=</span><span class="default_value">3</span></em>, <em class="sig-param"><span class="n">bands</span><span class="o">=</span><span class="default_value">[]</span></em>, <em class="sig-param"><span class="n">c</span><span class="o">=</span><span class="default_value">[]</span></em>, <em class="sig-param"><span class="n">alpha</span><span class="o">=</span><span class="default_value">0.3</span></em>, <em class="sig-param"><span class="n">legend</span><span class="o">=</span><span class="default_value">True</span></em>, <em class="sig-param"><span class="n">xlim</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">ymax</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">fig</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">ax</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#bioverse.plots.plot_clear_cloudy_spectra" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="bioverse.survey.html" class="btn btn-neutral float-right" title="bioverse.survey module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="bioverse.hypothesis.html" class="btn btn-neutral float-left" title="bioverse.hypothesis module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Alex Bixel.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+    
+
+  <style>
+  
+    /* Sidebar header (and topbar for mobile) */
+    .wy-side-nav-search {
+    display: block;
+    width: 300px;
+    padding: .809em;
+    margin-bottom: .809em;
+    z-index: 200;
+    background-color: #0b750a;
+    text-align: center;
+    color: #fcfcfc;
+    }
+    .wy-nav-top {
+      background: #0b750a;
+    }
+    
+    .wy-menu-vertical header, .wy-menu-vertical p.caption {
+    color: #0b750a;
+    line-height: 32px;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 85%;
+    white-space: nowrap;
+}
+
+html.writer-html4 .rst-content dl:not(.docutils) > dt, html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.glossary):not(.simple) > dt {
+    display: table;
+    margin: 6px 0;
+        margin-top: 6px;
+    font-size: 90%;
+    line-height: normal;
+    background: #edffed;
+    color: #0b750a;
+    border-top: 3px solid #0b750a;
+    padding: 6px;
+    position: relative;
+}
+
+  a {
+    color: #0b750a;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.wy-table-responsive table td, .wy-table-responsive table th {
+    white-space: normal;
+}
+
+  </style>
+  
+  
+  
+
+
+</body>
+</html>

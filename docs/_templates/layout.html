@@ -1,0 +1,60 @@
+{% extends "!layout.html" %}
+  {% block footer %} {{ super() }}
+
+  <style>
+  
+    /* Sidebar header (and topbar for mobile) */
+    .wy-side-nav-search {
+    display: block;
+    width: 300px;
+    padding: .809em;
+    margin-bottom: .809em;
+    z-index: 200;
+    background-color: #0b750a;
+    text-align: center;
+    color: #fcfcfc;
+    }
+    .wy-nav-top {
+      background: #0b750a;
+    }
+    
+    .wy-menu-vertical header, .wy-menu-vertical p.caption {
+    color: #0b750a;
+    line-height: 32px;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 85%;
+    white-space: nowrap;
+}
+
+html.writer-html4 .rst-content dl:not(.docutils) > dt, html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.glossary):not(.simple) > dt {
+    display: table;
+    margin: 6px 0;
+        margin-top: 6px;
+    font-size: 90%;
+    line-height: normal;
+    background: #edffed;
+    color: #0b750a;
+    border-top: 3px solid #0b750a;
+    padding: 6px;
+    position: relative;
+}
+
+  a {
+    color: #0b750a;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.wy-table-responsive table td, .wy-table-responsive table th {
+    white-space: normal;
+}
+
+  </style>
+  
+  
+  
+{% endblock %}
+
+
+

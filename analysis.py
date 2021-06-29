@@ -1,70 +1,18 @@
+""" Provides functions for iterating over several simulations to compute statistical power and more. """
+
 # Python modules
 import multiprocessing as mp
 import numpy as np
-import os
-from scipy.optimize import basinhopping,brute,curve_fit,minimize
-from scipy.stats import binned_statistic,mannwhitneyu
 import signal
-from sklearn.linear_model import LogisticRegression
-import sys
-from types import FunctionType,MethodType
 import time
 import traceback
-from warnings import warn
 
-# Bioverse modules
-import plots
+# Bioverse modules and constants
 import util
-from util import INT_TYPES,FLOAT_TYPES
-from util import RESULTS_DIR
-
-# Testable hypotheses
-from hypothesis import h_HZ, h_null
+from constants import INT_TYPES,FLOAT_TYPES
 
 # Prevents a crash due to matplotlib when multiprocessing
 mp.set_start_method('spawn', force=True)
-
-def binned_average(x,y,bins=10,match_counts=True):
-    """ Computes the average value of a variable in bins of another variable.
-
-    Parameters
-    ----------
-    x : float array
-        Array of independent values along which to perform the binning.
-    y : float array
-        Array of dependent values to be averaged.
-    bins : int or float array, optional
-        Number of bins or array of bin edges.
-    match_counts : bool, optional
-        If True, adjust the bin sizes so that an equal number of data points fall in each bin. Passing
-        an array of bin edges for `bins` will override this setting.
-
-    Returns
-    -------
-    bins : float array
-        Array of bin edges.
-    values : float array
-        Average value of `y` in each bin. 
-    errors : float array
-        Uncertainty on `values` in each bin, i.e. the standard error on the mean.
-    """
-    # Unless given, compute the bin edges
-    if isinstance(bins,(INT_TYPES,FLOAT_TYPES)):
-        bins = int(bins)
-        if match_counts:
-            bins = np.percentile(x,np.linspace(0,100,bins+1))
-        else:
-            binsize = np.ptp(x)/bins
-            bins = np.arange(np.amin(x),np.amax(x)+binsize,binsize)
-    
-    # Compute the average value of `y` in each bin
-    values, errors = np.full((2,len(bins)-1), np.nan)
-    for i in range(len(bins)-1):
-        inbin = (x>=bins[i])&(x<=bins[i+1])
-        if inbin.sum() > 0:
-            values[i], errors[i] = np.mean(y[inbin]), np.std(y[inbin])/(inbin.sum())**0.5
-
-    return bins,values,errors
 
 def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, bins=15, return_chains=False, label=None,
                         overwrite=False, mw_alternative='greater', method='dynesty', nlive=100, **kwargs):
@@ -80,20 +28,6 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
     original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
     pool = mp.Pool(processes)
     signal.signal(signal.SIGINT, original_sigint_handler)
-
-    # # Load the result in progress, if found
-    # filename = RESULTS_DIR+'/{:s}.pkl'.format(label) if label is not None else None
-    # if filename is not None and os.path.exists(filename):
-    #     results = pickle.load(open(filename, 'rb'))
-    #     if results['done'] and not overwrite:
-    #         print("Grid '{:s}' already completed - pass overwrite=True to restart".format(label))
-    #         return results
-    #     elif not results['done']:
-    #         print("Found {:s}.pkl, continuing...".format(label))
-    #     else:
-    #         results = {'done':False}
-    # else:
-    #     results = {'done':False}
 
     # Run each grid cell as a separate process with a random RNG seed
     grid_shape = tuple(np.size(v) for v in grid.values())
@@ -182,7 +116,7 @@ def test_hypothesis_grid_iter(h, generator, survey, bins, return_chains,
     # Compute the average value of labels versus features
     obs = data[h.get_observed(data)]
     if len(obs) > 0:
-        bins, values, errors = binned_average(obs[h.features[0]], obs[h.labels[0]], bins=bins)
+        bins, values, errors = util.binned_average(obs[h.features[0]], obs[h.labels[0]], bins=bins)
     else:
         bins, values, errors = np.full((3, bins), np.nan)
 
