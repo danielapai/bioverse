@@ -18,7 +18,7 @@ If you'd like advice on using this code in your research, contact abixel@email.a
 
 # Usage
 
-The best way to get familiar with `Bioverse` is to follow the example in `Notebooks/Getting started.ipynb`.
+A complete documentation website for the code is actively being worked on. In the meantime, `Notebooks/Getting started.ipynb` reviews basic usage.
 
 # References
 
