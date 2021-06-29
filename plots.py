@@ -9,11 +9,11 @@ import pickle
 from warnings import warn
 
 # Bioverse modules and constants
-import analysis
-import classes
-import util
-from constants import MODELS_DIR,INT_TYPES
-from constants import STR_TYPES
+from . import analysis
+from . import classes
+from . import util
+from .constants import MODELS_DIR,INT_TYPES
+from .constants import STR_TYPES
 
 # Unmap the save key
 try:

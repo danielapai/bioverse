@@ -6,8 +6,8 @@ import numpy as np
 from warnings import warn
 
 # Bioverse modules and constants
-from constants import LIST_TYPES, CATALOG_FILE
-import truncnorm_hack
+from .constants import LIST_TYPES, CATALOG_FILE, INT_TYPES, FLOAT_TYPES
+from .import truncnorm_hack
 
 # Load the Gaia stellar target catalog into memory for fast access
 try:
@@ -69,11 +69,12 @@ def is_bool(a):
 
 # Imports a function given the filename and the name of the function
 def import_function_from_file(function_name,filename):
-        # Get the module name from the filename (assume they are the same minus .py)
+        # Get package and module names
+        package_name = filename.strip('/').split('/')[-2] # should be "bioverse"
         module_name = '.'.join(filename.strip('/').split('/')[-1].split('.')[:-1])
 
         # Import the module
-        spec = importlib.util.spec_from_file_location(module_name,filename)
+        spec = importlib.util.spec_from_file_location(package_name+'.'+module_name, filename)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
 

@@ -8,8 +8,8 @@ import time
 import traceback
 
 # Bioverse modules and constants
-import util
-from constants import INT_TYPES,FLOAT_TYPES
+from . import util
+from .constants import INT_TYPES,FLOAT_TYPES
 
 # Prevents a crash due to matplotlib when multiprocessing
 mp.set_start_method('spawn', force=True)

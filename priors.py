@@ -1,6 +1,6 @@
 # System modules
 import numpy as np
-from constants import ARRAY_TYPES, INT_TYPES, ROOT_DIR
+from .constants import ARRAY_TYPES, INT_TYPES, ROOT_DIR
 
 # PDMF
 def Chabrier_2003_PDMF(M_st_min=0.07,M_st_max=5.0):

@@ -1,9 +1,9 @@
 from dataclasses import asdict, dataclass
 import numpy as np
 
-from classes import Object, Table
-import util
-from constants import STR_TYPES, BOOL_TYPES
+from .classes import Object, Table
+from . import util
+from .constants import STR_TYPES, BOOL_TYPES
 
 @dataclass(repr=False)
 class Survey(dict, Object):

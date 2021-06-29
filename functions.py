@@ -7,11 +7,11 @@ import sys
 
 # Bioverse modules and constants
 sys.path = ['../'] + sys.path
-from classes import Table
-import util
-from util import CATALOG
-from constants import CONST, ROOT_DIR
-import priors
+from .classes import Table
+from . import util
+from .util import CATALOG
+from .constants import CONST, ROOT_DIR
+from . import priors
 
 def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_max=10., T_eff_split=4500.):
     """ Reads temperatures and coordinates for high-mass stars from Gaia DR2. Simulates low-mass stars from the

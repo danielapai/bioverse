@@ -7,9 +7,9 @@ import pickle
 import time
 
 # Bioverse modules and constants
-from constants import ROOT_DIR, OBJECTS_DIR
-from constants import STR_TYPES, INT_TYPES
-from constants import CONST
+from .constants import ROOT_DIR, OBJECTS_DIR
+from .constants import STR_TYPES, INT_TYPES
+from .constants import CONST
 
 # Imports pandas.DataFrame if installed
 try:

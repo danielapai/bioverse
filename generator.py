@@ -8,9 +8,9 @@ import traceback
 from warnings import warn
 
 # Bioverse modules
-from classes import Object, Table, Stopwatch
-from constants import ROOT_DIR
-import util
+from .classes import Object, Table, Stopwatch
+from .constants import ROOT_DIR
+from . import util
 
 class Generator(Object):
     """ This class executes a series of functions to generate a set of nearby systems.

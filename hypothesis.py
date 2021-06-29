@@ -6,7 +6,7 @@ import numpy as np
 from scipy.stats import mannwhitneyu
 
 # Bioverse modules
-from util import is_bool
+from .util import is_bool
 
 class Hypothesis():
     """ Describes a Bayesian hypothesis. The hypothesis function `f` should be defined with the following annotations:
