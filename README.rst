@@ -7,7 +7,7 @@ For documentation, see https://bioverse.readthedocs.io/.
 
 References
 **********
-Papers making use of `Bioverse` should reference `Bixel & Apai (2021) <https://ui.adsabs.harvard.edu/abs/2021AJ....161..228B/abstract>`_. You should also include references to the `emcee <https://github.com/dfm/emcee>`_ and `dynesty <https://github.com/joshspeagle/dynesty>`_ packages, which are used for hypothesis testing and parameter fitting.
+Papers making use of Bioverse should reference `Bixel & Apai (2021) <https://ui.adsabs.harvard.edu/abs/2021AJ....161..228B/abstract>`_. You should also include references to the `emcee <https://github.com/dfm/emcee>`_ and `dynesty <https://github.com/joshspeagle/dynesty>`_ packages, which are used for hypothesis testing and parameter fitting.
 
 Installation
 ************

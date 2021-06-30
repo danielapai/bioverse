@@ -5,7 +5,7 @@ Hypothesis testing
 The :class:`~bioverse.hypothesis.Hypothesis` class
 **************************************************
 
-The combined result of the first two modules is a simulated dataset representing the output of the exoplanet survey. The third module addresses the power of that dataset for testing statistical hypotheses. The first step in this exercise involves defining the hypotheses you want to test, and in ``Bioverse`` this is done via a :class:`~bioverse.hypothesis.Hypothesis` object. This object includes:
+The combined result of the first two modules is a simulated dataset representing the output of the exoplanet survey. The third module addresses the power of that dataset for testing statistical hypotheses. The first step in this exercise involves defining the hypotheses you want to test, and in Bioverse this is done via a :class:`~bioverse.hypothesis.Hypothesis` object. This object includes:
 
 - a set of dependent variable(s) ``X``, called features
 - a set of independent variable(s) ``Y``, called labels
@@ -100,8 +100,6 @@ The prior distributions of the parameters ``theta`` can be set to either uniform
     
     # Log-uniform distribution for M_0, uniform distribution for alpha
     h_mass_radius = Hypothesis(f, bounds, log=(True, False))
-    
-User-defined priors: TODO
 
 Posterior distributions
 ***********************
