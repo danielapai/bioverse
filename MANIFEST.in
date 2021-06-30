@@ -1,0 +1,5 @@
+include bioverse/*.dat
+include bioverse/*.csv
+include bioverse/*.txt
+recursive-include bioverse/Objects *
+
