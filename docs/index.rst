@@ -17,7 +17,7 @@ Papers making use of Bioverse should reference `Bixel & Apai (2021) <https://ui.
 Installation
 ************
 
-Bioverse can be cloned from its GitHub repository:
+Bioverse can be cloned from its `GitHub repository <https://www.github.com/abixel/bioverse/>`_:
 
 .. code-block:: bash
 
