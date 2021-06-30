@@ -68,7 +68,7 @@ The following table lists all keys currently used in Bioverse and the properties
 
 .. csv-table::
     :header: "Key", "Data type", "Description"
-    :file: ../legend.dat
+    :file: ../bioverse/legend.dat
     :widths: auto
 
 

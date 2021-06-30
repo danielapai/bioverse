@@ -1,7 +1,7 @@
 bioverse.analysis module
 ========================
 
-.. automodule:: analysis
+.. automodule:: bioverse.analysis
    :members:
    :undoc-members:
    :show-inheritance:
