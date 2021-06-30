@@ -23,13 +23,11 @@ Bioverse can be cloned from its `GitHub repository <https://www.github.com/abixe
 
     git clone https://www.github.com/abixel/bioverse/
 
-To install Bioverse, navigate to the directory containing ``setup.py`` and run:
+To install Bioverse, navigate to the directory containing ``setup.py`` and run: [#f1]_
 
 .. code-block:: bash
 
    pip install .
-
-Bioverse will be added to PyPI in a future update.
 
 Dependencies
 ************
@@ -67,7 +65,7 @@ Bioverse is compatible with Python 3.7+. It has the following dependencies, all 
    Notebooks/Example2
 
 .. toctree::
-   :caption: Full Documentation
+   :caption: API Documentation
    :hidden:
    :glob:   
 
@@ -81,3 +79,7 @@ Bioverse is compatible with Python 3.7+. It has the following dependencies, all 
    apidoc/bioverse.plots
    apidoc/bioverse.survey
    apidoc/bioverse.util
+
+.. rubric:: Footnotes
+
+.. [#f1] Bioverse will be added to PyPI in a future update.

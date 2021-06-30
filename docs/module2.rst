@@ -1,5 +1,5 @@
 #################################
-Simulated survey datasets
+Simulating survey datasets
 #################################
 
 The :class:`~bioverse.survey.Survey` class
@@ -7,7 +7,7 @@ The :class:`~bioverse.survey.Survey` class
 
 The output of :meth:`~bioverse.generator.Generator.generate` is a :class:`~bioverse.classes.Table` containing the values of several parameters for planets within the bounds of the simulation. However, only a subset of these will be detectable by a transit or direct imaging survey. For those planets, only a subset of their properties can be directly probed, and only with a finite level of precision. Module 2 captures these details by simulating the observing limits and measurement precision of a direct imaging or transit spectroscopy survey of the planet population.
 
-The survey simulation module is implemented by the :class:`~bioverse.survey.Survey` class and its children classes :class:`~bioverse.survey.ImagingSurvey` and :class:`~bioverse.survey.TransitSurvey`. The Survey describes several key components of an exoplanet survey including:
+The survey simulation module is implemented by the :class:`~bioverse.survey.Survey` class [#f1]_ and its children classes :class:`~bioverse.survey.ImagingSurvey` and :class:`~bioverse.survey.TransitSurvey`. The Survey describes several key components of an exoplanet survey including:
 
 - the type of survey (either 'imaging' or 'transit')
 - the diameter of the telescope primary (or effective diameter for a telescope array)
@@ -86,13 +86,22 @@ The last three lines can be combined into the following:
 Reference case
 **************
 
-Some planetary properties are either trivial to measure (i.e. host star effective temperature) or their measurement occurs concurrently with their detection - for example, planet-star contrast (in imaging mode) or planet radius (in transit mode). Other properties - especially the detection of atmospheric species - require time-intensive spectroscopic observations spanning several hours or days of integration time. This is especially relevant for a transiting exoplanet survey as the amount of SNR built up per transit observation is limited by the transit duration, and the number of transits observable within a reasonable survey lifetime depends on the orbital period.
+Some planetary properties are either trivial to measure (i.e. host star effective temperature) or their measurement occurs concurrently with their detection - for example, planet-star contrast (in imaging mode) or planet radius (in transit mode). Other properties - especially the detection of atmospheric species - require time-intensive spectroscopic observations spanning several hours or days of integration time. This is especially relevant for a transiting exoplanet survey as the amount of SNR built up per transit observation is limited by the transit duration, and the number of transits observable within a reasonable survey lifetime is limited by the orbital period.
 
 As an example, consider the amount of time required to detect H2O in a transiting exoplanet's atmosphere. One way to estimate this would be to simulate the planet's observed spectrum (with uncertainties), measure the amplitude of H2O absorption features, and compute the amount of time required to achieve a 5-sigma detection of that amplitude. However, to repeat this for every planet would be computationally intensive, and would prohibit the use Bioverse to simulate thousands of realizations of the same survey.
 
-A much faster method involves estimating the amount of time required to characterize a single planet whose properties are broadly representative of the "typical" survey target, then scaling that exposure time to each planet based on the major factors affecting signal strength.
+A much faster method involves estimating the amount of time required to characterize a single planet whose properties are broadly representative of the "typical" survey target, then scaling that exposure time to each planet based on the major factors affecting signal strength. The determination of this "reference time" ``t_ref`` is generally not done in Bioverse. It can be accomplished by citing relevant studies in the literature or using third-party tools such as the `Planetary Spectrum Generator <https://psg.gsfc.nasa.gov/>`_.
 
 Target prioritization
 *********************
 
-It is not always feasible to characterize all targets within a finite survey duration (e.g., 10 years). Therefore, targets must be prioritized. In Bioverse, target prioritization depends both on the target's scientific interest (or weight w_i) and the amount of time required to properly characterize it (t_i as computed above)
+It is not always feasible to characterize all targets within a finite survey duration (e.g., 10 years). Therefore, targets must be prioritized. In Bioverse, target prioritization depends both on the target's scientific interest (quantified by the weight parameter ``w_i``) and the amount of time ``t_i`` required to properly characterize it. Each target's priority is as follows:
+
+.. math
+    p_i = w_i/t_i
+
+Given a finite survey lifetime, Bioverse will conduct an observation of the highest priority target, subtract ``t_i`` from the total time remaining, and continue to the next priority target until the total time is exhausted. The resulting dataset will fill in ``nan`` values for any targets that were not observed.
+
+.. rubric:: Footnotes
+
+.. [#f1] :class:`~bioverse.survey.Survey` should never be called directly; instead :class:`~bioverse.survey.ImagingSurvey` or :class:`~bioverse.survey.TransitSurvey` should be used.

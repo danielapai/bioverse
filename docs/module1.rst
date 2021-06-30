@@ -1,5 +1,5 @@
 ####################################
-Simulated planetary systems
+Generating planetary systems
 ####################################
 
 The :class:`~bioverse.generator.Generator` class

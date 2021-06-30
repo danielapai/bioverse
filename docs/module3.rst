@@ -25,7 +25,7 @@ The first step in defining this hypothesis is to write out the function ``Y = f(
         R, = X
         return M_0 * R ** alpha
 
-The function annotations tell the code the number and names of the parameters and variables being related. In this case, planet radius (``R``) and mass (``M``) will be extracted from the simulated dataset as the features and labels.
+The function annotations [#f1]_ tell the code the number and names of the parameters and variables being related. In this case, planet radius (``R``) and mass (``M``) will be extracted from the simulated dataset as the features and labels.
 
 We must define the bounds on values for M_0 and alpha - conservative constraints might be 0.1 < M_0 < 10 and 2 < alpha < 5. We will also choose a log-uniform distribution for M_0, as its bounds span a few orders of magnitude.
 
@@ -44,7 +44,7 @@ Next, we can initialize the Hypothesis:
 The null hypothesis
 *******************
 
-In order to test the evidence in favor of ``h_mass_radius``, we must define an alternative (or "null") hypothesis. In this case, the hypothesis states that planetary mass is independent of radius, and ranges from 0.01 and 100 M_Earth:
+In order to test the evidence in favor of ``h_mass_radius``, we must define an alternative (or "null") hypothesis [#f2]_. In this case, the hypothesis states that planetary mass is independent of radius, and ranges from 0.01 and 100 M_Earth:
 
 .. code-block:: python
 
@@ -54,8 +54,6 @@ In order to test the evidence in favor of ``h_mass_radius``, we must define an a
     
     bounds_null = np.array([[0.01, 100]])
     h_mass_radius.h_null = Hypothesis(f_null, bounds, log=(True,))
-    
-Note that :func:`~bioverse.hypothesis.f_null` (defined in the :mod:`~bioverse.hypothesis` module) provides the same function as above for an arbitrary number of parameters, features, and labels.
 
 Testing the hypothesis
 **********************
@@ -86,12 +84,10 @@ Both ``dynesty`` and ``emcee`` require a Bayesian likelihood function to be defi
 
     :math:`\ln\mathcal{L} = \sum_i \left[ -(Y_i-f(X|\theta))^2/(2\sigma_i^2) \right]`
 
-
-
 Prior distributions
 *******************
 
-The prior distributions of the parameters ``theta`` can be set to either uniform or log-uniform functions *or* defined by the user. For uniform and log-uniform, only the boundaries of these distributions must be given:
+The prior distributions of the parameters ``theta`` can be set to either uniform or log-uniform functions *or* defined by the user [#f3]_. For uniform and log-uniform, only the boundaries of these distributions must be given:
 
 .. code-block:: python
 
@@ -107,10 +103,8 @@ Posterior distributions
 When using ``dynesty`` or ``emcee``, the ``results`` object will contain summary statistics of the posterior distributions for the values of ``theta``, including the mean, median, and lower and upper 95% confidence intervals. Alternatively, by passing ``return_chains = True`` to the ``fit()`` method, the entire chain of sampled values will be return. Given enough time, the distribution of these values will converge onto the posterior distribution. In general, ``emcee`` converges much more efficiently and should be used to estimate (for example) the precision with which model parameters can be constrained.
 
 
+.. rubric:: Footnotes
 
-
-
-        
-
-
-
+.. [#f1] This is a non-standard use of Python function annotations that many code editors will highlight, but it should not lead to any runtime errors.
+.. [#f2] Note that :func:`bioverse.hypothesis.f_null` provides the same function as ``f_null()`` above but for an arbitrary number of parameters, features, and labels.
+.. [#f3] Documentation for user-defined priors will be added in a future update.
