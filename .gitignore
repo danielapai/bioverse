@@ -1,5 +1,8 @@
 .DS_Store
 Results/
 .ipynb_checkpoints
-.code-workspace
+*.code-workspace
 __pycache__/
+build/
+docs/_build/
+.vscode/
