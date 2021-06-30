@@ -6,7 +6,6 @@ import os
 import sys
 
 # Bioverse modules and constants
-sys.path = ['../'] + sys.path
 from .classes import Table
 from . import util
 from .util import CATALOG
