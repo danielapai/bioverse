@@ -13,7 +13,6 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../bioverse/'))
-#sys.path.insert(0, os.path.abspath('../../'))
 
 
 # -- Project information -----------------------------------------------------
@@ -62,7 +61,7 @@ nbsphinx_prolog = r"""
 .. raw:: html
 
     <div class="admonition note">
-    <b>Note:</b> This example is available as an interactive Jupyter notebook in the file <code>{{ env.doc2path(env.docname, base=none) }}</code>
+    <b>Note:</b> This example is available as an interactive Jupyter notebook in the file <a href="https://github.com/abixel/bioverse/blob/master/docs/{{env.doc2path(env.docname, base=none) }}"><code>{{ env.doc2path(env.docname, base=none) }}</code></a>
     </div>
 
 """
@@ -70,7 +69,3 @@ nbsphinx_prolog = r"""
 autodoc_member_order = 'bysource'
 
 napoleon_google_docstring = False
-
-#autoapi_dirs = ['../']
-#autoapi_add_toctree_entry = False
-#autoapi_generate_api_docs = False
