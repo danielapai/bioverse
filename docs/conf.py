@@ -69,6 +69,8 @@ nbsphinx_prolog = r"""
 
 autodoc_member_order = 'bysource'
 
+napoleon_google_docstring = False
+
 #autoapi_dirs = ['../']
 #autoapi_add_toctree_entry = False
 #autoapi_generate_api_docs = False

@@ -2,7 +2,7 @@
 Computing statistical power
 ####################################
 
-Consider the "habitable zone hypothesis", which proposes that habitable planets with atmospheric water vapor will be more common within the semi-major axis range ``a_inner`` < ``a_eff`` < ``a_outer`` (see Section 6 of the paper and Example 1 for more details). In ``Bioverse``, this effect is injected into the simulated sample by the :func:`~bioverse.functions.functions.Example1_water` function, and tested using the ``h_HZ`` Hypothesis. To test this hypothesis using a LUVOIR-like direct imaging survey:
+Consider the "habitable zone hypothesis", which proposes that habitable planets with atmospheric water vapor will be more common within the semi-major axis range ``a_inner`` < ``a_eff`` < ``a_outer`` (see Section 6 of the paper and Example 1 for more details). In ``Bioverse``, this effect is injected into the simulated sample by the :func:`~bioverse.functions.Example1_water` function, and tested using the ``h_HZ`` Hypothesis. To test this hypothesis using a LUVOIR-like direct imaging survey:
 
 .. code-block:: python
 
