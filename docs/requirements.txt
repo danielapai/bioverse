@@ -1,6 +1,5 @@
 nbsphinx
 ipykernel
-sphinx-autoapi
 
 astroquery
 dynesty

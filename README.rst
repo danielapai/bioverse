@@ -18,14 +18,13 @@ Bioverse can be cloned from its GitHub repository:
 
     git clone https://www.github.com/abixel/bioverse/
 
-To run Bioverse, add the directory containing it to your Python path at the start of your script or IPython session:
+To install Bioverse, navigate to the directory containing ``setup.py`` and run:
 
-.. code-block:: python
+.. code-block:: bash
 
-   import sys
-   sys.path.append('/path/to/parent/directory/')
+   pip install .
 
-Installation via ``pip`` will be supported in a future update.
+Bioverse will be added to PyPI in a future update.
 
 Dependencies
 ************
