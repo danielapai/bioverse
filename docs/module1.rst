@@ -61,7 +61,7 @@ One of Bioverse's main functions is to evaluate the sample size of a transiting 
 
 .. code-block:: python
 
-    sample = g.generate(transit_mode=True)
+    sample = generator.generate(transit_mode=True)
 
 If ``True``, then only planets that transit their stars are simulated.
 

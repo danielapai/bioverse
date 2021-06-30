@@ -57,8 +57,8 @@ Bioverse is compatible with Python 3.7+. It has the following dependencies, all 
    :caption: Examples
    :hidden:
    
-   Notebooks/GettingStarted1
-   Notebooks/GettingStarted2
+   Notebooks/Tutorial1
+   Notebooks/Tutorial2
    Notebooks/Example1
    Notebooks/Example2
 
