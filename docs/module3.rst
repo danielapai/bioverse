@@ -67,8 +67,8 @@ Next, we can test ``h_mass_radius`` using a dataset from the previous examples:
 
 The :meth:`~bioverse.hypothesis.Hypothesis.fit()` method will pull the measured values of 'R' and 'M' and test them using one or more of the following methods (set by the `method` keyword):
 
-- ``method = dynesty`` (default) Uses nested sampling to sample the parameter space of ``theta`` and compute the Bayesian evidence for both the Hypothesis and the null hypothesis. Implemented by ``dynesty``.
-- ``method = emcee`` Uses Markov Chain Monte Carlo to sample the parameter space of ``theta``. Implemented by ``emcee``.
+- ``method = dynesty`` (default) Uses nested sampling to sample the parameter space of ``theta`` and compute the Bayesian evidence for both the Hypothesis and the null hypothesis. Implemented by `dynesty <https://github.com/joshspeagle/dynesty>`_.
+- ``method = emcee`` Uses Markov Chain Monte Carlo to sample the parameter space of ``theta``. Implemented by `emcee <https://github.com/dfm/emcee>`_.
 - ``method = mannwhitney`` Assuming ``X`` to be a single continuous variable and ``Y`` a single boolean, reports the probability that ``X[Y]`` and ``X[~Y]`` are drawn from the same parent distribution. Implemented by ``scipy``.
 
 By default, nested sampling is used to estimate the Bayesian evidence in favor of the Hypothesis in comparison to the null hypothesis. 
