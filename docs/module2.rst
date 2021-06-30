@@ -29,7 +29,7 @@ Each type of survey "ships" with a default configuration:
     survey_imaging = ImagingSurvey('default')
     survey_transit = TransitSurvey('default')
 
-The default imaging survey is modeled after LUVOIR-A, with a coronagraphic imager and 15-meter primary aperture. The default transit survey is modeled after the Nautilus Space Observatory, with a 50-meter equivalent light-collecting area.
+The default imaging survey is modeled after `LUVOIR-A <https://arxiv.org/abs/1912.06219>`_, with a coronagraphic imager and 15-meter primary aperture. The default transit survey is modeled after the Nautilus Space Observatory, with a 50-meter equivalent light-collecting area.
 
 Which planets are detectable?
 *****************************

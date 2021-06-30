@@ -13,7 +13,7 @@ Bioverse uses the :class:`~bioverse.generator.Generator` class to generate plane
 
 The generator will feed the output of Function 1 into Function 2, then the output of Function 2 into Function 3, and finally will return the output of Function 3 (i.e. a table of planets with known masses, radii, orbital properties, and host star properties).
 
-Bioverse "ships" with two Generators: one for transit mode, and the other for imaging mode. The primary difference between the two is that the former uses the `Chabrier (2003) <https://ui.adsabs.harvard.edu/abs/2003PASP..115..763C/abstract>`_ stellar mass function to generate host stars, while the latter uses an optimized host star catalog for the LUVOIR direct imaging mission (see Stark et al. XXXX). The following code demonstrates how to simulate a sample of planets from the LUVOIR host star catalog:
+Bioverse "ships" with two Generators: one for transit mode, and the other for imaging mode. The primary difference between the two is that the former uses the `Chabrier (2003) <https://ui.adsabs.harvard.edu/abs/2003PASP..115..763C/abstract>`_ stellar mass function to generate host stars, while the latter uses an optimized host star catalog for the LUVOIR direct imaging mission (see the `LUVOIR Final Report <https://arxiv.org/abs/1912.06219>`_). The following code demonstrates how to simulate a sample of planets using the imaging mode Generator:
 
 .. code-block:: python
 
