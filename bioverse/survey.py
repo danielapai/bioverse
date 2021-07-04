@@ -177,7 +177,7 @@ class ImagingSurvey(Survey):
 
 @dataclass(repr=False)
 class TransitSurvey(Survey):
-    N_obs_max: float = 1000
+    N_obs_max: int = 1000
     mode: str = 'transit'
 
     def compute_yield(self, d):
