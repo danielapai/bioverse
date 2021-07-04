@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 import numpy as np
 
 from .classes import Object, Table
@@ -26,6 +26,10 @@ class Survey(dict, Object):
             raise ValueError("don't call Survey directly - instead use ImagingSurvey or TransitSurvey")
         self.measurements = {}
         Object.__init__(self, self.label)
+
+        # Casts all parameters to the correct type
+        for field in fields(self):
+            self.__dict__[field.name] = field.type(self.__dict__[field.name])
 
     def __repr__(self):
         s = "{:s} with the following parameters:".format(type(self).__name__)
@@ -560,7 +564,7 @@ def reset_transit_survey():
                             diameter = 50.0,
                             N_obs_max = 1000,
                             t_slew = 0.0208,
-                            T_st_ref = 3300,
+                            T_st_ref = 3300.,
                             R_st_ref = 0.315,
                             D_ref = 50.0,
                             d_ref = 50.0)
