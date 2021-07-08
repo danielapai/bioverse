@@ -1,9 +1,10 @@
 from dataclasses import asdict, dataclass, fields
 import numpy as np
+from numpy import inf
 
 from .classes import Object, Table
 from . import util
-from .constants import STR_TYPES, BOOL_TYPES
+from .constants import STR_TYPES, BOOL_TYPES, INT_TYPES
 
 @dataclass(repr=False)
 class Survey(dict, Object):
@@ -41,9 +42,27 @@ class Survey(dict, Object):
             s += "\n({:d}) {:s}".format(i, self.measurements[k].__repr__())
         return s
 
-    def add_measurement(self, key, **kwargs):
-        """ Adds a measurement to the survey. """
+    def add_measurement(self, key, idx=None, **kwargs):
+        """ Adds a measurement to the survey, optionally to the designated measurement order. """
         self.measurements[key] = Measurement(key, self, **kwargs)
+        if idx is not None:
+            self.move_measurement(key, idx)
+    
+    def move_measurement(self, key, idx):
+        """ Moves a Measurement to the designated position.
+        
+        Parameters
+        ----------
+        key : str
+            Name of the measurement.
+        idx : int
+            Position to which to move the measurement.
+        """
+        keys = list(self.measurements.keys())
+        keys.remove(key)
+        keys.insert(idx, key)
+
+        self.measurements = {key:self.measurements[key] for key in keys}
 
     def quickrun(self, generator, t_total=None, N_sim=1, **kwargs):
         """ Convenience function which generates a sample, computes the detection yield, and returns a simulated data set.
@@ -230,7 +249,7 @@ class Measurement():
         as a target requiring half as much observing time).
     """
     def __init__(self, key, survey, precision=0., condition=[], t_total=None, t_ref=None, t_min=0., priority={},
-                 wl_eff=0.5, debias=True, bounds=None):
+                 wl_eff=0.5, debias=True):
         super().__init__()
 
         # Save the keyword values
@@ -244,7 +263,7 @@ class Measurement():
         self.priority = {key:np.array(val) for key, val in priority.items()}
         self.wl_eff = wl_eff
         self.debias = debias
-        self.bounds = bounds if bounds is not None else [-np.inf, np.inf]
+        #self.bounds = bounds if bounds is not None else [-np.inf, np.inf]
 
     def __repr__(self):
         s = "Measures parameter '{:s}'".format(self.key)
@@ -279,9 +298,9 @@ class Measurement():
         data['planetID'] = detected['planetID']
         data['starID'] = detected['starID']
         
-        # Determine which planets are valid targets, and which of those can be observed in the allotted time
-        valid = self.compute_valid_targets(data)
-        observable = self.compute_observable_targets(data, valid, t_total)
+        # Determine which planets are valid targets and can be observed in the allotted time
+        #valid = self.compute_valid_targets(data)
+        observable = self.compute_observable_targets(data, t_total)
 
         # Simulate a measurement for each observable planet
         x = self.perform_measurement(detected[self.key][observable])
@@ -334,15 +353,13 @@ class Measurement():
         
         return valid
         
-    def compute_observable_targets(self, data, valid, t_total=None):
+    def compute_observable_targets(self, data, t_total=None):
         """ Determines which planets are observable based on the total allotted observing time.
 
         Parameters
         ----------
         data : Table
             Table of data values already measured for these planets.
-        valid : bool array
-            Mask specifying which targets in `data` are valid targets.
         t_total : float, optional
             Total observing time for this measurement. If None, use self.t_total.
         
@@ -352,29 +369,39 @@ class Measurement():
             Specifies which planets in the table are observable within the allotted time.
         """
 
-        # If t_total is infinite, then all valid targets are observable
-        if t_total is None:
-            t_total = self.t_total
-        if np.isinf(t_total):
-            return valid
+        # Compute the weight of each target
+        weights = self.compute_weights(data)
+
+        # If t_ref is zero, then the measurement is instantaneous;
+        # all targets with weight > 0 are observable
+        if self.t_ref is None or self.t_ref == 0:
+            return weights > 0
 
         # Compute the required exposure and overhead time for each target
         t_exp, N_obs = self.compute_exposure_time(data)
         t_over = self.compute_overhead_time(data)
 
-        # (Transit mode) Targets are invalid if they cannot be observed within 10 yr
+        # (Transit mode) Targets are invalid if they require too many transit observations
         if self.survey.mode == 'transit':
-            valid[(N_obs*data['P']) > self.survey.t_max] = False
-            valid[N_obs > self.survey.N_obs_max] = False
+            weights[(N_obs*data['P']) > self.survey.t_max] = 0
+            weights[N_obs > self.survey.N_obs_max] = 0
 
-        # Compute the priority of each target; invalid targets have zero priority
-        weights = self.compute_weights(data)
-        weights *= self.compute_debias(data) 
+        # If t_total is infinite, then all targets with weight > 0 are observable, except
+        # those for which too many transit observations are required
+        if t_total is None:
+            t_total = self.t_total
+        if np.isinf(t_total):
+            return weights > 0
+
+        # (Transit mode) Debias targets based on orbital period
+        weights *= self.compute_debias(data)
+
+        # Compute the priority of each target based on its weight and the required exposure time
         priority = weights/(t_exp+t_over)
-        priority[~valid] = 0.
 
         # Observe planets in order of priority, until we run out of time or valid targets
         t_sum, observable = 0., np.zeros(len(data), dtype=bool)
+        valid = weights > 0
         for i in range(valid.sum()):
             # Determine the current highest priority planet and how much time is required to observe it
             t_obs = t_exp + t_over
@@ -440,17 +467,27 @@ class Measurement():
     def compute_weights(self, d):
         """ Computes the priority weight of each planet in `d`. """
         weights = np.ones(len(d))
-        for key, val1 in self.priority.items():
+        for key, arr1 in self.priority.items():
             # Try to compute d[key] if it hasn't already been measured
             d.compute(key)
-            for val2 in val1:
-                weights[(d[key] >= val2[0]) & (d[key] <= val2[1])] *= val2[2]
+            for arr2 in arr1:
+                val1, val2, wt = arr2
+
+                # If val1 and val2 are given, check whether val1 < d[key] < val2
+                if val2 is not None:
+                    match = (d[key] >= val1) & (d[key] <= val2)
+
+                # If only val1 is given, check whether d[key] == val1
+                else:
+                    match = d[key] == val1
+
+                weights[match] *= wt
         return weights
 
     def compute_debias(self, d):
         """ Removes detection biases from the data set (transit mode only). """
         weights = np.ones(len(d))
-        if not self.debias:
+        if self.survey.mode == 'imaging' or not self.debias:
             return weights
 
         d.compute('a')
@@ -459,31 +496,9 @@ class Measurement():
             weights = d['a']/d['R_st']
         return weights
 
-    def compute_priority(self, data):
-        """ Computes the target priority based on its weight and required exposure time. """
-        # Determine which targets are valid targets; if no targets are valid, return zeros
-        valid = self.compute_valid_targets(data)
-        if valid.sum() == 0:
-            return np.zeros(len(valid), dtype=bool)
-
-        # Compute the exposure times and overheads for each target
-        t_exp, N_obs = self.compute_exposure_time(data)
-        t_over = self.compute_overhead_time(data, N_obs)
-
-        # (Transit mode) Targets are invalid if N_obs * P > 10 yr
-        if self.survey.mode == 'transit':
-            valid[(N_obs*data['P']) > self.survey.t_max] = False
-            valid[N_obs > self.survey.N_obs_max] = False
-
-        # Compute target weights (invalid targets have no weight)
-        #weights = self.compute_weights(data)
-        weights = self.compute_weights_new(data)
-        weights[~valid] = 0.
-
-        return weights/(t_exp+t_over)
-
     def perform_measurement(self, x):
-        """ Simulates measurements of the parameter from a set of true values.
+        """ Simulates measurements of the parameter from a set of true values. Measurements
+        are clipped to +- 5 sigma of the true value to avoid non-physical results.
         
         Parameters
         ----------
@@ -511,8 +526,11 @@ class Measurement():
         else:
             sig = float(self.precision)
 
+        # Restrict measurements to +- 5 sigma
+        xmin, xmax = x-5*sig, x+5*sig
+
         # Return draw from bounded normal distribution
-        return util.normal(x, sig, xmin=self.bounds[0], xmax=self.bounds[1], size=len(x))
+        return util.normal(x, sig, xmin=xmin, xmax=xmax, size=len(x))
 
 def reset_imaging_survey():
     """ Re-creates the default imaging survey. """
@@ -532,21 +550,30 @@ def reset_imaging_survey():
 
     margs['precision'] = {'contrast': '10%',
                         'a': '10%',
-                        'age': '10%',}
-
-    margs['condition'] = {'has_H2O': ('R_eff>0.5', 'R_eff<2.0', 'a_eff<10', 'a_eff>0.1'),
-                        'has_O2': ('EEC==1',)}
+                        'age': '10%'}
 
     margs['priority'] = {}
-    margs['priority']['has_H2O'] = {'a_eff': [[0.2, 1.0, 1.0],
-                                            [1.0, 2.0, 5.0],
-                                            [2.0, 10.0, 2.0]]}
+    margs['priority']['has_H2O'] = {'a_eff': [[0.2,  1.0, 1.0],
+                                              [1.0,  2.0, 5.0],
+                                              [2.0, 10.0, 2.0],
+                                              [0.0,  0.1, 0.0],
+                                              [10.,  inf, 0.0]],
+                                              
+                                    'R_eff': [[0.0, 0.5, 0],
+                                              [2.0, inf, 0]]}
+
+
     margs['priority']['has_O2'] = {'age': [[0, 1, 10],
-                                        [1, 2, 5],
-                                        [2, 10, 1]]}
+                                           [1, 2, 5],
+                                           [2, 10, 1]],
+                                           
+                                    'EEC': [[False, None, 0]]}
 
     margs['t_ref'] = {'has_H2O': 0.035,
                     'has_O2': 0.1}
+
+    margs['wl_eff'] = {'has_H2O': 1.4,
+                       'has_O2': 0.7}
 
     # Add the measurements to s_imaging
     for mkey in mkeys:
@@ -579,21 +606,30 @@ def reset_transit_survey():
                         'age': '30%',
                         'P': 0.001}
 
-    margs['condition'] = {'has_H2O': ('R>0.7', 'R<1.5', 'a_eff>0.1', 'a_eff<10.0'),
-                        'has_O2': ('EEC==1',)}
-
     margs['t_ref'] = {'has_H2O': 7.5,
                     'has_O2': 3.1}
 
-    margs['priority'] = {}
+    margs['wl_eff'] = {'has_H2O': 1.7,
+                       'has_O2': 0.6}
+
+    margs['priority'] = {} 
     margs['priority']['has_H2O'] = {'a_eff': [[ 0.3  ,  0.816,  2.   ],
-                                            [ 0.816,  1.414,  3.   ],
-                                            [ 1.414, 10.   ,  6.   ]]}
+                                              [ 0.816,  1.414,  3.   ],
+                                              [ 1.414, 10.   ,  6.   ],
+                                              [ 0.0  ,  0.1  ,  0.   ],
+                                              [10.0  ,  inf ,  0.   ]],
+
+                                    'R':     [[ 0.0  , 0.7   , 0.    ],
+                                              [ 1.5  , inf  , 0.    ]]}
+
+
     margs['priority']['has_O2'] = {'age': [[ 0,  2,  3],
-                                        [ 2,  4,  2],
-                                        [ 4,  6,  1],
-                                        [ 6,  8,  2],
-                                        [ 8, 12,  3]]}
+                                           [ 2,  4,  2],
+                                           [ 4,  6,  1],
+                                           [ 6,  8,  2],
+                                           [ 8, 12,  3]],
+
+                                    'EEC': [[False, None, 0]]}
 
     # Add the measurements to s_transit
     for mkey in mkeys:

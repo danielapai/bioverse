@@ -275,15 +275,15 @@ def get_xyz(pl,t=0,M=None,n=3):
 # Draws N samples from a normal PDF with mean value a and standard deviation b
 # (optional) bounded to xmin < x < xmax
 def normal(a,b,xmin=None,xmax=None,size=1):
-    if b is None: return np.full(size,a)    
+    if b is None or np.sum(b) == 0: return np.full(size,a)    
     else:
-        aa = -100 if xmin is None else (xmin-a)/b
-        bb = 100 if xmax is None else (xmax-a)/b
+        aa = -np.inf if xmin is None else (xmin-a)/b
+        bb = np.inf if xmax is None else (xmax-a)/b
         # Deal with nan values bug
         if xmin is not None and np.size(aa)>1:
-            aa[np.isnan(aa)] = -100
+            aa[np.isnan(aa)] = -np.inf
         if xmax is not None and np.size(bb)>1:
-            bb[np.isnan(bb)] = 100
+            bb[np.isnan(bb)] = np.inf
         
         # truncnorm.rvs is extremely slow in newer SciPy versions; this line can be uncommented once that issue is fixed
         #return scipy.stats.truncnorm.rvs(a=aa,b=bb,loc=a,scale=b,size=size)
