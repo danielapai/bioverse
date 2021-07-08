@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>startDialog</class>
+ <widget class="QDialog" name="startDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>240</width>
+    <height>216</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Bioverse Object Editor</string>
+  </property>
+  <widget class="QWidget" name="verticalLayoutWidget">
+   <property name="geometry">
+    <rect>
+     <x>40</x>
+     <y>60</y>
+     <width>160</width>
+     <height>131</height>
+    </rect>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QPushButton" name="generatorButton">
+      <property name="text">
+       <string>Edit Generators</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QPushButton" name="imagingButton">
+      <property name="text">
+       <string>Edit ImagingSurveys</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QPushButton" name="transitButton">
+      <property name="text">
+       <string>Edit TransitSurveys</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QLabel" name="label">
+   <property name="geometry">
+    <rect>
+     <x>50</x>
+     <y>20</y>
+     <width>161</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Select an object class:</string>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>generatorButton</sender>
+   <signal>clicked()</signal>
+   <receiver>startDialog</receiver>
+   <slot>open_generatorWindow()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>119</x>
+     <y>80</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>119</x>
+     <y>84</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>imagingButton</sender>
+   <signal>clicked()</signal>
+   <receiver>startDialog</receiver>
+   <slot>open_imagingWindow()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>119</x>
+     <y>124</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>119</x>
+     <y>107</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>transitButton</sender>
+   <signal>clicked()</signal>
+   <receiver>startDialog</receiver>
+   <slot>open_transitWindow()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>119</x>
+     <y>165</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>119</x>
+     <y>107</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <slots>
+  <slot>open_generatorWindow()</slot>
+  <slot>open_imagingWindow()</slot>
+  <slot>open_transitWindow()</slot>
+ </slots>
+</ui>

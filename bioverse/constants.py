@@ -8,11 +8,11 @@ import numpy as np
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 UI_DIR = ROOT_DIR+'/UI/'
 ATMOSPHERE_TEMPLATES_DIR = ROOT_DIR+'/Templates/Atmospheres/'
-SURVEYS_DIR = ROOT_DIR+'/Surveys/'
 MODELS_DIR = ROOT_DIR+'/Objects/Models/'
-GENERATORS_DIR = ROOT_DIR+'/Generators/'
 INSTRUMENTS_DIR = ROOT_DIR+'/Instruments/'
 OBJECTS_DIR = ROOT_DIR+'/Objects/'
+GENERATORS_DIR = OBJECTS_DIR+'/Generators/'
+SURVEYS_DIR = OBJECTS_DIR+'/Surveys/'
 PLOTS_DIR = ROOT_DIR+'/Plots/'
 RESULTS_DIR = ROOT_DIR+'/Results/'
 CATALOG_FILE = ROOT_DIR+'/Gaia.csv'

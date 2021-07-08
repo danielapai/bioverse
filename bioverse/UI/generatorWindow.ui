@@ -1,0 +1,300 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>generatorWindow</class>
+ <widget class="QMainWindow" name="generatorWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1061</width>
+    <height>650</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Edit Generators</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QLabel" name="generatorLabel">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>10</y>
+      <width>311</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Current Generator:</string>
+    </property>
+   </widget>
+   <widget class="QTextBrowser" name="descriptionTextBrowser">
+    <property name="geometry">
+     <rect>
+      <x>350</x>
+      <y>40</y>
+      <width>691</width>
+      <height>531</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QTableWidget" name="argsTableWidget">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>380</y>
+      <width>311</width>
+      <height>191</height>
+     </rect>
+    </property>
+    <attribute name="horizontalHeaderStretchLastSection">
+     <bool>true</bool>
+    </attribute>
+    <column>
+     <property name="text">
+      <string>Key</string>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>Value</string>
+     </property>
+    </column>
+   </widget>
+   <widget class="QListWidget" name="stepsListWidget">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>41</y>
+      <width>311</width>
+      <height>261</height>
+     </rect>
+    </property>
+    <property name="acceptDrops">
+     <bool>false</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="addButton">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>40</x>
+      <y>310</y>
+      <width>121</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Add Step</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="removeButton">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>190</x>
+      <y>310</y>
+      <width>121</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Remove Step</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="stepLabel">
+    <property name="geometry">
+     <rect>
+      <x>350</x>
+      <y>10</y>
+      <width>691</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Current Step:</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="argsLabel">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>350</y>
+      <width>311</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Arguments:</string>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1061</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionLoad"/>
+    <addaction name="actionSaveAs"/>
+    <addaction name="actionChange_editors"/>
+   </widget>
+   <addaction name="menuFile"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionLoad">
+   <property name="text">
+    <string>Load...</string>
+   </property>
+  </action>
+  <action name="actionSaveAs">
+   <property name="text">
+    <string>Save As...</string>
+   </property>
+  </action>
+  <action name="actionEdit_Generators">
+   <property name="text">
+    <string>Edit Generators</string>
+   </property>
+  </action>
+  <action name="actionChange_editors">
+   <property name="text">
+    <string>Change editors...</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>actionLoad</sender>
+   <signal>triggered()</signal>
+   <receiver>generatorWindow</receiver>
+   <slot>load()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>424</x>
+     <y>232</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionSaveAs</sender>
+   <signal>triggered()</signal>
+   <receiver>generatorWindow</receiver>
+   <slot>saveas()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>424</x>
+     <y>232</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>addButton</sender>
+   <signal>clicked()</signal>
+   <receiver>generatorWindow</receiver>
+   <slot>add_step()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>100</x>
+     <y>424</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>460</x>
+     <y>324</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>removeButton</sender>
+   <signal>clicked()</signal>
+   <receiver>generatorWindow</receiver>
+   <slot>remove_step()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>240</x>
+     <y>424</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>460</x>
+     <y>324</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>stepsListWidget</sender>
+   <signal>currentRowChanged(int)</signal>
+   <receiver>generatorWindow</receiver>
+   <slot>select_step(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>175</x>
+     <y>233</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>460</x>
+     <y>324</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>argsTableWidget</sender>
+   <signal>cellChanged(int,int)</signal>
+   <receiver>generatorWindow</receiver>
+   <slot>set_arg(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>175</x>
+     <y>512</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>530</x>
+     <y>324</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionChange_editors</sender>
+   <signal>triggered()</signal>
+   <receiver>generatorWindow</receiver>
+   <slot>change_editors()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>530</x>
+     <y>324</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <slots>
+  <slot>load()</slot>
+  <slot>saveas()</slot>
+  <slot>add_step()</slot>
+  <slot>remove_step()</slot>
+  <slot>select_step(int)</slot>
+  <slot>set_arg(int)</slot>
+  <slot>change_editors()</slot>
+ </slots>
+</ui>

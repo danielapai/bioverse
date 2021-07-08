@@ -12,8 +12,7 @@ from warnings import warn
 from . import analysis
 from . import classes
 from . import util
-from .constants import MODELS_DIR,INT_TYPES
-from .constants import STR_TYPES
+from .constants import INT_TYPES, STR_TYPES
 
 # Unmap the save key
 try:
@@ -51,7 +50,7 @@ def plot(d,starID=None,order=None,fig=None,canvas=None):
     # Bottom plots show the planet's atmosphere
     ax.append(plt.subplot2grid((9,16),(5,5),rowspan=4,colspan=4,fig=fig))
     ax.append(plt.subplot2grid((9,16),(5,11),rowspan=4,colspan=10,fig=fig))
-    ax[2:4] = plot_atmosphere(d,idx[0],idx[1],ax=ax[2:4])
+    #ax[2:4] = plot_atmosphere(d,idx[0],idx[1],ax=ax[2:4])
     
     # Left/right to cycle through systems or planets
     starIDs = np.unique(d['starID'])
@@ -67,14 +66,14 @@ def plot(d,starID=None,order=None,fig=None,canvas=None):
                 for i in range(0,4): ax[i].clear()
                 ax[0] = plot_universe(d,ax=ax[0],mark=idx[0])
                 ax[1] = plot_system(d,idx[0],ax=ax[1],mark=idx[1])
-                ax[2:4] = plot_atmosphere(d,idx[0],idx[1],ax=ax[2:4])
+                #ax[2:4] = plot_atmosphere(d,idx[0],idx[1],ax=ax[2:4])
                 canvas.draw()
         if event.inaxes in ax[2:4]:
             if event.key in ['left','right']:
                 idx[1] = util.cycle_index(orders,idx[1],1 if event.key == 'right' else -1)
                 for i in range(1,4): ax[i].clear()
                 ax[1] = plot_system(d,idx[0],ax=ax[1],mark=idx[1])
-                ax[2:4] = plot_atmosphere(d,idx[0],idx[1],ax=ax[2:4])
+                #ax[2:4] = plot_atmosphere(d,idx[0],idx[1],ax=ax[2:4])
                 canvas.draw()
         
     cid = canvas.mpl_connect('key_press_event',onpress)
@@ -376,10 +375,10 @@ def Example1_priority(generator, survey, fig=None, ax=None, show=True):
     data = classes.Table()
     data['a_eff'] = x.flatten()
     data[Rkey] = y.flatten()
-    z = survey.get_measurement('has_H2O').compute_weights(data)
+    z = survey.measurements['has_H2O'].compute_weights(data)
 
     # Set 0 for invalid values
-    valid = survey.get_measurement('has_H2O').compute_valid_targets(data)
+    valid = survey.measurements['has_H2O'].compute_valid_targets(data)
     z[~valid] = 0
     z = z.reshape(x.shape)
 
@@ -487,7 +486,7 @@ def Example2_priority(generator, survey, fig=None, ax=None, show=True):
     # Determine the priority of each grid cell
     data = classes.Table()
     data['age'] = x
-    z = survey.get_measurement('has_O2').compute_weights(data)
+    z = survey.measurements['has_O2'].compute_weights(data)
 
     # Plot the priority vs age
     ax.plot(x, z, lw=5, c='C0')

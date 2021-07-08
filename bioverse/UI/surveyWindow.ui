@@ -1,0 +1,558 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>surveyWindow</class>
+ <widget class="QMainWindow" name="surveyWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>703</width>
+    <height>650</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="windowTitle">
+   <string>Edit Surveys</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QLabel" name="surveyLabel">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>10</y>
+      <width>311</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Current Survey:</string>
+    </property>
+   </widget>
+   <widget class="QTableWidget" name="paramsTableWidget">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>40</y>
+      <width>311</width>
+      <height>221</height>
+     </rect>
+    </property>
+    <attribute name="horizontalHeaderStretchLastSection">
+     <bool>true</bool>
+    </attribute>
+    <column>
+     <property name="text">
+      <string>Parameter</string>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>Value</string>
+     </property>
+    </column>
+   </widget>
+   <widget class="QListWidget" name="measurementsListWidget">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>300</y>
+      <width>311</width>
+      <height>221</height>
+     </rect>
+    </property>
+    <property name="acceptDrops">
+     <bool>false</bool>
+    </property>
+   </widget>
+   <widget class="QLabel" name="measurementsLabel">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>270</y>
+      <width>311</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Measurements:</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="addButton">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>90</x>
+      <y>540</y>
+      <width>171</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Add Measurement</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="removeButton">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>90</x>
+      <y>570</y>
+      <width>171</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Remove Measurement</string>
+    </property>
+   </widget>
+   <widget class="QTableWidget" name="measurementTableWidget">
+    <property name="geometry">
+     <rect>
+      <x>370</x>
+      <y>40</y>
+      <width>311</width>
+      <height>221</height>
+     </rect>
+    </property>
+    <property name="sizeAdjustPolicy">
+     <enum>QAbstractScrollArea::AdjustToContents</enum>
+    </property>
+    <attribute name="horizontalHeaderStretchLastSection">
+     <bool>true</bool>
+    </attribute>
+    <column>
+     <property name="text">
+      <string>Parameter</string>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>Value</string>
+     </property>
+    </column>
+   </widget>
+   <widget class="QLabel" name="measurementLabel">
+    <property name="geometry">
+     <rect>
+      <x>370</x>
+      <y>10</y>
+      <width>311</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
+    </property>
+    <property name="text">
+     <string>Current Measurement:</string>
+    </property>
+   </widget>
+   <widget class="Line" name="line">
+    <property name="geometry">
+     <rect>
+      <x>340</x>
+      <y>0</y>
+      <width>20</width>
+      <height>601</height>
+     </rect>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Vertical</enum>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label2">
+    <property name="geometry">
+     <rect>
+      <x>370</x>
+      <y>270</y>
+      <width>311</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Priority:</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="addConditionButton">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>440</x>
+      <y>540</y>
+      <width>171</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Add Prioritization</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="removeConditionButton">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>440</x>
+      <y>570</y>
+      <width>171</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Remove Prioritization</string>
+    </property>
+   </widget>
+   <widget class="QTableWidget" name="priorityTableWidget">
+    <property name="enabled">
+     <bool>true</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>370</x>
+      <y>300</y>
+      <width>311</width>
+      <height>221</height>
+     </rect>
+    </property>
+    <property name="sizeAdjustPolicy">
+     <enum>QAbstractScrollArea::AdjustToContents</enum>
+    </property>
+    <property name="editTriggers">
+     <set>QAbstractItemView::NoEditTriggers</set>
+    </property>
+    <attribute name="horizontalHeaderStretchLastSection">
+     <bool>true</bool>
+    </attribute>
+    <column>
+     <property name="text">
+      <string>Condition</string>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>Weight</string>
+     </property>
+    </column>
+   </widget>
+   <widget class="QPushButton" name="upButton">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>40</x>
+      <y>540</y>
+      <width>31</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>↑</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="downButton">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>280</x>
+      <y>540</y>
+      <width>31</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>↓</string>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>703</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionOpen"/>
+    <addaction name="actionSaveAs"/>
+    <addaction name="actionRestore_Default"/>
+    <addaction name="actionChange_editors"/>
+   </widget>
+   <addaction name="menuFile"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionOpen">
+   <property name="text">
+    <string>Open...</string>
+   </property>
+  </action>
+  <action name="actionSaveAs">
+   <property name="text">
+    <string>Save as...</string>
+   </property>
+  </action>
+  <action name="actionRestore_Default">
+   <property name="text">
+    <string>Restore Default</string>
+   </property>
+  </action>
+  <action name="actionGenerator_Editor">
+   <property name="text">
+    <string>Generator Editor</string>
+   </property>
+  </action>
+  <action name="actionChange_editors">
+   <property name="text">
+    <string>Change editors...</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>actionSaveAs</sender>
+   <signal>triggered()</signal>
+   <receiver>surveyWindow</receiver>
+   <slot>saveas()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>529</x>
+     <y>323</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionOpen</sender>
+   <signal>triggered()</signal>
+   <receiver>surveyWindow</receiver>
+   <slot>load()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>529</x>
+     <y>323</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>paramsTableWidget</sender>
+   <signal>cellChanged(int,int)</signal>
+   <receiver>surveyWindow</receiver>
+   <slot>set_param(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>175</x>
+     <y>157</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>529</x>
+     <y>323</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>measurementsListWidget</sender>
+   <signal>currentRowChanged(int)</signal>
+   <receiver>surveyWindow</receiver>
+   <slot>select_measurement(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>175</x>
+     <y>492</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>529</x>
+     <y>323</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>removeConditionButton</sender>
+   <signal>clicked()</signal>
+   <receiver>surveyWindow</receiver>
+   <slot>remove_condition()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>525</x>
+     <y>604</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>349</x>
+     <y>323</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>measurementTableWidget</sender>
+   <signal>cellChanged(int,int)</signal>
+   <receiver>surveyWindow</receiver>
+   <slot>set_measurement_param(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>525</x>
+     <y>172</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>529</x>
+     <y>323</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>addConditionButton</sender>
+   <signal>clicked()</signal>
+   <receiver>surveyWindow</receiver>
+   <slot>add_condition()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>525</x>
+     <y>574</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>351</x>
+     <y>323</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>addButton</sender>
+   <signal>clicked()</signal>
+   <receiver>surveyWindow</receiver>
+   <slot>add_measurement()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>165</x>
+     <y>574</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>529</x>
+     <y>323</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>removeButton</sender>
+   <signal>clicked()</signal>
+   <receiver>surveyWindow</receiver>
+   <slot>remove_measurement()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>165</x>
+     <y>604</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>529</x>
+     <y>323</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionRestore_Default</sender>
+   <signal>triggered()</signal>
+   <receiver>surveyWindow</receiver>
+   <slot>restore_default()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>351</x>
+     <y>324</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>upButton</sender>
+   <signal>clicked()</signal>
+   <receiver>surveyWindow</receiver>
+   <slot>move_up()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>55</x>
+     <y>587</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>351</x>
+     <y>324</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>downButton</sender>
+   <signal>clicked()</signal>
+   <receiver>surveyWindow</receiver>
+   <slot>move_down()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>295</x>
+     <y>587</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>351</x>
+     <y>324</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionChange_editors</sender>
+   <signal>triggered()</signal>
+   <receiver>surveyWindow</receiver>
+   <slot>change_editors()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>351</x>
+     <y>324</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <slots>
+  <slot>load()</slot>
+  <slot>saveas()</slot>
+  <slot>set_param(int)</slot>
+  <slot>select_measurement(int)</slot>
+  <slot>add_measurement()</slot>
+  <slot>remove_measurement()</slot>
+  <slot>set_measurement_param(int)</slot>
+  <slot>add_condition()</slot>
+  <slot>remove_condition()</slot>
+  <slot>restore_default()</slot>
+  <slot>move_up()</slot>
+  <slot>move_down()</slot>
+  <slot>change_editors()</slot>
+ </slots>
+</ui>
