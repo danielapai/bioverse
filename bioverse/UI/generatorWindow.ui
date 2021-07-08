@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1061</width>
+    <width>1049</width>
     <height>650</height>
    </rect>
   </property>
@@ -32,8 +32,8 @@
      <rect>
       <x>350</x>
       <y>40</y>
-      <width>691</width>
-      <height>531</height>
+      <width>681</width>
+      <height>551</height>
      </rect>
     </property>
    </widget>
@@ -41,9 +41,9 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>380</y>
+      <y>360</y>
       <width>311</width>
-      <height>191</height>
+      <height>231</height>
      </rect>
     </property>
     <attribute name="horizontalHeaderStretchLastSection">
@@ -66,7 +66,7 @@
       <x>20</x>
       <y>41</y>
       <width>311</width>
-      <height>261</height>
+      <height>231</height>
      </rect>
     </property>
     <property name="acceptDrops">
@@ -79,10 +79,10 @@
     </property>
     <property name="geometry">
      <rect>
-      <x>40</x>
-      <y>310</y>
-      <width>121</width>
-      <height>25</height>
+      <x>60</x>
+      <y>280</y>
+      <width>111</width>
+      <height>31</height>
      </rect>
     </property>
     <property name="text">
@@ -95,10 +95,10 @@
     </property>
     <property name="geometry">
      <rect>
-      <x>190</x>
-      <y>310</y>
-      <width>121</width>
-      <height>25</height>
+      <x>180</x>
+      <y>280</y>
+      <width>111</width>
+      <height>31</height>
      </rect>
     </property>
     <property name="text">
@@ -122,7 +122,7 @@
     <property name="geometry">
      <rect>
       <x>20</x>
-      <y>350</y>
+      <y>330</y>
       <width>311</width>
       <height>20</height>
      </rect>
@@ -131,13 +131,45 @@
      <string>Arguments:</string>
     </property>
    </widget>
+   <widget class="QPushButton" name="upButton">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>30</x>
+      <y>280</y>
+      <width>21</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>↑</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="downButton">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>300</x>
+      <y>280</y>
+      <width>21</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>↓</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1061</width>
+     <width>1049</width>
      <height>22</height>
     </rect>
    </property>
@@ -287,6 +319,38 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>upButton</sender>
+   <signal>clicked()</signal>
+   <receiver>generatorWindow</receiver>
+   <slot>move_up()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>40</x>
+     <y>317</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>524</x>
+     <y>324</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>downButton</sender>
+   <signal>clicked()</signal>
+   <receiver>generatorWindow</receiver>
+   <slot>move_down()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>310</x>
+     <y>317</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>524</x>
+     <y>324</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>load()</slot>
@@ -296,5 +360,7 @@
   <slot>select_step(int)</slot>
   <slot>set_arg(int)</slot>
   <slot>change_editors()</slot>
+  <slot>move_up()</slot>
+  <slot>move_down()</slot>
  </slots>
 </ui>

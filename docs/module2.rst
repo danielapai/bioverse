@@ -44,15 +44,16 @@ Given a simulated set of planets to observe, the Survey first determines which o
 Conducting measurements
 ************************************
 
-The Survey will conduct a series of measurements on the detectable planet sample, each defined by a :class:`~bioverse.survey.Measurement` object. A Measurement describes:
+The Survey will conduct a series of measurements on the detectable planet sample, each defined by a :class:`~bioverse.survey.Measurement` object. A Measurement's parameters include:
 
-- the parameter to be measured (example: 'a' to measure semi-major axis)
-- the relative or absolute precision with which the parameter is measured (e.g. 10% or 0.1 AU)
-- the conditions defining the subset of targets for which to apply this measurement (e.g. 'd < 20' for targets within 20 parsecs)
-- the amount of survey time allocated toward this measurement (in days, or infinite to apply to all valid targets)
-- the amount of time required to conduct this measurement for the reference target (below; only if t_total is finite)
+- ``key``: the name of the planet property to be measured
+- ``precision``: the relative or absolute precision of the measurement (e.g. 10% or 0.1 AU)
+- ``t_ref``: the amount of time in days required to conduct this measurement for a typical target (see below)
+- ``t_total``: the amount of survey time in days allocated toward this measurement
+- ``wl_eff``: the effective wavelength of observation in microns
+- ``priority``: a set of rules describing how targets are prioritized (described below)
 
-To conduct these measurements and produce a dataset is simple:
+To conduct these measurements and produce a dataset:
 
 .. code-block:: python
 
@@ -86,21 +87,71 @@ The last three lines can be combined into the following:
 Reference case
 **************
 
-Some planetary properties are either trivial to measure (i.e. host star effective temperature) or their measurement occurs concurrently with their detection - for example, planet-star contrast (in imaging mode) or planet radius (in transit mode). Other properties - especially the detection of atmospheric species - require time-intensive spectroscopic observations spanning several hours or days of integration time. This is especially relevant for a transiting exoplanet survey as the amount of SNR built up per transit observation is limited by the transit duration, and the number of transits observable within a reasonable survey lifetime is limited by the orbital period.
+A Measurement's "reference time", ``t_ref``, is the exposure time required to perform the measurement for an Earth-like planet orbiting a typical star (whose properties are defined under the Survey by ``T_st_ref``, ``R_st_ref``, and ``d_ref``). Bioverse uses ``t_ref``, along the wavelength of observation ``wl_eff``, to determine the exposure time ``t_i`` required for each individual planet with the following equation:
 
-As an example, consider the amount of time required to detect H2O in a transiting exoplanet's atmosphere. One way to estimate this would be to simulate the planet's observed spectrum (with uncertainties), measure the amplitude of H2O absorption features, and compute the amount of time required to achieve a 5-sigma detection of that amplitude. However, to repeat this for every planet would be computationally intensive, and would prohibit the use Bioverse to simulate thousands of realizations of the same survey.
+    
+.. math::
 
-A much faster method involves estimating the amount of time required to characterize a single planet whose properties are broadly representative of the "typical" survey target, then scaling that exposure time to each planet based on the major factors affecting signal strength. The determination of this "reference time" ``t_ref`` is generally not done in Bioverse. It can be accomplished by citing relevant studies in the literature or using third-party tools such as the `Planetary Spectrum Generator <https://psg.gsfc.nasa.gov/>`_.
+    \frac{t_i}{t_\text{ref}} = f_i
+    \left(\frac{d_i}{d_\text{ref}}\right)^2
+    \left(\frac{R_*}{R_{*, \text{ref}}}\right)^{-2}
+    \left(\frac{B(\lambda_\text{eff},T_{*,i})}{B(\lambda_\text{eff},T_{*, \text{ref}})}\right)^{-1}
+
+:math:`f_i` encompasses the different factors affecting spectroscopic signal strength in imaging and transit mode:
+
+.. math::
+
+    f_i^\text{imaging} &= \left(\frac{\zeta_i}{\zeta_\oplus}\right)^{-1}
+
+    f_i^\text{transit} &= 
+    \left(\frac{h_{i}}{h_\oplus}\right)^{-2}
+    \left(\frac{R_{p,i}}{R_\oplus}\right)^{-2}
+    \left(\frac{R_{*,i}}{R_{*, \text{ref}}}\right)^4
+
+The determination of ``t_ref`` is generally not done in Bioverse. It can be accomplished by citing relevant studies in the literature or using third-party tools such as the `Planetary Spectrum Generator <https://psg.gsfc.nasa.gov/>`_.
+
+To change ``t_ref`` and ``wl_eff`` for a specific Measurement:
+
+.. code-block:: python
+
+    survey = ImagingSurvey('default')
+    survey.measurements['has_H2O'].t_ref = 0.04
+    survey.measurements['has_H2O'].wl_eff = 1.4 
+
+
+.. Some planetary properties are either trivial to measure (i.e. host star effective temperature) or their measurement occurs concurrently with their detection - for example, planet-star contrast (in imaging mode) or planet radius (in transit mode). Other properties - especially the detection of atmospheric species - require time-intensive spectroscopic observations spanning several hours or days of integration time. This is especially relevant for a transiting exoplanet survey as the amount of SNR built up per transit observation is limited by the transit duration, and the number of transits observable within a reasonable survey lifetime is limited by the orbital period.
+
+.. As an example, consider the amount of time required to detect H2O in a transiting exoplanet's atmosphere. One way to estimate this would be to simulate the planet's observed spectrum (with uncertainties), measure the amplitude of H2O absorption features, and compute the amount of time required to achieve a 5-sigma detection of that amplitude. However, to repeat this for every planet would be computationally intensive, and would prohibit the use Bioverse to simulate thousands of realizations of the same survey.
+
+.. A much faster method involves estimating the amount of time required to characterize a single planet whose properties are broadly representative of the "typical" survey target, then scaling that exposure time to each planet based on the major factors affecting signal strength. The determination of this "reference time" ``t_ref`` is generally not done in Bioverse. It can be accomplished by citing relevant studies in the literature or using third-party tools such as the `Planetary Spectrum Generator <https://psg.gsfc.nasa.gov/>`_.
 
 Target prioritization
 *********************
 
-It is not always feasible to characterize all targets within a finite survey duration (e.g., 10 years). Therefore, targets must be prioritized. In Bioverse, target prioritization depends both on the target's scientific interest (quantified by the weight parameter ``w_i``) and the amount of time ``t_i`` required to properly characterize it. Each target's priority is as follows:
+For measurements where ``t_total`` is finite and ``t_ref`` is non-zero, targets must be prioritized in case there is insufficient time to characterize all of them. In Bioverse, target prioritization depends both on the target's scientific interest (quantified by the weight parameter ``w_i``) and the amount of time ``t_i`` required to properly characterize it. Each target's priority is calculated as follows:
 
-.. math
-    p_i = w_i/t_i
+    :math:`p_i = w_i/t_i`
 
-Given a finite survey lifetime, Bioverse will conduct an observation of the highest priority target, subtract ``t_i`` from the total time remaining, and continue to the next priority target until the total time is exhausted. The resulting dataset will fill in ``nan`` values for any targets that were not observed.
+Bioverse will observe targets in order of decreasing ``p_i`` until ``t_total`` has been exhausted. The resulting dataset will fill in ``nan`` values for any targets that were not observed.
+
+By default, ``w_i = 1`` for all targets, but it can be raised or lowered for planets that meet certain criteria. For example, to assign ``w_i = 5`` for targets with radii between 1-2 :math:`R_\oplus`:
+
+.. code-block:: python
+
+    m = survey.measurement['has_O2']
+    m.set_weight('R', weight=5, min=1, max=2)
+
+To exclude a set of targets, set ``w_i = 0``. For example, to restrict a measurement to exo-Earth candidates only:
+
+.. code-block:: python
+
+    m.set_weight('EEC', weight=0, value=False)
+
+In transit mode, targets are weighted by :math:`a/R_*` to correct the detection bias toward shorter period planets. To disable this feature:
+
+.. code-block:: python
+
+    m.debias = False
 
 .. rubric:: Footnotes
 

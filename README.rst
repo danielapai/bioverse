@@ -38,3 +38,4 @@ Bioverse is compatible with Python 3.7+. It has the following dependencies, all 
 - ``scipy``
 - ``tqdm`` (optional: provides a progress bar for long processes)
 - ``pandas`` (optional: used for data visualization)
+- ``PyQt5`` (optional: enables configuration GUI)

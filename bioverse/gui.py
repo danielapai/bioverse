@@ -1,17 +1,18 @@
 from PyQt5 import uic
 from PyQt5.QtWidgets import QApplication, QDialog, QMainWindow, QInputDialog,\
                             QFileDialog, QListWidgetItem, QTableWidgetItem, QMessageBox
+from PyQt5.QtCore import Qt
 import numpy as np
 import os
 import signal
 import sys
 
 # Bioverse imports
-from .generator import Generator
-from .survey import ImagingSurvey, TransitSurvey
-from .survey import reset_imaging_survey, reset_transit_survey
-from .constants import OBJECTS_DIR, UI_DIR
-from .util import get_type
+from bioverse.generator import Generator
+from bioverse.survey import ImagingSurvey, TransitSurvey
+from bioverse.survey import reset_imaging_survey, reset_transit_survey
+from bioverse.constants import OBJECTS_DIR, UI_DIR
+from bioverse.util import get_type
 
 # Key values that allow float or percent values
 allows_pct = ['precision']
@@ -59,6 +60,7 @@ class generatorWindow(QMainWindow):
         if self.mgr.obj is not None:
             self.load_steps()
             self.generatorLabel.setText('Current Generator: {:s}'.format(self.mgr.obj.label))
+            self.stepsListWidget.setCurrentRow(0)
         self.update_buttons()
     
     def saveas(self):
@@ -72,26 +74,26 @@ class generatorWindow(QMainWindow):
         enable = self.mgr.obj is not None
         self.addButton.setEnabled(enable)
         self.removeButton.setEnabled(enable)
+        self.upButton.setEnabled(enable)
+        self.downButton.setEnabled(enable)
 
     def add_step(self):
-        """ Prompts the user for a new step to insert at the currently-selected index. """
+        """ Prompts the user for a new step to insert at the end of the list. """
         function_name, ok = QInputDialog.getText(self, 'Add step', 'Enter the function name (in custom.py or functions.py):')
         if ok:
-            idx = self.stepsListWidget.currentRow()
+            nsteps = len(self.mgr.obj.steps)
             try:
-                self.mgr.obj.insert_step(function_name, idx=idx)
+                self.mgr.obj.insert_step(function_name)
             except ValueError as err:
                 print("Error adding step: {:s}".format(str(err)))
                 return
 
-        # Flag the Generator as changed
-        self.mgr.changed = True
+            # Flag the Generator as changed
+            self.mgr.changed = True
 
-        # Refresh lists/tables
-        self.load_steps()
-        nsteps = len(self.mgr.obj.steps)
-        if nsteps > 0:
-            self.stepsListWidget.setCurrentRow(min(idx, nsteps-1))
+            # Refresh lists/tables
+            self.load_steps()
+            self.stepsListWidget.setCurrentRow(nsteps)
     
     def remove_step(self):
         """ Deletes the currently-selected step. """
@@ -130,6 +132,33 @@ class generatorWindow(QMainWindow):
             item = QListWidgetItem('Step {:d}: {:s}'.format(i, step.function_name))
             self.stepsListWidget.addItem(item)
     
+    def move_up(self):
+        """ Moves a step up in the sequence. """
+        self.move_step(-1)
+
+    def move_down(self):
+        """ Moves a step down in the sequence. """
+        self.move_step(1)
+
+    def move_step(self, move):
+        """ Moves the currently-selected step up or down by `move` places. """
+        # Check that the move is valid
+        steps = self.mgr.obj.steps
+        if len(steps) == 0:
+            return
+        idx = self.stepsListWidget.currentRow()
+        idx_max = len(steps) - 1
+        if (idx+move < 0) or (idx+move > idx_max):
+            return
+        
+        # Insert the step at its new location, then delete it at the old location
+        steps.insert(idx+move+(move>0), steps[idx])
+        del steps[idx if move>0 else idx+1]
+        
+        self.load_steps()
+        self.stepsListWidget.setCurrentRow(idx+move)
+        self.mgr.changed = True
+
     def load_args(self):
         """ Loads the arguments and saved values into argsTableWidget. """
         self.args_loading = True
@@ -334,7 +363,10 @@ class surveyWindow(QMainWindow):
         if (idx+move < 0) or (idx+move > idx_max):
             return
         self.mgr.obj.move_measurement(key, idx+move)
+
         self.load_measurements()
+        self.measurementsListWidget.setCurrentRow(idx+move)
+        self.mgr.changed = True
 
     def get_current_measurement(self):
         """ Returns the currently-selected measurement. """
@@ -561,9 +593,9 @@ class FileManager():
         else:
             return True
 
-def load_table_from_dict(d, tableWidget, skip=[]):
-    """ Loads a two-column tableWidget from a dictionary, with column1 = keys and column2 = values.
-    Skips keys in `skip`. """
+def load_table_from_dict(d, tableWidget, skip=[], disable_first=True):
+    """ Loads a two-column tableWidget from a dictionary, with column1 = keys and column2 = values. Skips keys in `skip` and disables the first column
+    from editing if `disable_first` is True. """
     N_rows = len(d)-len(skip)
     tableWidget.setRowCount(N_rows)
     i = 0
@@ -571,6 +603,8 @@ def load_table_from_dict(d, tableWidget, skip=[]):
         if key in skip:
             continue
         item1, item2 = QTableWidgetItem(key), QTableWidgetItem(str(val))
+        if disable_first:
+            item1.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
         tableWidget.setItem(i, 0, item1)
         tableWidget.setItem(i, 1, item2)
         i += 1

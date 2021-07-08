@@ -312,6 +312,44 @@ class Measurement():
 
         return data
     
+    def set_weight(self, key, weight, min=None, max=None, value=None):
+        """ Adds a new rule for determining target weight. `weight` can be set
+        for targets whose parameter fall within (`min`, `max`) or exactly match `value`.
+        
+        Parameters
+        ----------
+        key : str
+            Name of the parameter being checked.
+        weight : float
+            Weight of targets that meet the conditions.
+        min : float, optional
+            Minimum value of range. Default is -inf.
+        max : float, optional
+            Maximum value of range. Default is +inf.
+        value : int or str or bool, optional
+            Exact value with which to compare.
+        """
+        # Check inputs
+        if min is None and max is None and value is None:
+            raise ValueError("Must specify one of `min`, `max`, or `value`.")
+        elif (min is not None or max is not None) and value is not None:
+            raise ValueError("Cannot specify both `min`/`max` and `value`.")
+
+        # Check min < x < max
+        if value is not None:
+            arr = [value, None, weight]
+        
+        # Check min < x < max
+        else:
+            min = min if min is not None else -np.inf
+            max = max if max is not None else np.inf
+            arr = [min, max, weight]
+
+        # Add the new rule
+        if key not in self.priority:
+            self.priority[key] = np.empty(shape=(0, 3))
+        self.priority[key] = np.append(self.priority[key], [arr], axis=0)
+
     def compute_valid_targets(self, data):
         """ Determines which planets are valid targets based on whether their previously measured parameters
         meet the measurement conditions.
@@ -486,15 +524,15 @@ class Measurement():
 
     def compute_debias(self, d):
         """ Removes detection biases from the data set (transit mode only). """
-        weights = np.ones(len(d))
+        debias = np.ones(len(d))
         if self.survey.mode == 'imaging' or not self.debias:
-            return weights
+            return debias
 
         d.compute('a')
         d.compute('a_eff')
         if 'a' in d and self.survey.mode == 'transit':
-            weights = d['a']/d['R_st']
-        return weights
+            debias = d['a']/d['R_st']
+        return debias
 
     def perform_measurement(self, x):
         """ Simulates measurements of the parameter from a set of true values. Measurements
@@ -552,23 +590,6 @@ def reset_imaging_survey():
                         'a': '10%',
                         'age': '10%'}
 
-    margs['priority'] = {}
-    margs['priority']['has_H2O'] = {'a_eff': [[0.2,  1.0, 1.0],
-                                              [1.0,  2.0, 5.0],
-                                              [2.0, 10.0, 2.0],
-                                              [0.0,  0.1, 0.0],
-                                              [10.,  inf, 0.0]],
-                                              
-                                    'R_eff': [[0.0, 0.5, 0],
-                                              [2.0, inf, 0]]}
-
-
-    margs['priority']['has_O2'] = {'age': [[0, 1, 10],
-                                           [1, 2, 5],
-                                           [2, 10, 1]],
-                                           
-                                    'EEC': [[False, None, 0]]}
-
     margs['t_ref'] = {'has_H2O': 0.035,
                     'has_O2': 0.1}
 
@@ -583,6 +604,22 @@ def reset_imaging_survey():
                 kwargs[key] = vals[mkey]
         s_imaging.add_measurement(mkey, **kwargs)
     
+    # Set target weights
+    m = s_imaging.measurements['has_H2O']
+    m.set_weight('a_eff', min=0.2, max=1, weight=1)
+    m.set_weight('a_eff', min=1, max=2, weight=5)
+    m.set_weight('a_eff', min=2, max=10, weight=2)
+    m.set_weight('a_eff', max=0.1, weight=0)
+    m.set_weight('a_eff', min=10, weight=0)
+    m.set_weight('R_eff', max=0.5, weight=0)
+    m.set_weight('R_eff', min=2, weight=0)
+
+    m = s_imaging.measurements['has_O2']
+    m.set_weight('age', min=0, max=1, weight=10)
+    m.set_weight('age', min=1, max=2, weight=5)
+    m.set_weight('age', min=2, max=10, weight=1)
+    m.set_weight('EEC', value=False, weight=0)
+
     s_imaging.save(label='default')
 
 def reset_transit_survey():
@@ -612,25 +649,6 @@ def reset_transit_survey():
     margs['wl_eff'] = {'has_H2O': 1.7,
                        'has_O2': 0.6}
 
-    margs['priority'] = {} 
-    margs['priority']['has_H2O'] = {'a_eff': [[ 0.3  ,  0.816,  2.   ],
-                                              [ 0.816,  1.414,  3.   ],
-                                              [ 1.414, 10.   ,  6.   ],
-                                              [ 0.0  ,  0.1  ,  0.   ],
-                                              [10.0  ,  inf ,  0.   ]],
-
-                                    'R':     [[ 0.0  , 0.7   , 0.    ],
-                                              [ 1.5  , inf  , 0.    ]]}
-
-
-    margs['priority']['has_O2'] = {'age': [[ 0,  2,  3],
-                                           [ 2,  4,  2],
-                                           [ 4,  6,  1],
-                                           [ 6,  8,  2],
-                                           [ 8, 12,  3]],
-
-                                    'EEC': [[False, None, 0]]}
-
     # Add the measurements to s_transit
     for mkey in mkeys:
         kwargs = {}
@@ -638,5 +656,23 @@ def reset_transit_survey():
             if mkey in vals:
                 kwargs[key] = vals[mkey]
         s_transit.add_measurement(mkey, **kwargs)
-    
+
+    # Set target weights
+    m = s_transit.measurements['has_H2O']
+    m.set_weight('a_eff', min=0.3, max=0.816, weight=2)
+    m.set_weight('a_eff', min=0.816, max=1.414, weight=3)
+    m.set_weight('a_eff', min=1.414, max=10, weight=6)
+    m.set_weight('a_eff', max=0.1, weight=0)
+    m.set_weight('a_eff', min=10, weight=0)
+    m.set_weight('R', max=0.7, weight=0)
+    m.set_weight('R', min=1.5, weight=0)
+
+    m = s_transit.measurements['has_O2']
+    m.set_weight('age', min=0, max=2, weight=3)
+    m.set_weight('age', min=2, max=4, weight=2)
+    m.set_weight('age', min=4, max=6, weight=1)
+    m.set_weight('age', min=6, max=8, weight=2)
+    m.set_weight('age', min=8, max=12, weight=3)
+    m.set_weight('EEC', value=False, weight=0)
+
     s_transit.save(label='default')

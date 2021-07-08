@@ -65,6 +65,7 @@ One of Bioverse's main functions is to evaluate the sample size of a transiting 
 
 If ``True``, then only planets that transit their stars are simulated.
 
+.. _adding-steps:
 
 Adding new functions
 ********************

@@ -10,3 +10,4 @@ numpy
 scipy
 tqdm
 pandas
+PyQt5
