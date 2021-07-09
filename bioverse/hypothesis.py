@@ -4,6 +4,7 @@ import dynesty
 import emcee
 import numpy as np
 from scipy.stats import mannwhitneyu
+from warnings import warn
 
 # Bioverse modules
 from .util import is_bool
@@ -24,25 +25,34 @@ class Hypothesis():
         Function describing the hypothesis. Must be annotated as described above.
     bounds : array
         Nx2 array describing the [min, max] limits of each parameter. These are enforced even if a different prior
-        distribution is defined by `prior_function`.
-    prior_function : function, optional
-        Used by emcee. Function which returns ln(P_prior), must be defined as prior(theta). If None, assume a 
-        uniform distribution.
+        distribution is defined.
+    lnprior_function : function, optional
+        Used by emcee. Function which returns ln(P_prior), must be defined as prior(theta). If None, assume a (log-)uniform distribution.
     guess_function : function, optional
         Used by emcee. Function which guesses valid sets of parameters. Must be defined as guess_function(n), and 
         should return an n x m set of parameter guesses. If None, draw parameters randomly within `bounds`.
     tfprior_function : function, optional
         Used by dynesty. Function which transforms (0, 1) into (min, max) with the appropriate prior probability.
-        If None, assume a uniform prior distribution.
+        If None, assume a (log-)uniform distribution.
     log : bool array, optional
         Array of length N specifying which parameters should be sampled by a log-uniform distribution.
     """
-    def __init__(self, f, bounds, prior_function=None, guess_function=None, tfprior_function=None, log=None, h_null=None):
+    def __init__(self, f, bounds, lnprior_function=None, guess_function=None, tfprior_function=None, log=None, h_null=None):
         self.f, self.bounds = f, np.array(bounds)
-        self.prior_function, self.guess_function, self.tfprior_function = prior_function, guess_function, tfprior_function
+        self.lnprior_function, self.guess_function, self.tfprior_function = lnprior_function, guess_function, tfprior_function
         self.log = np.zeros(len(self.bounds), dtype=bool) if log is None else np.array(log)
         self.h_null = h_null
         self.lnlike = None
+
+        # Warn if only one prior function is defined
+        if self.lnprior_function is None and self.tfprior_function is not None:
+            warn("prior function is defined for dynesty but not emcee!")
+        if self.lnprior_function is not None and self.tfprior_function is None:
+            warn("prior function is defined for emcee but not dynesty!")
+
+        # Warn if log = True despite a custom prior distribution
+        if np.any(self.log) and not (self.lnprior_function is None and self.tfprior_function is None):
+            warn("should not pass log=True with a user-defined prior function!")
 
         # Save the parameter, feature, and label names
         ann = self.f.__annotations__.copy()
@@ -78,8 +88,8 @@ class Hypothesis():
     def lnprior(self, theta):
         """ Returns P(theta) (for emcee). """
         lnp = self.lnprior_uniform(theta)
-        if self.prior_function is not None:
-            lnp += self.prior_function(theta)
+        if self.lnprior_function is not None:
+            lnp += self.lnprior_function(theta)
         return lnp
 
     def tfprior(self, u):
@@ -270,14 +280,15 @@ class Hypothesis():
 
         return results
 
-# NULL HYPOTHESIS
-# Returns (theta1, theta2, ...) for each element in X
+# NULL HYPOTHESIS (N-parameter)
 def f_null(theta:(), X:()) -> ():
+    """ Function for a generic null hypothesis. Returns (theta1, theta2, ...) for each element in X. """
     shape = (np.shape(X)[0], np.shape(theta)[0])
     return np.full(shape, theta)
 
-# HABITABLE ZONE HYPOTHESIS (4-parameter, alternative)
+# HABITABLE ZONE HYPOTHESIS (4-parameter)
 def f_HZ(theta:('a_inner', 'delta_a', 'f_HZ', 'df_notHZ'), X:('a_eff',)) -> ('has_H2O',):
+    """ Function for the habitable zone hypothesis. """
     a_inner, delta_a, f_HZ, df_notHZ = theta
     in_HZ = (X > a_inner) & (X < (a_inner + delta_a))
     return in_HZ * f_HZ + (~in_HZ) * f_HZ*df_notHZ
@@ -290,8 +301,8 @@ h_HZ_null = Hypothesis(f_null, bounds_HZ_null, log=(True,))
 h_HZ = Hypothesis(f_HZ, bounds_HZ, log=(True, True, True, True), h_null=h_HZ_null)
 
 # AGE-OXYGEN CORRELATION HYPOTHESIS (2-parameter)
-# f(x) = f_life * (1 - exp(-x/tau))
 def f_age_oxygen(theta:('f_life', 't_half'), X:('age',)) -> ('has_O2',):
+    """ Function for the age-oxygen correlation hypothesis. """
     f_life, t_half = theta
     return f_life * (1 - 0.5**(X/t_half))
 bounds_age_oxygen = np.array([[0.01, 1], [0.1, 100]])

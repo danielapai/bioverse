@@ -150,136 +150,136 @@ class Generator(Object):
         return d
 
 class Step():
-        """ This class runs one function for a Generator and saves its keyword argument values.
+    """ This class runs one function for a Generator and saves its keyword argument values.
 
+    Parameters
+    ----------
+    function : str or function
+        Name of the function to be run *or* the function itself.
+    filename : str, optional
+        Name of the file containing the function for this step. If None, looks in custom.py and functions.py.
+
+    Attributes
+    ----------
+    description : str
+        Docstring for this step's function.
+    """
+    def __init__(self, function, filename=None):
+        # Determine whether a function or function name was passed
+        if type(function) is str:
+            self.function_name = function
+            self.function = None
+        else:
+            self.function = function
+            self.function_name = function.__name__
+            
+        self.filename = filename
+        self.args = {}
+
+        # Load the function and its description / arguments
+        self.load_function()
+
+    def __repr__(self, long_version=True):
+        s = "Function '{:s}' with {:s} keyword arguments.".format(self.function_name,
+            str(len(self.args)) if len(self.args) else 'no')
+        if long_version:
+            if len(self.description) > 0:
+                s += "\n\nDescription:\n    {:s}".format(self.description)
+            if len(self.args) > 0:
+                s += '\n\nArgument values:'
+                for key,val in self.args.items():
+                    s += '\n    {:14s} = {:10s}'.format(key,str(val))
+        return s
+    
+    def run(self, d, **kwargs):
+        """ Runs the function described by this step.
+        
         Parameters
         ----------
-        function : str or function
-            Name of the function to be run *or* the function itself.
-        filename : str, optional
-            Name of the file containing the function for this step. If None, looks in custom.py and functions.py.
-
-        Attributes
-        ----------
-        description : str
-            Docstring for this step's function.
+        d : Table
+            Table of simulated planets to be passed as the function's first argument.
+        **kwargs
+            Keyword argument(s) to override. Ignores arguments which don't apply to this step.
+        
+        Returns
+        -------
+        d : Table
+            Updated version of the simulated planet table.
         """
-        def __init__(self, function, filename=None):
-            # Determine whether a function or function name was passed
-            if type(function) is str:
-                self.function_name = function
-                self.function = None
-            else:
-                self.function = function
-                self.function_name = function.__name__
-                
-            self.filename = filename
-            self.args = {}
+        if self.function is None:
+            func = util.import_function_from_file(self.function_name, ROOT_DIR+'/'+self.filename)
+        else:
+            func = self.function
+        kwargs2 = {key:val for key,val in self.args.items()}
+        for key,val in kwargs.items():
+            if key in self.args:
+                kwargs2[key] = val
+        return func(d,**kwargs2)
 
-            # Load the function and its description / arguments
-            self.load_function()
-
-        def __repr__(self, long_version=True):
-            s = "Function '{:s}' with {:s} keyword arguments.".format(self.function_name,
-                str(len(self.args)) if len(self.args) else 'no')
-            if long_version:
-                if len(self.description) > 0:
-                    s += "\n\nDescription:\n    {:s}".format(self.description)
-                if len(self.args) > 0:
-                    s += '\n\nArgument values:'
-                    for key,val in self.args.items():
-                        s += '\n    {:14s} = {:10s}'.format(key,str(val))
-            return s
-        
-        def run(self, d, **kwargs):
-            """ Runs the function described by this step.
-            
-            Parameters
-            ----------
-            d : Table
-                Table of simulated planets to be passed as the function's first argument.
-            **kwargs
-                Keyword argument(s) to override. Ignores arguments which don't apply to this step.
-            
-            Returns
-            -------
-            d : Table
-                Updated version of the simulated planet table.
-            """
-            if self.function is None:
-                func = util.import_function_from_file(self.function_name, ROOT_DIR+'/'+self.filename)
-            else:
-                func = self.function
-            kwargs2 = {key:val for key,val in self.args.items()}
-            for key,val in kwargs.items():
-                if key in self.args:
-                    kwargs2[key] = val
-            return func(d,**kwargs2)
-
-        def get_arg(self, key):
-            """ Returns the value of a keyword argument. """
-            return self.args[key]
-        
-        def set_arg(self, key, value):
-            """ Sets the value of a keyword argument.
-            
-            Parameters
-            ----------
-            key : str
-                Name of the argument whose value will be set.
-            val
-                New value of the argument.
-            """
-            if key not in self.args.keys():
-                raise ValueError("keyword argument {:s} not found for step {:s}".format(key, self.function_name))
-            self.args[key] = value
-
-        def find_filename(self):
-            """ If the filename is not specified, look in custom.py followed by functions.py. """
-            if self.filename is not None:
-                return self.filename
-            else:
-                for path in [ROOT_DIR+'/custom.py', ROOT_DIR+'/functions.py']:
-                    try:
-                        util.import_function_from_file(self.function_name, path)
-                        filename = path.split('/')[-1]
-                        return filename
-                    except KeyError:
-                        continue
-
-            raise ValueError("specify the filename for function '{:s}' (not found in custom.py or functions.py)"\
-                             .format(self.function_name))
-
-        def load_function(self, reload=False):
-            """ Loads or re-loads the function's description and keyword arguments.
-            
-            Parameters
-            ----------
-            reload : bool, optional
-                Whether or not to reload the default values for the arguments.
-            """
-
-            # Determine which file contains the function
-            if self.function is None:
-                self.filename = self.find_filename()
-                func = util.import_function_from_file(self.function_name, ROOT_DIR+'/'+self.filename)
-            else:
-                func = self.function
+    def get_arg(self, key):
+        """ Returns the value of a keyword argument. """
+        return self.args[key]
     
-            params = inspect.signature(func).parameters
-            for k,v in params.items():
-                if v.default == inspect._empty:
+    def set_arg(self, key, value):
+        """ Sets the value of a keyword argument.
+        
+        Parameters
+        ----------
+        key : str
+            Name of the argument whose value will be set.
+        val
+            New value of the argument.
+        """
+        if key not in self.args.keys():
+            raise ValueError("keyword argument {:s} not found for step {:s}".format(key, self.function_name))
+        self.args[key] = value
+
+    def find_filename(self):
+        """ If the filename is not specified, look in custom.py followed by functions.py. """
+        if self.filename is not None:
+            return self.filename
+        else:
+            for path in [ROOT_DIR+'/custom.py', ROOT_DIR+'/functions.py']:
+                try:
+                    util.import_function_from_file(self.function_name, path)
+                    filename = path.split('/')[-1]
+                    return filename
+                except KeyError:
                     continue
-                if k not in self.args or reload:
-                    self.args[k] = v.default
 
-            # Delete arguments which have been removed from the function
-            for k in list(self.args.keys()):
-                if k not in params:
-                    del self.args[k]
+        raise ValueError("specify the filename for function '{:s}' (not found in custom.py or functions.py)"\
+                            .format(self.function_name))
 
-            # Save the function docstring for easy reference
-            self.description = func.__doc__.strip() if func.__doc__ is not None else '(no description)'
+    def load_function(self, reload=False):
+        """ Loads or re-loads the function's description and keyword arguments.
+        
+        Parameters
+        ----------
+        reload : bool, optional
+            Whether or not to reload the default values for the arguments.
+        """
+
+        # Determine which file contains the function
+        if self.function is None:
+            self.filename = self.find_filename()
+            func = util.import_function_from_file(self.function_name, ROOT_DIR+'/'+self.filename)
+        else:
+            func = self.function
+
+        params = inspect.signature(func).parameters
+        for k,v in params.items():
+            if v.default == inspect._empty:
+                continue
+            if k not in self.args or reload:
+                self.args[k] = v.default
+
+        # Delete arguments which have been removed from the function
+        for k in list(self.args.keys()):
+            if k not in params:
+                del self.args[k]
+
+        # Save the function docstring for easy reference
+        self.description = func.__doc__.strip() if func.__doc__ is not None else '(no description)'
 
 def reset_imaging_generator():
     """ Re-creates the default Generator for imaging surveys. """

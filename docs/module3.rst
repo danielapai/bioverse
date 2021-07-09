@@ -5,7 +5,7 @@ Hypothesis testing
 The :class:`~bioverse.hypothesis.Hypothesis` class
 **************************************************
 
-The combined result of the first two modules is a simulated dataset representing the output of the exoplanet survey. The third module addresses the power of that dataset for testing statistical hypotheses. The first step in this exercise involves defining the hypotheses you want to test, and in Bioverse this is done via a :class:`~bioverse.hypothesis.Hypothesis` object. This object includes:
+The combined result of the first two modules is a simulated dataset representing the output of the exoplanet survey. The third module addresses the power of that dataset for testing statistical hypotheses. The first step in this exercise involves defining the hypotheses you want to test, and in Bioverse this is done via a :class:`~bioverse.hypothesis.Hypothesis` object. To define a Hypothesis requires:
 
 - a set of dependent variable(s) ``X``, called features
 - a set of independent variable(s) ``Y``, called labels
@@ -97,14 +97,22 @@ The prior distributions of the parameters ``theta`` can be set to either uniform
     # Log-uniform distribution for M_0, uniform distribution for alpha
     h_mass_radius = Hypothesis(f, bounds, log=(True, False))
 
+Non-uniform prior distributions can be defined by the user, but they must be given in the proper format for both ``dynesty`` and ``emcee``:
+
+.. code-block:: python
+
+    h_mass_radius = Hypothesis(f, bounds, tfprior_function=tfprior, lnprior_function=lnprior)
+
+For more details on how to define ``tfprior()`` and ``lnprior()``, see the documentation for ``dynesty`` and ``emcee`` respectively.
+
 Posterior distributions
 ***********************
 
-When using ``dynesty`` or ``emcee``, the ``results`` object will contain summary statistics of the posterior distributions for the values of ``theta``, including the mean, median, and lower and upper 95% confidence intervals. Alternatively, by passing ``return_chains = True`` to the ``fit()`` method, the entire chain of sampled values will be return. Given enough time, the distribution of these values will converge onto the posterior distribution. In general, ``emcee`` converges much more efficiently and should be used to estimate (for example) the precision with which model parameters can be constrained.
+When using ``dynesty`` or ``emcee``, the ``results`` object will contain summary statistics of the posterior distributions for the values of ``theta``, including the mean, median, and lower and upper 95% confidence intervals. Alternatively, by passing ``return_chains = True`` to the ``fit()`` method, the entire chain of sampled values will be return. Given enough time, the distribution of these values will converge onto the posterior distribution. In general, ``emcee`` converges much more efficiently and should be used to estimate (for example) the precision with which model parameters can be constrai
 
 
 .. rubric:: Footnotes
 
-.. [#f1] This is a non-standard use of Python function annotations that many code editors will highlight, but it should not lead to any runtime errors.
+.. [#f1] This is a non-standard use of Python function annotations that many code editors will highlight, but it should not cause any runtime errors.
 .. [#f2] Note that :func:`bioverse.hypothesis.f_null` provides the same function as ``f_null()`` above but for an arbitrary number of parameters, features, and labels.
 .. [#f3] Documentation for user-defined priors will be added in a future update.

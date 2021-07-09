@@ -9,17 +9,18 @@ The output of :meth:`~bioverse.generator.Generator.generate` is a :class:`~biove
 
 The survey simulation module is implemented by the :class:`~bioverse.survey.Survey` class [#f1]_ and its children classes :class:`~bioverse.survey.ImagingSurvey` and :class:`~bioverse.survey.TransitSurvey`. The Survey describes several key components of an exoplanet survey including:
 
-- the type of survey (either 'imaging' or 'transit')
-- the diameter of the telescope primary (or effective diameter for a telescope array)
+- ``diameter``: the diameter of the telescope primary in meters (or the area-equivalent diameter for a telescope array)
+- ``t_slew``: slew time between observations, in days
 - :class:`~bioverse.survey.ImagingSurvey`
-    - IWA/OWA of the coronagraphic imager
-    - contrast limit (i.e. faintest detectable planet)
-    - slew time between observations, in days
+    - ``inner_working_angle`` and ``outer_working_angle``: IWA/OWA of the coronagraphic imager
+    - ``contrast_limit``: log-contrast limit (i.e. faintest detectable planet)
 
 - :class:`~bioverse.survey.TransitSurvey`
-    - maximum allowable number of transit observations per target
+    - ``N_obs_max``: maximum allowable number of transit observations per target
+    - ``t_max``: maximum amount of time across which to combine transit observations, in days
     
-- properties of the reference star for exposure time scaling (described below)
+- ``T_st_ref``, ``R_st_ref``, and ``d_ref``: temperature (Kelvin), radius (:math:`R_\odot`), and distance (parsec) of the reference star (see :ref:`reference-case`)
+- ``D_ref``: diameter of the reference telescope, in meters
 
 Each type of survey "ships" with a default configuration:
 
@@ -84,10 +85,12 @@ The last three lines can be combined into the following:
 
 :meth:`~bioverse.survey.Survey.quickrun` will pass any keyword arguments to the :meth:`~bioverse.generator.Generator.generate` method, and will by default pass ``transit_mode=True`` for a :class:`~bioverse.survey.TransitSurvey`.
 
+.. _reference-case:
+
 Reference case
 **************
 
-A Measurement's "reference time", ``t_ref``, is the exposure time required to perform the measurement for an Earth-like planet orbiting a typical star (whose properties are defined under the Survey by ``T_st_ref``, ``R_st_ref``, and ``d_ref``). Bioverse uses ``t_ref``, along the wavelength of observation ``wl_eff``, to determine the exposure time ``t_i`` required for each individual planet with the following equation:
+A Measurement's "reference time", ``t_ref``, is the exposure time required to perform the measurement for an Earth-like planet orbiting a typical star (whose properties are defined under the Survey by ``T_st_ref``, ``R_st_ref``, and ``d_ref``), with a telescope of diameter ``D_ref``. Bioverse uses ``t_ref``, along the wavelength of observation ``wl_eff``, to determine the exposure time ``t_i`` required for each individual planet with the following equation:
 
     
 .. math::
@@ -96,6 +99,7 @@ A Measurement's "reference time", ``t_ref``, is the exposure time required to pe
     \left(\frac{d_i}{d_\text{ref}}\right)^2
     \left(\frac{R_*}{R_{*, \text{ref}}}\right)^{-2}
     \left(\frac{B(\lambda_\text{eff},T_{*,i})}{B(\lambda_\text{eff},T_{*, \text{ref}})}\right)^{-1}
+    \left(\frac{D}{D_\text{ref}}\right)^{-2}
 
 :math:`f_i` encompasses the different factors affecting spectroscopic signal strength in imaging and transit mode:
 

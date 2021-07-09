@@ -9,8 +9,7 @@ from .constants import STR_TYPES, BOOL_TYPES, INT_TYPES
 @dataclass(repr=False)
 class Survey(dict, Object):
     """
-    Describes an exoplanet survey, including methods for creating simulated datasets.
-    This class should not be called directly; instead use ImagingSurvey or TransitSurvey.
+    Describes an exoplanet survey, including methods for creating simulated datasets. This class should not be called directly; instead use ImagingSurvey or TransitSurvey.
     """
     
     label: str = None
@@ -43,20 +42,30 @@ class Survey(dict, Object):
         return s
 
     def add_measurement(self, key, idx=None, **kwargs):
-        """ Adds a measurement to the survey, optionally to the designated measurement order. """
+        """ Adds a Measurement to the Survey.
+        
+        Parameters
+        ----------
+        key : str
+            Name of the measured parameter.
+        idx : int
+            Position in the measurement sequence. By default, it is placed at the end.
+        **kwargs
+            Keyword arguments passed to Measurement.__init__().
+        """
         self.measurements[key] = Measurement(key, self, **kwargs)
         if idx is not None:
             self.move_measurement(key, idx)
     
     def move_measurement(self, key, idx):
-        """ Moves a Measurement to the designated position.
+        """ Moves a Measurement to the designated position in the sequence.
         
         Parameters
         ----------
         key : str
-            Name of the measurement.
+            Name of the measured parameter.
         idx : int
-            Position to which to move the measurement.
+            Position in the measurement sequence to which to move the Measurement.
         """
         keys = list(self.measurements.keys())
         keys.remove(key)
@@ -65,27 +74,27 @@ class Survey(dict, Object):
         self.measurements = {key:self.measurements[key] for key in keys}
 
     def quickrun(self, generator, t_total=None, N_sim=1, **kwargs):
-        """ Convenience function which generates a sample, computes the detection yield, and returns a simulated data set.
+        """ Convenience function that generates a sample, computes the detection yield, and returns a simulated data set.
         
         Parameters
         ----------
         generator : Generator
-            Generator object to be used to generate the planet population.
+            Generator used to generate the planet population.
         t_total : float, optional
             Total amount of observing time for any measurements with a limited observing time.
         N_sim : int, optional
             If greater than 1, simulate the survey this many times and return the combined result.
         **kwargs
-            Keyword arguments to be passed to the Generator.
+            Keyword arguments passed to Generator.generate().
 
         Returns
         -------
         sample : Table
             Table of all simulated planets.
         detected : Table
-            Table of planets detected by the survey.
+            Table of planets detected by the Survey.
         data : Table
-            Simulated data set produced by the survey.
+            Simulated data set produced by the Survey.
         """
         
         # For transit surveys, set transit_mode=True unless otherwise specified
@@ -107,22 +116,21 @@ class Survey(dict, Object):
         return sample, detected, data
         
     def observe(self, y, t_total=None, data=None):
-        """ Returns a simulated data set for a table of simulated planets. Each measurement specified in the
-        survey configuration file is performed on every planet in the table.
+        """ Returns a simulated data set for a Table of simulated planets.
         
         Parameters
         ----------
         y : Table
             Table containing the set of planets to be observed, usually the detection yield of the survey.
         t_total : float, optional
-            Total observing time for any measurements with limited observing time.
+            Sets the total time allocated to all Measurements.
         data : Table, optional
-            Table in which to store the measurements.
+            Pre-existing Table in which to store the new measurements.
 
         Returns
         -------
         data : Table
-            Table of measurements made by the survey, with one row for each planet observed.
+            Table of measurements made by the Survey, with one row for each planet observed.
         """
         # Create an output Table to store measurements
         data = data if data is not None else Table()
@@ -152,9 +160,7 @@ class ImagingSurvey(Survey):
     mode: str = 'imaging'
 
     def compute_yield(self, d, wl_eff=0.5, A_g=0.3):
-        """ Computes a simple estimate of the detection yield for an imaging survey. Compares the contrast ratio and
-        projected separation of each planet when observed at quadrature to the contrast limit and inner/outer working
-        angles of the survey. Planets that satisfy these criteria are considered to be detected.
+        """ Computes a simple estimate of the detection yield for an imaging survey. Compares the contrast ratio and projected separation of each planet when observed at quadrature to the contrast limit and inner/outer working angles of the survey. Planets that satisfy these criteria are considered to be detected.
         
         Parameters
         ----------
@@ -168,7 +174,7 @@ class ImagingSurvey(Survey):
         Returns
         -------
         yield : Table
-            Copy of the input table containing only planets which were detected by the survey.
+            Copy of the input Table containing only planets which were detected by the survey.
         """
 
         # Compute the angular separation at quadrature (milli-arcseconds)
@@ -192,6 +198,7 @@ class ImagingSurvey(Survey):
         return d[mask1 & mask2]
 
     def compute_scaling_factor(self, d):
+        """ Computes the scaling factor for the reference exposure time in imaging mode for all planets in `d`. """
         return (d['contrast']/1e-10)**-1
 
 @dataclass(repr=False)
@@ -200,8 +207,7 @@ class TransitSurvey(Survey):
     mode: str = 'transit'
 
     def compute_yield(self, d):
-        """ Computes a simple estimate of the detection yield for a transit survey. All transiting planets
-        are considered to be detected.
+        """ Computes a simple estimate of the detection yield for a transit survey. All transiting planets are considered to be detected.
 
         Parameters
         ----------
@@ -220,50 +226,43 @@ class TransitSurvey(Survey):
         return d[mask1]
 
     def compute_scaling_factor(self, d):
-        """ Computes the scaling factor for the reference exposure time in transit mode. """
+        """ Computes the scaling factor for the reference exposure time in transit mode for all planets in `d`. """
         d.compute('S')
         return (d['H']/9)**-2 * d['R']**-2 * (d['R_st']/self.R_st_ref)**4
 
 class Measurement():
     """
-    Class describing a simple measurement to be applied to a table of planets detected by a Survey.
+    Class describing a simple measurement to be applied to a set of planets detected by a Survey.
 
     Parameters
     ----------
     key : str
-        Name of the parameter will be measured (e.g., 'M' for planet mass)
+        Name of the parameter that will be measured.
+    survey : Survey
+        Survey associated with this Measurement.
     precision : str or float, optional
-        Precision of measurement, e.g. '10%' or 0.10 units. If zero, a perfect measureent is made.
-    condition : str array, optional
-        Conditional statements specifying which planets the measurement applies to (e.g., '0.5 < R < 1.5').
-        Defaults to None, in which case the measurement applies to all planets.
-    t : float, optional
-        Amount of time required per measurement, arbitrary unit. If `t_scale` is specified, then `t` is the time
-        required for a reference case i.e. where all of the scale factors are 1.
+        Precision of measurement, e.g. '10%' or 0.10 units. Default is zero.
+    t_ref : float, optional
+        Amount of time required to perform the measurement for a typical target, in days.
     t_total : float, optional
-        Total amount of time allocated for this measurement, same unit as `t`. The measurement will be made for as 
-        many targets as possible within this time allocation.
+        Total amount of time allocated for this measurement, in days.
     priority : dict, optional
-        Each entry describes how targets should be prioritized based on a planet property. For example,
-        {'S':(0.3,1.,2)} indicates that planets with 0.3 < S < 1 should have 2x priority (i.e. the same priority
-        as a target requiring half as much observing time).
+        Describes how target weights are assigned based on target properties. For example {'R':[[1, 2, 5]]} assigns weight = 5 to planets with 1 < R < 2.
+    wl_eff : float, optional
+        Effective wavelength of observation, used to estimate SNR.
+    debias : bool, optional
+        (Transit mode) If True, weight targets by a/R_* to cancel the transit detection bias.
     """
-    def __init__(self, key, survey, precision=0., condition=[], t_total=None, t_ref=None, t_min=0., priority={},
-                 wl_eff=0.5, debias=True):
-        super().__init__()
-
+    def __init__(self, key, survey, precision=0., t_total=None, t_ref=None, priority={}, wl_eff=0.5, debias=True):
         # Save the keyword values
         self.key = key
         self.survey = survey
         self.precision = precision
-        self.conditions = condition
         self.t_total = t_total
         self.t_ref = t_ref
-        self.t_min = t_min
         self.priority = {key:np.array(val) for key, val in priority.items()}
         self.wl_eff = wl_eff
         self.debias = debias
-        #self.bounds = bounds if bounds is not None else [-np.inf, np.inf]
 
     def __repr__(self):
         s = "Measures parameter '{:s}'".format(self.key)
@@ -277,7 +276,7 @@ class Measurement():
         return s
 
     def measure(self, detected, data=None, t_total=None):
-        """ Produces the measurement for planets in a table and places them into a data table.
+        """ Produces the measurement for planets in a Table and places them into a data Table.
         
         Parameters
         ----------
@@ -286,6 +285,8 @@ class Measurement():
         data : Table, optional
             Table in which to store the measured values for each planet. If not given,
             then a new table is created.
+        t_total : float, optional
+            Total amount of time allocated to this Measurement. If None, use self.t_total.
         
         Returns
         -------
@@ -299,7 +300,6 @@ class Measurement():
         data['starID'] = detected['starID']
         
         # Determine which planets are valid targets and can be observed in the allotted time
-        #valid = self.compute_valid_targets(data)
         observable = self.compute_observable_targets(data, t_total)
 
         # Simulate a measurement for each observable planet
@@ -349,47 +349,6 @@ class Measurement():
         if key not in self.priority:
             self.priority[key] = np.empty(shape=(0, 3))
         self.priority[key] = np.append(self.priority[key], [arr], axis=0)
-
-    def compute_valid_targets(self, data):
-        """ Determines which planets are valid targets based on whether their previously measured parameters
-        meet the measurement conditions.
-
-        Parameters
-        ----------
-        data : Table
-            Table of data values already measured for these planets.
-        
-        Returns
-        -------
-        valid : bool array
-            Specifies which planets in the table are valid targets.
-        """
-        valid = np.ones(len(data), dtype=bool)
-        
-        # Supported comparison strings
-        comparisons = {'<': np.less, '>': np.greater, '==': np.in1d}
-        
-        cdtns = self.conditions
-        if cdtns is not None:
-            if np.ndim(cdtns) == 0: cdtns = [cdtns]
-            for cdn in cdtns:
-                # Determine which parameter is being compared to which value, and which comparison to perform
-                cmp_str = [cs for cs in comparisons if cs in cdn][0]
-                key, val = cdn.split(cmp_str)
-                key, val = key.strip(), val.strip()
-
-                # Ensure that the parameter has already been measured, else try to compute it
-                if key not in data:
-                    data.compute(key)
-                
-                # Make the comparison, assuming the comparison value to be the same type as in `d`
-                try:
-                    dtype = type(data[key][~np.isnan(data[key])][0])
-                    valid = valid & comparisons[cmp_str](data[key], dtype(val))
-                except IndexError:
-                    valid = valid & np.zeros(len(valid), dtype=bool)
-        
-        return valid
         
     def compute_observable_targets(self, data, t_total=None):
         """ Determines which planets are observable based on the total allotted observing time.

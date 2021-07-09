@@ -29,7 +29,7 @@ The GUI will add your function to the end of the list:
 
 .. image:: images/generator_gui_new_step.png
 
-To edit the order in which functions are carried out, use the arrow keys to move the currently-selected function. Finally, to remove a function from the Generator, use the Remove Step button.
+Use the arrow keys to edit the order in which functions are called. Finally, to remove a function from the Generator, use the Remove Step button.
 
 Once you have made your changes to the Generator, you can save it using File > Save as... and use it in Bioverse:
 
