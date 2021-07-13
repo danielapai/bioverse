@@ -5,9 +5,15 @@ Bioverse is a Python package for simulating the results of a statistical survey 
 
 For documentation, see https://bioverse.readthedocs.io/.
 
-References
-**********
+References & Acknowledgments
+****************************
 Papers making use of Bioverse should reference `Bixel & Apai (2021) <https://ui.adsabs.harvard.edu/abs/2021AJ....161..228B/abstract>`_. You should also include references to the `emcee <https://github.com/dfm/emcee>`_ and `dynesty <https://github.com/joshspeagle/dynesty>`_ packages, which are used for hypothesis testing and parameter fitting.
+
+Bioverse was developed with support from the following grants and collaborations:
+
+- `Alien Earths <http://eos-nexus.org/>`_ & Earths in Other Solar Systems
+- NASA Earth and Space Science Fellowship Program (grant No. 80NSSC17K0470)
+- NASA's Nexus for Exoplanet System Science (NExSS) 
 
 Installation
 ************
