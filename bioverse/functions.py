@@ -138,7 +138,7 @@ def read_stellar_catalog(d, filename='LUVOIR_targets.dat', d_max=30., T_min=0., 
     """
     # Read the catalog with column names
     path = filename if os.path.exists(filename) else ROOT_DIR+'/'+filename
-    catalog = np.genfromtxt(path,unpack=True,names=True,dtype=None,encoding=None)
+    catalog = np.genfromtxt(path,unpack=False,names=True,dtype=None,encoding=None)
     for name in catalog.dtype.names:
         d[name.strip()] = list(catalog[name])*int(mult)
 
