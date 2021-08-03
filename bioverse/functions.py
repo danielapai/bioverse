@@ -10,7 +10,6 @@ from .classes import Table
 from . import util
 from .util import CATALOG
 from .constants import CONST, ROOT_DIR
-from . import priors
 
 def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_max=10., T_eff_split=4500.):
     """ Reads temperatures and coordinates for high-mass stars from Gaia DR2. Simulates low-mass stars from the
@@ -67,8 +66,11 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
     # Step 2: Low-mass stars
     d_IMF = Table()
 
-    # Calculate the number of systems to simulate from the Chabrier+2003 PDMF
-    x_IMF, y_IMF = priors.Chabrier_2003_PDMF(M_st_min, M_st_split)
+    # Use the split PDFM from Chabrier 2003 (Table 1) to calculate the number of systems
+    x_IMF = np.linspace(np.log10(M_st_min), np.log10(M_st_max), 100)
+    y_IMF = np.zeros(len(x_IMF), dtype=float)
+    y_IMF[x_IMF<=0] = 0.158 * np.exp(-(x_IMF[x_IMF<=0]-np.log10(0.079))/(2*0.69**2))
+    y_IMF[x_IMF>0] = 4.43e-2*(10**x_IMF[x_IMF>0])**(-1.3)
     eta = (y_IMF*np.median(x_IMF[1:]-x_IMF[:-1])).sum()
     N_IMF = int(4 * np.pi/3 * d_max**3 * eta)
     
