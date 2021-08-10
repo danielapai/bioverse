@@ -124,23 +124,25 @@ Importantly, this calculation is conducted for each Measurement with a different
 
 The determination of ``t_ref`` often relies on radiative transfer and instrument noise estimates that are generally not done in Bioverse. It can be accomplished by citing relevant studies in the literature or using third-party tools such as the `Planetary Spectrum Generator <https://psg.gsfc.nasa.gov/>`_. One method of calculating ``t_ref`` for the transit survey is demonstrated in :doc:`tutorial_tref`.
 
-Bioverse can calculate ``t_ref`` given two simulated spectra files - one with and one without the targeted absorption feature. You must also...
-
-.. code-block::python
-
-    from bioverse.util import compute_t_ref
-
-    t_ref = compute_t_ref(filenames=('spectrum_O3.dat', 'spectrum_noO3.dat'), t_exp=100, wl_min=0.4, wl_max=0.8)
-    print("Required exposure time: {:.1f} hr".format(t_ref))
-
-
-Finally, to change ``t_ref`` and ``wl_eff`` for a specific Measurement:
+Bioverse can calculate ``t_ref`` given two simulated spectra files - one with and one without the targeted absorption feature - both of which contain measurements for wavelength , flux, and flux uncertainty as the first three columns. You must also specify the simulated exposure time and the minimum and maximum wavelengths for the absorption feature. The :func:`~bioverse.util.compute_t_ref` function will then determine the exposure time required for a 5-sigma detection (in the same units as the input exposure time).
 
 .. code-block:: python
 
-    survey = ImagingSurvey('default')
-    survey.measurements['has_H2O'].t_ref = 0.04
-    survey.measurements['has_H2O'].wl_eff = 1.4 
+    from bioverse.util import compute_t_ref
+
+    # Scales from simulated spectra for a combined 100 hr exposure time, targeting the O3 feature near 0.6 microns.
+    t_ref = compute_t_ref(filenames=('spectrum_O3.dat', 'spectrum_noO3.dat'), t_exp=100, wl_min=0.4, wl_max=0.8)
+    print("Required exposure time: {:.1f} hr".format(t_ref))
+
+Output: ``Required exposure time: 73.9 hr``
+
+Finally, change the ``t_ref`` and ``wl_eff`` attributes of the associated Measurement object, using units of days and microns respectively:
+
+.. code-block:: python
+
+    survey = TransitSurvey('default')
+    survey.measurements['has_O2'].t_ref = 73.9/24
+    survey.measurements['has_O2'].wl_eff = 0.6
 
 .. _target-prioritization:
 
