@@ -87,10 +87,14 @@ The last three lines can be combined into the following:
 
 .. _reference-case:
 
-Reference case
-**************
+Exposure time calculations
+**************************
 
-A Measurement's "reference time", ``t_ref``, is the exposure time required to perform the measurement for an Earth-like planet orbiting a typical star (whose properties are defined under the Survey by ``T_st_ref``, ``R_st_ref``, and ``d_ref``), with a telescope of diameter ``D_ref``. Bioverse uses ``t_ref``, along the wavelength of observation ``wl_eff``, to determine the exposure time ``t_i`` required for each individual planet with the following equation:
+Spectroscopic observations of exoplanets are time-consuming, and for some surveys the amount of time required to conduct them will be a limiting factor on sample size. To accomodate this, Bioverse calculates the exposure time :math:`t_i` required to conduct the spectroscopic measurement for each planet, then prioritizes each planet according to :math:`t_i` as well as its weight parameter (see :ref:`target-prioritization`). In the simulated dataset, planets that could not be observed within the total allotted time ``t_total`` will have ``nan`` values for the measured value.
+
+A Measurement's "reference time", ``t_ref``, is the exposure time required to perform the measurement for an Earth-like planet (receiving the same flux as Earth) orbiting a typical star (whose properties are defined by the Survey parameters ``T_st_ref``, ``R_st_ref``, and ``d_ref``), with a telescope of diameter ``D_ref``. For the default imaging survey, the typical target orbits a Sun-like star at a distance of 10 pc, while for the transit survey, the host star is a mid-M dwarf.
+
+Bioverse uses ``t_ref``, along the wavelength of observation ``wl_eff``, to determine the exposure time ``t_i`` required for each individual planet with the following equation:
 
     
 .. math::
@@ -112,9 +116,25 @@ A Measurement's "reference time", ``t_ref``, is the exposure time required to pe
     \left(\frac{R_{p,i}}{R_\oplus}\right)^{-2}
     \left(\frac{R_{*,i}}{R_{*, \text{ref}}}\right)^4
 
-The determination of ``t_ref`` is generally not done in Bioverse. It can be accomplished by citing relevant studies in the literature or using third-party tools such as the `Planetary Spectrum Generator <https://psg.gsfc.nasa.gov/>`_.
+Importantly, this calculation is conducted for each Measurement with a different value of ``t_ref``. **Therefore, the same planet may have real values for one Measurement and ``nan`` for another.** This is particularly relevant for the transit survey, where the total number of transiting planets for which e.g. planet size and orbital period can be measured is much larger than the number that can be spectroscopically characterized. To return just the subset of detected planets that were observed for a given Measurement, use the :meth:`~bioverse.classes.Table.observed` method:
 
-To change ``t_ref`` and ``wl_eff`` for a specific Measurement:
+.. code-block:: python
+
+    observed = data.observed('has_O2')
+
+The determination of ``t_ref`` often relies on radiative transfer and instrument noise estimates that are generally not done in Bioverse. It can be accomplished by citing relevant studies in the literature or using third-party tools such as the `Planetary Spectrum Generator <https://psg.gsfc.nasa.gov/>`_. One method of calculating ``t_ref`` for the transit survey is demonstrated in :doc:`tutorial_tref`.
+
+Bioverse can calculate ``t_ref`` given two simulated spectra files - one with and one without the targeted absorption feature. You must also...
+
+.. code-block::python
+
+    from bioverse.util import compute_t_ref
+
+    t_ref = compute_t_ref(filenames=('spectrum_O3.dat', 'spectrum_noO3.dat'), t_exp=100, wl_min=0.4, wl_max=0.8)
+    print("Required exposure time: {:.1f} hr".format(t_ref))
+
+
+Finally, to change ``t_ref`` and ``wl_eff`` for a specific Measurement:
 
 .. code-block:: python
 
@@ -122,12 +142,7 @@ To change ``t_ref`` and ``wl_eff`` for a specific Measurement:
     survey.measurements['has_H2O'].t_ref = 0.04
     survey.measurements['has_H2O'].wl_eff = 1.4 
 
-
-.. Some planetary properties are either trivial to measure (i.e. host star effective temperature) or their measurement occurs concurrently with their detection - for example, planet-star contrast (in imaging mode) or planet radius (in transit mode). Other properties - especially the detection of atmospheric species - require time-intensive spectroscopic observations spanning several hours or days of integration time. This is especially relevant for a transiting exoplanet survey as the amount of SNR built up per transit observation is limited by the transit duration, and the number of transits observable within a reasonable survey lifetime is limited by the orbital period.
-
-.. As an example, consider the amount of time required to detect H2O in a transiting exoplanet's atmosphere. One way to estimate this would be to simulate the planet's observed spectrum (with uncertainties), measure the amplitude of H2O absorption features, and compute the amount of time required to achieve a 5-sigma detection of that amplitude. However, to repeat this for every planet would be computationally intensive, and would prohibit the use Bioverse to simulate thousands of realizations of the same survey.
-
-.. A much faster method involves estimating the amount of time required to characterize a single planet whose properties are broadly representative of the "typical" survey target, then scaling that exposure time to each planet based on the major factors affecting signal strength. The determination of this "reference time" ``t_ref`` is generally not done in Bioverse. It can be accomplished by citing relevant studies in the literature or using third-party tools such as the `Planetary Spectrum Generator <https://psg.gsfc.nasa.gov/>`_.
+.. _target-prioritization:
 
 Target prioritization
 *********************

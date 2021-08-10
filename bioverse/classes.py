@@ -61,13 +61,12 @@ class Object():
         return OBJECTS_DIR+'/{:s}s/{:s}.pkl'.format(clas, label)
 
 class Table(dict):
-    """ Class for storing numpy arrays in a table-like format. Inherits dict.
-
-    Each key is treated as a separate table column. Columns can also contain dict-like objects, in which case
-    their keys can be referenced using a semi-colon, e.g. table['Atmosphere:O2'].
-    """
+    """ Class for storing numpy arrays in a table-like format. Inherits dict. Each key is treated as a separate table column. """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Uncertainties
+        self.error = None
     
     def __repr__(self):
         s1 = 'Table of {:d} objects with {:d} parameters'.format(len(self),len(self.keys()))
@@ -243,33 +242,61 @@ class Table(dict):
 
     def compute(self, key, force=False):
         """ Computes the value of `key` using other values in the dictionary and a pre-defined formula. Useful for
-        translating measured values (e.g. 'a', 'L_st') into secondary data products (e.g., 'S'). """
+        translating measured values (e.g. 'a', 'L_st') into secondary data products (e.g., 'S'). Will also propagate
+        uncertainties contained in self.error. """
         if key in self and not force:
             # Unless force == True, don't re-compute existing values
             return
+
         if key[:4] == 'log(':
             k = key[4:-1]
             self.compute(k)
             self[key] = np.log10(self[k])
+            # Approximate error on log(x) as (log(x+dx)-log(x-dx))/2
+            if self.error:
+                self.error[key] = 0.5 * (np.log10(self[k]+self.error[k])-np.log10(self[k]-self.error[k]))
+
         elif key[:3] == 'ln(':
             k = key[3:-1]
             self.compute(k)
             self[key] = np.log(self[k])
+            # Approximate error on ln(x) as (ln(x+dx)-ln(x-dx))/2
+            if self.error:
+                self.error[key] = 0.5 * (np.log(self[k]+self.error[k])-np.log(self[k]-self.error[k]))
+
         elif key == 'S':
             self.compute('a')
             self['S'] = self['L_st']/self['a']**2
+            if self.error:
+                self.error['S'] = self['S'] * np.sqrt((self.error['L_st']/self['L_st'])**2 + (2*self.error['a']/self['a'])**2)
+
         elif key == 'R':
             self['R'] = (109.2**2)*self['depth']*self['R_st']**2
+            if self.error:
+                self.error['R'] = self['R'] * np.sqrt((self.error['depth']/self['depth'])**2 + (2*self.error['R_st']/self['R_st'])**2)
+
         elif key == 'a':
             self['a'] = (self['M_st']*(self['P']/CONST['yr_to_day'])**2)**(1/3)
+            if self.error:
+                self.error['a'] = self['a'] * np.sqrt((1/3*self.error['M_st']/self['M_st'])**2 + (2/3*self.error['P']/self['P'])**2)
+
         elif key == 'a_eff':
             self.compute('S')
             self['a_eff'] = self['S']**-0.5
+            if self.error:
+                self.error['a_eff'] = self['a_eff'] * (0.5*self.error['S']/self['S'])
+
         elif key == 'R_eff':
             self['R_eff'] = (self['contrast'] * np.pi / 0.29)**0.5 / (4.258756e-5 / self['a'])
+            if self.error:
+                self.error['R_eff'] = self['R_eff'] * np.sqrt((1/2*self.error['contrast']/self['contrast'])**2 + (self.error['a']/self['a'])**2)
+
         elif key == 'h_eff':
             self.compute('S')
             self['h_eff'] = CONST['h_Earth']*self['S']/self['R']
+            if self.error:
+                self.error['h_eff'] = self['h_eff'] * np.sqrt((self.error['S']/self['S'])**2 + (self.error['R']/self['R'])**2)
+
         else:
             raise ValueError("no formula defined for {:s}".format(key))
     
@@ -291,6 +318,12 @@ class Table(dict):
         else:
             print(self.__repr__())
             print(DataFrame(self).__repr__())
+    
+    def observed(self, key):
+        """ Returns the subset of rows for which self[key] is not nan. """
+        if key not in self:
+            raise ValueError("parameter '{:s}' not found".format(key))
+        return self[~np.isnan(self[key])]
 
 class Stopwatch():
     """ This class uses the time module to profile chunks of code. Use the start() and stop() methods to start and

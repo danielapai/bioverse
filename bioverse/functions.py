@@ -84,7 +84,7 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
 
     # Discard high-mass (i.e. high T_eff) simulated stars
     d_IMF = d_IMF[d_IMF['T_eff_st'] < T_eff_split]
-    #N_IMF = len(d_IMF)
+    N_IMF = len(d_IMF)
 
     # Assign random coordinates (distance, RA, and Dec)
     d_IMF['d'] = np.cbrt(np.random.uniform(0, d_max**3, N_IMF))

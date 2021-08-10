@@ -119,18 +119,16 @@ class Hypothesis():
 
         return theta
 
-    def lnlike_binary(self, theta, x, y):
-        """ Likelihood function L(y | x, theta) if y is binary. """
+    def lnlike_binary(self, theta, x, y, _):
+        """ Likelihood function L(y | x, theta) if y is binary. The last argument is a placeholder. """
         yh = self.f(theta, x)
         terms = np.log(y*yh + (1-y)*(1-yh))
         return np.sum(terms) 
 
-    def lnlike_multivariate(self, theta, x, y):
-        """ Likelihood function L(y | x, theta) if y is continuous. """
-        # WIP: Assume 10% std dev on Y
-        std = 0.1*np.median(y, axis=0)
+    def lnlike_multivariate(self, theta, x, y, sigma):
+        """ Likelihood function L(y | x, theta) if y is continuous and has `sigma` uncertainty. """
         yh = self.f(theta, x)
-        terms = -(y-yh)**2 / (2*std**2)
+        terms = -(y-yh)**2 / (2*sigma**2)
         return np.sum(terms)
 
     def lnprob(self, theta, x, y):
@@ -143,26 +141,26 @@ class Hypothesis():
             print(x, y)
         return lnlk + lnpr, lnlk
     
-    def sample_posterior_dynesty(self, X, Y, nlive=100, nburn=None, verbose=False):
+    def sample_posterior_dynesty(self, X, Y, sigma, nlive=100, nburn=None, verbose=False):
         """ Uses dynesty to sample the parameter posterior distributions and compute the log-evidence."""
         # If not explicitly set, nburn=10
         nburn = 10 if nburn is None else nburn
 
         # Sample the posterior distribution
-        sampler = dynesty.NestedSampler(self.lnlike, self.tfprior, self.nparams, logl_args=(X, Y), nlive=nlive)
+        sampler = dynesty.NestedSampler(self.lnlike, self.tfprior, self.nparams, logl_args=(X, Y, sigma), nlive=nlive)
         sampler.run_nested(print_progress=verbose, dlogz=0.2)
 
         # Sample the null hypothesis
-        sampler_null = dynesty.NestedSampler(self.h_null.lnlike, self.h_null.tfprior, Y.shape[1], logl_args=(X, Y), nlive=300)
+        sampler_null = dynesty.NestedSampler(self.h_null.lnlike, self.h_null.tfprior, Y.shape[1], logl_args=(X, Y, sigma), nlive=300)
         sampler_null.run_nested(print_progress=verbose, dlogz=0.1)
 
         # Return the posterior distribution samples and logZ difference
         lnZ = sampler.results.logz[-1] - sampler_null.results.logz[-1]
         return sampler.results.samples[nburn:, :], sampler.results.logl[nburn:], lnZ
 
-    def sample_posterior_emcee(self, x, y, nsteps=500, nwalkers=32, nburn=100, autocorr=False):
+    def sample_posterior_emcee(self, x, y, sigma, nsteps=500, nwalkers=32, nburn=100, autocorr=False):
         """ Uses emcee to sample the parameter posterior distributions. """
-        sampler = emcee.EnsembleSampler(nwalkers, self.nparams, self.lnprob, args=(x, y))
+        sampler = emcee.EnsembleSampler(nwalkers, self.nparams, self.lnprob, args=(x, y, sigma))
         pos = self.guess(nwalkers)
         sampler.run_mcmc(pos, nsteps)
         if autocorr:
@@ -170,13 +168,13 @@ class Hypothesis():
 
         return sampler.get_chain(discard=nburn, flat=True), sampler.get_blobs(discard=nburn, flat=True)
  
-    def compute_AIC(self, theta_opt, x, y):
+    def compute_AIC(self, theta_opt, x, y, sigma):
         """ Computes the Akaike information criterion for optimal parameter set `theta_opt`. """
-        return 2 * len(theta_opt) - 2 * self.lnlike(theta_opt, x, y)
+        return 2 * len(theta_opt) - 2 * self.lnlike(theta_opt, x, y, sigma)
 
-    def compute_BIC(self, theta_opt, x, y):
+    def compute_BIC(self, theta_opt, x, y, sigma):
         """ Computes the Bayesian information criterion for optimal parameter set `theta_opt`. """
-        return len(theta_opt) * np.log(len(x)) - 2 * self.lnlike(theta_opt, x, y)
+        return len(theta_opt) * np.log(len(x)) - 2 * self.lnlike(theta_opt, x, y, sigma)
 
     def get_observed(self, data):
         """ Identifies which planets in the data set have measurements of the relevant features/labels. """
@@ -192,11 +190,12 @@ class Hypothesis():
         observed = self.get_observed(data)
         X = np.array([data[feature][observed] for feature in self.features]).T
         Y = np.array([data[label][observed] for label in self.labels]).T
-        return X, Y
+        sigma = np.array([data.error[label][observed] for label in self.labels]).T
+        return X, Y, sigma
 
-    def fit(self, data, nsteps=500, nwalkers=16, nburn=100, nlive=100, return_chains=False, return_sampler=False,
+    def fit(self, data, nsteps=500, nwalkers=16, nburn=100, nlive=100, return_chains=False,
             verbose=False, method='dynesty', mw_alternative='greater', return_data=False):
-        """ Uses MCMC to sample the posterior distribution of h(theta | x, y) using a simulated data set, and compare
+        """ Sample the posterior distribution of h(theta | x, y) using a simulated data set, and compare
         to the null hypothesis via a model comparison metric.
 
         Parameters
@@ -212,19 +211,18 @@ class Hypothesis():
         -------
         results : dict
             Dictionary containing the results of the model fit:
-                'h' : this Hypothesis object
                 'means' : mean value of each parameter's posterior distribution
                 'stds' : std dev of each parameter's posterior distribution
                 'medians' : median value of each parameter's posterior distribution
-                'UCIs' : 1-sigma confidence interval above the median
-                'LCIs' : 1-sigma confidence interval below the median
-                'CIs' : width of the +- 1 sigma confidence interval about the median
+                'UCIs' : 2-sigma confidence interval above the median
+                'LCIs' : 2-sigma confidence interval below the median
+                'CIs' : width of the +- 2 sigma confidence interval about the median
                 'AIC' : Akaike information criterion compared to the null hypothesis (i.e. AIC_null - AIC_alt)
                 'BIC' : Bayesian information criterion compared to the null hypothesis
                 'chains' : full chain of MCMC samples (if `return_chains` is True)
         """
         # Extract the features and labels from the simulated data set
-        X, Y = self.get_XY(data)
+        X, Y, sigma = self.get_XY(data)
 
         # Determine which likelihood function to use
         if Y.shape[1] == 1 and is_bool(Y):
@@ -244,12 +242,12 @@ class Hypothesis():
 
         # Sample the posterior distribution (dynesty)
         if 'dynesty' in method:
-            chains, loglikes, dlnZ = self.sample_posterior_dynesty(X, Y, nlive=nlive, nburn=nburn, verbose=verbose)
+            chains, loglikes, dlnZ = self.sample_posterior_dynesty(X, Y, sigma, nlive=nlive, nburn=nburn, verbose=verbose)
 
         # Sample the posterior distribution (emcee)
         # If both emcee and dynesty are used, then emcee will override the posterior distribution
         if 'emcee' in method:
-            chains, loglikes = self.sample_posterior_emcee(X, Y, nsteps=nsteps, nwalkers=nwalkers)
+            chains, loglikes = self.sample_posterior_emcee(X, Y, sigma, nsteps=nsteps, nwalkers=nwalkers)
 
         # Perform a Mann-Whitney test to compare X[Y] and X[~Y], assuming X and Y are 1-D
         # By default, tests whether X[Y] > X[~Y]
@@ -264,14 +262,13 @@ class Hypothesis():
         if 'emcee' in method or 'dynesty' in method:
             # Compute the AIC and BIC relative to the null hypothesis (i.e. AIC_null - AIC)
             theta_opt, theta_opt_null = chains[np.argmax(loglikes)], np.mean(Y, axis=0)
-            dAIC = self.h_null.compute_AIC(theta_opt_null, X, Y) - self.compute_AIC(theta_opt, X, Y)
-            dBIC = self.h_null.compute_BIC(theta_opt_null, X, Y) - self.compute_BIC(theta_opt, X, Y)
+            dAIC = self.h_null.compute_AIC(theta_opt_null, X, Y, sigma) - self.compute_AIC(theta_opt, X, Y, sigma)
+            dBIC = self.h_null.compute_BIC(theta_opt_null, X, Y, sigma) - self.compute_BIC(theta_opt, X, Y, sigma)
 
             # Summary statistics
             conf = 95
             means, stds, medians = np.mean(chains, axis=0), np.std(chains, axis=0), np.median(chains, axis=0)
             LCIs, UCIs = np.abs(np.percentile(chains, [(100-conf)/2, 100-(100-conf/2)], axis=0) - medians)
-            CIs = UCIs+LCIs
 
             # Return the results in a dict
             results.update({'means':means, 'stds':stds, 'medians':medians, 'LCIs':LCIs, 'UCIs':UCIs, 'CIs':UCIs+LCIs,

@@ -95,6 +95,8 @@ class Survey(dict, Object):
             Table of planets detected by the Survey.
         data : Table
             Simulated data set produced by the Survey.
+        error : Table
+            Uncertainties on the measurements in `data`.
         """
         
         # For transit surveys, set transit_mode=True unless otherwise specified
@@ -103,11 +105,13 @@ class Survey(dict, Object):
 
         if N_sim > 1:
             sample, detected, data = Table(), Table(), Table()
+            data.error = Table()
             for i in range(int(N_sim)):
                 res = self.quickrun(generator, t_total=t_total, N_sim=1, **kwargs)
                 sample.append(res[0])
                 detected.append(res[1])
                 data.append(res[2])
+                data.error.append(res[3])
         else:
             sample = generator.generate(**kwargs)
             detected = self.compute_yield(sample)
@@ -115,7 +119,7 @@ class Survey(dict, Object):
 
         return sample, detected, data
         
-    def observe(self, y, t_total=None, data=None):
+    def observe(self, y, t_total=None, data=None, error=None):
         """ Returns a simulated data set for a Table of simulated planets.
         
         Parameters
@@ -126,6 +130,8 @@ class Survey(dict, Object):
             Sets the total time allocated to all Measurements.
         data : Table, optional
             Pre-existing Table in which to store the new measurements.
+        error : Table, optional
+            Pre-existing Table containing uncertainties on `data` values.
 
         Returns
         -------
@@ -133,7 +139,9 @@ class Survey(dict, Object):
             Table of measurements made by the Survey, with one row for each planet observed.
         """
         # Create an output Table to store measurements
-        data = data if data is not None else Table()
+        if data is None:
+            data = Table()
+            data.error = Table()
 
         # Perform each measurement in order
         for _, m in self.measurements.items():
@@ -275,7 +283,7 @@ class Measurement():
             
         return s
 
-    def measure(self, detected, data=None, t_total=None):
+    def measure(self, detected, data=None, error=None, t_total=None):
         """ Produces the measurement for planets in a Table and places them into a data Table.
         
         Parameters
@@ -285,6 +293,8 @@ class Measurement():
         data : Table, optional
             Table in which to store the measured values for each planet. If not given,
             then a new table is created.
+        error : Table, optional
+            Table in which to store the measurement uncertainties. Must be given if `data` is given.
         t_total : float, optional
             Total amount of time allocated to this Measurement. If None, use self.t_total.
         
@@ -292,10 +302,13 @@ class Measurement():
         -------
         data : Table
             Table containing the measured values for each planet.
+        error : Table
+            Table containing the measurement uncertainties for each planet.
         """
         # Create a new output table if necessary
         if data is None:
             data = Table()
+            data.error = Table()
         data['planetID'] = detected['planetID']
         data['starID'] = detected['starID']
         
@@ -303,12 +316,14 @@ class Measurement():
         observable = self.compute_observable_targets(data, t_total)
 
         # Simulate a measurement for each observable planet
-        x = self.perform_measurement(detected[self.key][observable])
+        x, dx = self.perform_measurement(detected[self.key][observable])
 
         # Place this measurement into the measurements database
         if self.key not in data.keys():
             data[self.key] = np.full(len(detected), np.nan)
+            data.error[self.key] = np.full(len(detected), np.nan)
         data[self.key][observable] = x
+        data.error[self.key][observable] = dx
 
         return data
     
@@ -509,11 +524,11 @@ class Measurement():
         """
         # Skip empty values
         if len(x) == 0:
-            return x
+            return x, None
 
         # If the value is type str or bool then the measurement has to be "exact"
         if type(x[0]) in list(np.append(STR_TYPES, BOOL_TYPES)):
-            return x
+            return x, None
 
         # Percentage-based precision
         if type(self.precision) is str and '%' in self.precision:
@@ -526,8 +541,8 @@ class Measurement():
         # Restrict measurements to +- 5 sigma
         xmin, xmax = x-5*sig, x+5*sig
 
-        # Return draw from bounded normal distribution
-        return util.normal(x, sig, xmin=xmin, xmax=xmax, size=len(x))
+        # Return draw from bounded normal distribution plus uncertainty
+        return util.normal(x, sig, xmin=xmin, xmax=xmax, size=len(x)), sig
 
 def reset_imaging_survey():
     """ Re-creates the default imaging survey. """

@@ -8,7 +8,7 @@ Bioverse
 
 Bioverse is a Python package for simulating the results of a statistical survey of the properties of nearby terrestrial exoplanets via direct imaging or transit spectroscopy. An in-depth outline of the underlying statistical framework and examples of how it can be applied to astrophysics mission concepts is given in `Bixel & Apai (2021) <https://ui.adsabs.harvard.edu/abs/2021AJ....161..228B/abstract>`_. **Readers are strongly encouraged to review this paper before proceeding.** This documentation covers the Python implementation of Bioverse, but does not review many of its underlying statistical assumptions.
 
-The :doc:`Overview<overview>` section describes the code's structure and primary classes and should be reviewed first. Following that, the :doc:`Examples<Notebooks/Tutorial1>` section offers step-by-step examples for producing some of the results published in the paper, as well as ways to modify and expand upon the code. These examples are also available as interactive Jupyter notebooks in the ``Notebooks`` directory of the GitHub repository.
+The :doc:`Overview<overview>` section describes the code's structure and primary classes and should be reviewed first. Following that, the :doc:`Examples<Notebooks/Tutorial1>` section offers step-by-step examples for producing some of the results published in the paper, as well as ways to modify and expand upon the code. Most of these examples are also available as interactive Jupyter notebooks in the ``Notebooks`` directory of the GitHub repository.
 
 References & Acknowledgements
 *****************************
@@ -69,6 +69,7 @@ Bioverse is compatible with Python 3.7+. It has the following dependencies, all 
    
    Notebooks/Tutorial1
    Notebooks/Tutorial2
+   tutorial_tref
    Notebooks/Example1
    Notebooks/Example2
 

@@ -332,3 +332,50 @@ def binned_average(x, y, bins=10, match_counts=True):
             values[i], errors[i] = np.mean(y[inbin]), np.std(y[inbin])/(inbin.sum())**0.5
 
     return bins,values,errors
+
+def compute_t_ref(filenames, t_exp, wl_min, wl_max, threshold=5, usecols=(0, 1, 2)):
+    """ Computes t_ref for the detection of a spectroscopic feature. User must first use PSG or
+    other tools to simulate spectra of the reference target with and without the feature of interest.
+
+    Parameters
+    ----------
+    filenames : (str, str)
+        Points to two PSG output spectra files - one where the atmosphere contains the species of interest,
+        and one where it does not (the order does not matter).
+    t_exp : float
+        Exposure time for the PSG simulations - must be identical for both.
+    wl_min : float
+        Minimum wavelength of the absorption feature, same units as the PSG output.
+    wl_max : float
+        Maximum wavelength of the absorption feature.
+    threshold : float, optional
+        SNR threshold for a confident detection.
+    usecols : (int, int, int), optional
+        Specifies the column numbers corresponding to (wavelength, radiance, uncertainty) in the input files.
+
+    Returns
+    -------
+    t_ref : float
+        Exposure time required to reach the targeted detection SNR, same units as `t_exp`.
+    """
+
+    # Check input
+    if np.size(filenames) != 2:
+        raise ValueError("`filenames` must be a 2-element tuple or list")
+
+    # Loads the spectrum and measurement uncertainties for both files
+    x1, y1, yerr = np.loadtxt(filenames[0], usecols=usecols, unpack=True)
+    x2, y2, _ = np.loadtxt(filenames[1], usecols=usecols, unpack=True)
+
+    # Ensure the wavelength values match within the specified range
+    idx1 = (x1 >= wl_min) & (x1 <= wl_max)
+    idx2 = (x2 >= wl_min) & (x2 <= wl_max)
+    if not (x1[idx1] == x2[idx2]).all():
+        raise ValueError("mismatch between wavelength values in {:s} and {:s}".format(*filenames))
+
+    # Calculate the detection SNR and determine the required exposure time for a detection
+    terms = np.abs(y1[idx1] - y2[idx2]) / yerr[idx1]
+    snr = np.sqrt(np.sum(terms**2))
+    t_ref = t_exp * (threshold/snr)**2
+
+    return t_ref
