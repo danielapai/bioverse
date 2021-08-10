@@ -2,7 +2,7 @@
 Tutorial 3: Calculating exposure times
 ######################################
 
-The sample size of a simulated survey is often limited by the amount of observing time allotted for time-consuming spectroscopic measurements. To impose this limit, Bioverse requires a realistic estimate for the exposure time needed to conduct the measurement for a typical survey target, referred to as ``t_ref`` (see :ref:`reference-case` for details). For the time being,``t_ref`` must be calculated separately using third-party tools, though future updates may bring this functionality into Bioverse.
+The sample size of a simulated survey is often limited by the amount of observing time allotted for time-consuming spectroscopic measurements. To impose this limit, Bioverse requires a realistic estimate for the exposure time needed to conduct the measurement for a typical survey target, referred to as ``t_ref`` (see :ref:`reference-case` for details). For the time being, ``t_ref`` must be calculated separately using third-party tools, though future updates may bring this functionality into Bioverse.
 
 This example will demonstrate one method of determining ``t_ref`` for the default transit survey, for which the typical target orbits a mid-M dwarf at ~50 parsecs distance. We will use the `Planetary Spectrum Generator (PSG) <https://psg.gsfc.nasa.gov/>`_ to produce simulated spectra (and noise estimates) for our desired telescope configuration.
 

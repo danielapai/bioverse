@@ -124,7 +124,7 @@ Importantly, this calculation is conducted for each Measurement with a different
 
 The determination of ``t_ref`` often relies on radiative transfer and instrument noise estimates that are generally not done in Bioverse. It can be accomplished by citing relevant studies in the literature or using third-party tools such as the `Planetary Spectrum Generator <https://psg.gsfc.nasa.gov/>`_. One method of calculating ``t_ref`` for the transit survey is demonstrated in :doc:`tutorial_tref`.
 
-Bioverse can calculate ``t_ref`` given two simulated spectra files - one with and one without the targeted absorption feature - both of which contain measurements for wavelength , flux, and flux uncertainty as the first three columns. You must also specify the simulated exposure time and the minimum and maximum wavelengths for the absorption feature. The :func:`~bioverse.util.compute_t_ref` function will then determine the exposure time required for a 5-sigma detection (in the same units as the input exposure time).
+Bioverse can calculate ``t_ref`` given two simulated spectra files - one with and one without the targeted absorption feature - both of which contain measurements for wavelength, flux, and flux uncertainty as the first three columns. You must also specify the simulated exposure time and the minimum and maximum wavelengths for the absorption feature. The :func:`~bioverse.util.compute_t_ref` function will then determine the exposure time required for a 5-sigma detection (in the same units as the input exposure time).
 
 .. code-block:: python
 

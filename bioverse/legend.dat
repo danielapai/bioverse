@@ -13,7 +13,7 @@ R_st, float, Stellar radius (solar radius)
 logL, float, Bolometric luminosity (log solar luminosity)
 L_st, float, Bolometric luminosity (solar luminosity)
 M_G, float, Gaia G-band absolute magnitude
-SpT, str, Approximate spectral type (e.g. M) 
+SpT, str, Approximate spectral type (e.g. M)
 subSpT, str, Full spectral type (e.g. M5V)
 age, float, Age (Gyr)
 N_pl, int, Number of planets in system
@@ -54,8 +54,6 @@ habitable, bool, Is this planet habitable?
 life, bool, Is this planet inhabited?
 mu, float, Atmospheric mean molecular weight (u)
 H, float, Atmospheric scale height
-pO2, float, Abundance of O2 (log)
-pO3, float, Abundance of O3 (log)
 pCO2, float, Abudance of CO2 (log)
 pN2, float, Abundance of N2 (log)
 T_eq, float, Equilibrium temperature (K)
