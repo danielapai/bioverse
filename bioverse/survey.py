@@ -31,6 +31,10 @@ class Survey(dict, Object):
         for field in fields(self):
             self.__dict__[field.name] = field.type(self.__dict__[field.name])
 
+        # Update the parent reference in all of the Survey's measurements
+        for measurement in self.measurements.values():
+            measurement.survey = self
+
     def __repr__(self):
         s = "{:s} with the following parameters:".format(type(self).__name__)
         for key, val in asdict(self).items():
@@ -54,6 +58,7 @@ class Survey(dict, Object):
             Keyword arguments passed to Measurement.__init__().
         """
         self.measurements[key] = Measurement(key, self, **kwargs)
+        print(self.measurements[key].survey is self)
         if idx is not None:
             self.move_measurement(key, idx)
     
