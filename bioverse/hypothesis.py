@@ -10,22 +10,23 @@ from warnings import warn
 from .util import is_bool, as_tuple
 
 class Hypothesis():
-    """ Describes a Bayesian hypothesis. The hypothesis function `f` should be defined with the following annotations:
-
-    def f(theta:params, X:features) -> labels
- 
-    where `params`, `features`, and `labels` are tuples naming the parameters, independent, and dependent variables.
-    An example:
-
-    def h_HZ_func(theta:('a_inner', 'a_outer', 'f_HZ', 'f_notHZ'), X:('a_eff',)) -> ('has_H2O',):
+    """ Describes a Bayesian hypothesis.
     
     Parameters
     ----------
     f : function
-        Function describing the hypothesis. Must be annotated as described above.
+        Function describing the hypothesis. Must be defined as f(theta, X) where theta is a tuple of parameter values
+        and X is a set of independent variables. Returns the calculated values of Y, the set of dependent variables for
+        each entry in X.
     bounds : array
         Nx2 array describing the [min, max] limits of each parameter. These are enforced even if a different prior
         distribution is defined.
+    params : tuple of str, optional
+        Names of the parameter(s) of the hypothesis.
+    features : tuple of str, optional
+        Names of the feature(s) or independent variables.
+    labels : tuple of str, optional
+        Names of the label(s) or dependent variables.
     lnprior_function : function, optional
         Used by emcee. Function which returns ln(P_prior), must be defined as prior(theta). If None, assume a (log-)uniform distribution.
     guess_function : function, optional

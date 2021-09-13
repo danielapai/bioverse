@@ -20,12 +20,16 @@ The first step in defining this hypothesis is to write out the function ``Y = f(
 
 .. code-block:: python
 
-    def f(theta:('M_0', 'alpha'), X:('R',)) -> ('M',):
+    def f(theta, X):
         M_0, alpha = theta
         R, = X
         return M_0 * R ** alpha
 
-The function annotations [#f1]_ tell the code the number and names of the parameters and variables being related. In this case, planet radius (``R``) and mass (``M``) will be extracted from the simulated dataset as the features and labels.
+    params = ('M_0', 'alpha')
+    features = ('R',)
+    labels = ('M',)
+
+The tuples ``features`` and ``labels`` tell the code which parameters to extract from the simulated dataset. In this case, planet radius (``R``) and mass (``M``) will be extracted from the simulated dataset as the features and labels.
 
 We must define the bounds on values for M_0 and alpha - conservative constraints might be 0.1 < M_0 < 10 and 2 < alpha < 5. We will also choose a log-uniform distribution for M_0, as its bounds span a few orders of magnitude.
 
@@ -39,21 +43,21 @@ Next, we can initialize the Hypothesis:
 .. code-block:: python
 
     from bio.hypothesis import Hypothesis
-    h_mass_radius = Hypothesis(f, bounds, log=log)
+    h_mass_radius = Hypothesis(f, bounds, params=params, features=features, labels=labels, log=log)
     
 The null hypothesis
 *******************
 
-In order to test the evidence in favor of ``h_mass_radius``, we must define an alternative (or "null") hypothesis [#f2]_. In this case, the hypothesis states that planetary mass is independent of radius, and ranges from 0.01 and 100 M_Earth:
+In order to test the evidence in favor of ``h_mass_radius``, we must define an alternative (or "null") hypothesis [#f1]_. In this case, the hypothesis states that planetary mass is independent of radius, and ranges from 0.01 and 100 M_Earth (with average value ``M_random``):
 
 .. code-block:: python
 
-    def f_null(theta:('M_random',), X:('R',)) -> ('M',):
+    def f_null(theta, X):
          shape = (np.shape(X)[0], 1)
          return np.full(shape, theta)
     
     bounds_null = np.array([[0.01, 100]])
-    h_mass_radius.h_null = Hypothesis(f_null, bounds, log=(True,))
+    h_mass_radius.h_null = Hypothesis(f_null, bounds, params=('M_random',), log=(True,))
 
 Testing the hypothesis
 **********************
@@ -87,7 +91,7 @@ Both ``dynesty`` and ``emcee`` require a Bayesian likelihood function to be defi
 Prior distributions
 *******************
 
-The prior distributions of the parameters ``theta`` can be set to either uniform or log-uniform functions *or* defined by the user [#f3]_. For uniform and log-uniform, only the boundaries of these distributions must be given:
+The prior distributions of the parameters ``theta`` can be set to either uniform or log-uniform functions *or* defined by the user [#f2]_. For uniform and log-uniform, only the boundaries of these distributions must be given:
 
 .. code-block:: python
 
@@ -113,6 +117,5 @@ When using ``dynesty`` or ``emcee``, the ``results`` object will contain summary
 
 .. rubric:: Footnotes
 
-.. [#f1] This is a non-standard use of Python function annotations that many code editors will highlight, but it should not cause any runtime errors.
-.. [#f2] Note that :func:`bioverse.hypothesis.f_null` provides the same function as ``f_null()`` above but for an arbitrary number of parameters, features, and labels.
-.. [#f3] Documentation for user-defined priors will be added in a future update.
+.. [#f1] Note that :func:`bioverse.hypothesis.f_null` provides the same function as ``f_null()`` above but for an arbitrary number of parameters, features, and labels.
+.. [#f2] Documentation for user-defined priors will be added in a future update.
