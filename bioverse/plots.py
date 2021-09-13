@@ -1,4 +1,5 @@
 # System modules
+import copy
 import matplotlib
 #matplotlib.use('Qt5Agg')
 from matplotlib import pyplot as plt
@@ -1022,8 +1023,10 @@ def image_contour_plot(x, y, z, colorbar=True, labels=None, levels=None, fmt=' %
 
     # Color plot
     if colorbar:
-        im = ax.pcolormesh(x, y, z, vmin=vmin, vmax=vmax, cmap=cmap, lw=0, rasterized=True)#, norm=LogNorm())
-        im.cmap.set_bad(color='white', alpha=0.5)
+        im = ax.pcolormesh(x, y, z, vmin=vmin, vmax=vmax, cmap=cmap, lw=0, rasterized=True, shading='auto')
+        cmap = copy.copy(im.cmap)
+        cmap.set_bad(color='white', alpha=0.5)
+        im.set_cmap(cmap)
         cbar = fig.colorbar(im)
         if plus:
             cticks = cbar.get_ticks()
