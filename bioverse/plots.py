@@ -444,7 +444,7 @@ def Example1_targets(data, fig=None, ax=None, show=True, cbar=True, bins=10, vmi
     else:
         return fig, ax
 
-def Example1_dataset(data, a_inner=1.12**-0.5, a_outer=0.37**-0.5, show=True):
+def Example1_dataset(data, a_inner=1.12**-0.5, a_outer=0.37**-0.5, show=True, plot_model=True):
     """ Plots data['has_H2O'] versus data['S'] for a simulated data set. Also plots the habitable zone boundaries. """
 
     fig, ax = plt.subplots(figsize=(12, 3.5))
@@ -453,7 +453,8 @@ def Example1_dataset(data, a_inner=1.12**-0.5, a_outer=0.37**-0.5, show=True):
     data.compute('a_eff')
     x,y = data['a_eff'][obs],data['has_H2O'][obs]
     
-    ax.fill_between([a_inner, a_outer], -2, 2, color='gray', alpha=0.4, lw=0)
+    if plot_model:
+        ax.fill_between([a_inner, a_outer], -2, 2, color='gray', alpha=0.4, lw=0)
     ax.axhline(0, linestyle='dotted',c='black', lw=1)
     ax.axhline(1, linestyle='dotted',c='black', lw=1)
     ax.scatter(x, y, marker='o', zorder=10, c='C2')
@@ -520,7 +521,7 @@ def Example2_targets(data, fig=None, ax=None, bins=10, show=True):
         return fig, ax
 
 
-def Example2_dataset(data, flife=0.8, thalf=5.0, show=True):
+def Example2_dataset(data, flife=0.8, thalf=5.0, show=True, plot_model=False):
     """ Plots data['has_O2'] versus data['age'] for a simulated data set. Also plots f(O2 | life)(t). """
     
     fig, ax = plt.subplots(figsize=(12, 3.5))
@@ -533,20 +534,22 @@ def Example2_dataset(data, flife=0.8, thalf=5.0, show=True):
     ax.axhline(1, linestyle='dotted', c='black', lw=1)
 
     # Model
-    xm = np.linspace(0, 13, 100)
-    ym = flife * (1-0.5**(xm/thalf))
-    ax.plot(xm, ym, c='grey', lw=5, zorder=-1)
+    if plot_model:
+        xm = np.linspace(0, 13, 100)
+        ym = flife * (1-0.5**(xm/thalf))
+        ax.plot(xm, ym, c='grey', lw=5, zorder=-1)
 
     ax.set_ylim([-0.2, 1.2])
     ax.set_yticks([0, 1])
     ax.set_yticklabels(['no O$_3$', 'O$_3$'])
 
-    ax2 = ax.twinx()
-    ax2.set_ylim([-0.2, 1.2])
-    ax2.set_yticks([0, 1])
-    ax2.set_yticklabels(['0%', '100%'], c='grey')
-    #ax2.set_ylabel(r'$f_{{O_2 \cup O_3}}(t)$', fontsize=labelfontsize, c='grey', labelpad=15)
-    ax2.set_ylabel(r'$f_{{O_3}}(t_*)$', fontsize=labelfontsize, c='grey', labelpad=15)
+    if plot_model:
+        ax2 = ax.twinx()
+        ax2.set_ylim([-0.2, 1.2])
+        ax2.set_yticks([0, 1])
+        ax2.set_yticklabels(['0%', '100%'], c='grey')
+        #ax2.set_ylabel(r'$f_{{O_2 \cup O_3}}(t)$', fontsize=labelfontsize, c='grey', labelpad=15)
+        ax2.set_ylabel(r'$f_{{O_3}}(t_*)$', fontsize=labelfontsize, c='grey', labelpad=15)
     
 
     ax.set_xlim([0, 10])
