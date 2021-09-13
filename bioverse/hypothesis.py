@@ -7,7 +7,7 @@ from scipy.stats import mannwhitneyu
 from warnings import warn
 
 # Bioverse modules
-from .util import is_bool
+from .util import is_bool, as_tuple
 
 class Hypothesis():
     """ Describes a Bayesian hypothesis. The hypothesis function `f` should be defined with the following annotations:
@@ -37,7 +37,7 @@ class Hypothesis():
     log : bool array, optional
         Array of length N specifying which parameters should be sampled by a log-uniform distribution.
     """
-    def __init__(self, f, bounds, lnprior_function=None, guess_function=None, tfprior_function=None, log=None, h_null=None):
+    def __init__(self, f, bounds, params=(), features=(), labels=(), lnprior_function=None, guess_function=None, tfprior_function=None, log=None, h_null=None):
         self.f, self.bounds = f, np.array(bounds)
         self.lnprior_function, self.guess_function, self.tfprior_function = lnprior_function, guess_function, tfprior_function
         self.log = np.zeros(len(self.bounds), dtype=bool) if log is None else np.array(log)
@@ -54,13 +54,8 @@ class Hypothesis():
         if np.any(self.log) and not (self.lnprior_function is None and self.tfprior_function is None):
             warn("should not pass log=True with a user-defined prior function!")
 
-        # Save the parameter, feature, and label names
-        ann = self.f.__annotations__.copy()
-        keys = list(ann.keys())
-        for key, val in ann.items():
-            if isinstance(val, str):
-                ann[key] = (val,)
-        self.params, self.features, self.labels = ann[keys[0]], ann[keys[1]], ann['return']
+        # Save the parameter, feature, and label names 
+        self.params, self.features, self.labels = as_tuple(params), as_tuple(features), as_tuple(labels)
         self.nparams, self.nfeatures, self.nlabels = len(self.params), len(self.features), len(self.labels)
     
     def __call__(self, *args, **kwargs):
@@ -229,7 +224,6 @@ class Hypothesis():
             self.lnlike = self.lnlike_binary
             self.h_null.lnlike = self.h_null.lnlike_binary
         else:
-            print("using multivariate")
             self.lnlike = self.lnlike_multivariate
             self.h_null.lnlike = self.h_null.lnlike_multivariate
 
@@ -278,35 +272,45 @@ class Hypothesis():
         return results
 
 # NULL HYPOTHESIS (N-parameter)
-def f_null(theta:(), X:()) -> ():
+def f_null(theta, X):
     """ Function for a generic null hypothesis. Returns (theta1, theta2, ...) for each element in X. """
     shape = (np.shape(X)[0], np.shape(theta)[0])
     return np.full(shape, theta)
 
 # HABITABLE ZONE HYPOTHESIS (4-parameter)
-def f_HZ(theta:('a_inner', 'delta_a', 'f_HZ', 'df_notHZ'), X:('a_eff',)) -> ('has_H2O',):
+def f_HZ(theta, X):
     """ Function for the habitable zone hypothesis. """
     a_inner, delta_a, f_HZ, df_notHZ = theta
     in_HZ = (X > a_inner) & (X < (a_inner + delta_a))
     return in_HZ * f_HZ + (~in_HZ) * f_HZ*df_notHZ
+
+params_HZ = ('a_inner', 'delta_a', 'f_HZ', 'df_notHZ')
+features_HZ = ('a_eff',)
+labels_HZ = ('has_H2O',)
 bounds_HZ = np.array([[0.1, 2], [0.01, 10], [0.001, 1.0], [0.001, 1.0]])
 
 # Null hypothesis: log-uniform from 0.001 to 1
 bounds_HZ_null = np.array([[0.001, 1.0]]) 
 h_HZ_null = Hypothesis(f_null, bounds_HZ_null, log=(True,))
 
-h_HZ = Hypothesis(f_HZ, bounds_HZ, log=(True, True, True, True), h_null=h_HZ_null)
+h_HZ = Hypothesis(f_HZ, bounds_HZ, params=params_HZ, features=features_HZ, labels=labels_HZ,
+                  log=(True, True, True, True), h_null=h_HZ_null)
 
 # AGE-OXYGEN CORRELATION HYPOTHESIS (2-parameter)
-def f_age_oxygen(theta:('f_life', 't_half'), X:('age',)) -> ('has_O2',):
+def f_age_oxygen(theta, X): 
     """ Function for the age-oxygen correlation hypothesis. """
     f_life, t_half = theta
     return f_life * (1 - 0.5**(X/t_half))
+
+params_age_oxygen = ('f_life', 't_half')
+features_age_oxygen = ('age',)
+labels_age_oxygen = ('has_O2',)
 bounds_age_oxygen = np.array([[0.01, 1], [0.1, 100]])
 
 # Null hypothesis: log-uniform from 0.001 to 1
 bounds_age_oxygen_null = np.array([[0.001, 1.0]])
 h_age_oxygen_null = Hypothesis(f_null, bounds_age_oxygen_null, log=(True,))
 
-h_age_oxygen = Hypothesis(f_age_oxygen, bounds_age_oxygen, log=(True, True), h_null=h_age_oxygen_null)
+h_age_oxygen = Hypothesis(f_age_oxygen, bounds_age_oxygen, params=params_age_oxygen, features=features_age_oxygen,
+                          labels=labels_age_oxygen, log=(True, True), h_null=h_age_oxygen_null)
 

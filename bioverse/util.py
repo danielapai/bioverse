@@ -67,6 +67,15 @@ def is_bool(a):
     else:
         return False
 
+def as_tuple(x):
+    """ Returns the parameter as a tuple. """
+    if isinstance(x, tuple):
+        return x
+    elif np.ndim(x) == 0:
+        return (x,)
+    elif np.ndim(x) ==1:
+        return tuple(x)
+
 # Imports a function given the filename and the name of the function
 def import_function_from_file(function_name,filename):
         # Get package and module names
