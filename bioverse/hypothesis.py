@@ -127,12 +127,12 @@ class Hypothesis():
         terms = -(y-yh)**2 / (2*sigma**2)
         return np.sum(terms)
 
-    def lnprob(self, theta, x, y):
+    def lnprob(self, theta, x, y, sigma):
         """ Posterior probability function P(theta | x, y). """
         lnpr = self.lnprior(theta)
         if theta.ndim == 1 and np.isinf(lnpr):
             return lnpr, None
-        lnlk = self.lnlike(theta, x, y)
+        lnlk = self.lnlike(theta, x, y, sigma)
         if np.isnan(lnlk):
             print(x, y)
         return lnlk + lnpr, lnlk
