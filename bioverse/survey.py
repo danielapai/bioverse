@@ -4,7 +4,7 @@ from numpy import inf
 
 from .classes import Object, Table
 from . import util
-from .constants import STR_TYPES, BOOL_TYPES, INT_TYPES
+from .constants import STR_TYPES, BOOL_TYPES
 
 @dataclass(repr=False)
 class Survey(dict, Object):
@@ -532,7 +532,7 @@ class Measurement():
             return x, None
 
         # If the value is type str or bool then the measurement has to be "exact"
-        if type(x[0]) in list(np.append(STR_TYPES, BOOL_TYPES)):
+        if isinstance(x[0], (STR_TYPES, BOOL_TYPES)):
             return x, None
 
         # Percentage-based precision

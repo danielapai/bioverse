@@ -122,7 +122,7 @@ def mask_from_model_subset(pl,subset):
     mask = True
     for key in subset.keys():
         val = subset[key]
-        if type(val) in LIST_TYPES:
+        if isinstance(val, LIST_TYPES):
             mask = mask & ((pl[key]>val[0])&(pl[key]<val[1]))
         else:
             mask = mask & (pl[key]==val)
@@ -325,7 +325,7 @@ def binned_average(x, y, bins=10, match_counts=True):
         Uncertainty on `values` in each bin, i.e. the standard error on the mean.
     """
     # Unless given, compute the bin edges
-    if isinstance(bins,(INT_TYPES,FLOAT_TYPES)):
+    if isinstance(bins, (INT_TYPES, FLOAT_TYPES)):
         bins = int(bins)
         if match_counts:
             bins = np.percentile(x,np.linspace(0,100,bins+1))

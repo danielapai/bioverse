@@ -9,13 +9,12 @@ import traceback
 
 # Bioverse modules and constants
 from . import util
-from .constants import INT_TYPES,FLOAT_TYPES
 
 # Prevents a crash due to matplotlib when multiprocessing
 mp.set_start_method('spawn', force=True)
 
-def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, bins=15, return_chains=False, label=None,
-                        overwrite=False, mw_alternative='greater', method='dynesty', nlive=100, **kwargs):
+def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, bins=15, return_chains=False,
+                         mw_alternative='greater', method='dynesty', nlive=100, **kwargs):
     """ Runs simulated surveys over a grid of survey and astrophysical parameters. Each time, uses the simulated
     data set to fit the hypothesis parameters and computes the model evidence versus the null hypothesis. """
 
