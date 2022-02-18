@@ -42,7 +42,7 @@ Next, we can initialize the Hypothesis:
 
 .. code-block:: python
 
-    from bio.hypothesis import Hypothesis
+    from bioverse.hypothesis import Hypothesis
     h_mass_radius = Hypothesis(f, bounds, params=params, features=features, labels=labels, log=log)
     
 The null hypothesis
