@@ -69,8 +69,7 @@ class Table(dict):
         self.error = None
     
     def __repr__(self):
-        s1 = 'Table of {:d} objects with {:d} parameters'.format(len(self),len(self.keys()))
-        return s1
+        return self.pdshow()
 
     def __len__(self):
         """ Returns the number of rows in the table rather than the number of keys (default dict behavior). """
@@ -316,8 +315,9 @@ class Table(dict):
         if DataFrame is None:
             raise ModuleNotFoundError("Package `pandas` is required to display the Table")
         else:
-            print(self.__repr__())
-            print(DataFrame(self).__repr__())
+            df_rep = DataFrame(self).__repr__()
+            print(df_rep)
+            return df_rep
     
     def observed(self, key):
         """ Returns the subset of rows for which self[key] is not nan. """
