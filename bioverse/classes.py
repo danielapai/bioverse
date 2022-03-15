@@ -318,6 +318,11 @@ class Table(dict):
             df_rep = DataFrame(self).__repr__()
             print(df_rep)
             return df_rep
+
+    def to_pandas(self):
+        """export Table into a pandas DataFrame"""
+        df = DataFrame(self)
+        return df
     
     def observed(self, key):
         """ Returns the subset of rows for which self[key] is not nan. """
