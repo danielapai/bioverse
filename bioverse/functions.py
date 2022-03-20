@@ -11,7 +11,7 @@ from . import util
 from .util import CATALOG
 from .constants import CONST, ROOT_DIR
 
-def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_max=10., T_eff_split=4500.):
+def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_max=10., T_eff_split=4500., seed=42):
     """ Reads temperatures and coordinates for high-mass stars from Gaia DR2. Simulates low-mass stars from the
     Chabrier+2003 PDMF.  Ages are drawn from a uniform distribution, by default from 0 - 10 Gyr. All other
     stellar properties are calculated using the scaling relations of Pecaut+2013.
@@ -32,12 +32,16 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
         Maximum stellar age, in Gyr.
     T_eff_split : float, optional
         Effective temperature (in Kelvin) below which to simulate stars from a PDMF instead of using Gaia data.
+    seed : int or 1-d array_like, optional
+        Seed for numpy's RandomState. Must be convertible to 32 bit unsigned integers.
 
     Returns
     -------
     d : Table
         Table containing the sample of simulated stars.  
     """
+
+    np.random.seed(seed)
 
     # Create a stellar property conversion table from Pecaut+2013, sorted by ascending temperature
     # Note: the table from Pecaut+2013 was filtered down to A0V - L2V
@@ -115,7 +119,7 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
 
     return d
 
-def read_stellar_catalog(d, filename='LUVOIR_targets.dat', d_max=30., T_min=0., T_max=10., mult=1):
+def read_stellar_catalog(d, filename='LUVOIR_targets.dat', d_max=30., T_min=0., T_max=10., mult=1, seed=42):
     """ Reads a list of stellar properties from the LUVOIR target catalog and fills in missing values.
 
     Parameters
@@ -132,12 +136,17 @@ def read_stellar_catalog(d, filename='LUVOIR_targets.dat', d_max=30., T_min=0., 
         Maximum stellar age, in Gyr.
     mult : float, optional
         Multiple on the total number of stars simulated. If > 1, duplicates some entries from the LUVOIR catalog.
-    
+    seed : int or 1-d array_like, optional
+        Seed for numpy's RandomState. Must be convertible to 32 bit unsigned integers.
+
     Returns
     -------
     d : Table
         Table containing the sample of simulated stars.  
     """
+
+    np.random.seed(seed)
+
     # Read the catalog with column names
     path = filename if os.path.exists(filename) else ROOT_DIR+'/'+filename
     catalog = np.genfromtxt(path,unpack=False,names=True,dtype=None,encoding=None)
@@ -169,7 +178,7 @@ def read_stellar_catalog(d, filename='LUVOIR_targets.dat', d_max=30., T_min=0., 
     return d
 
 def create_planets_SAG13(d, eta_Earth=0.075, R_min=0.5, R_max=14.3, P_min=0.01, P_max=10., normalize_SpT=True,
-                         transit_mode=False, optimistic=False, optimistic_factor=5):
+                         transit_mode=False, optimistic=False, optimistic_factor=5, seed=42):
     """ Generates planets with periods and radii according to SAG13 occurrence rate estimates, but incorporating
     the dependence of occurrence rates on spectral type from Mulders+2015.
 
@@ -198,13 +207,16 @@ def create_planets_SAG13(d, eta_Earth=0.075, R_min=0.5, R_max=14.3, P_min=0.01, 
         assume that occurrence rates plateau with stellar mass for stars cooler than ~M3.
     optimistic_factor : float, optional
         If optimistic = True, defines how many times more common rocky planets are around late-type M dwarfs compared to Sun-like stars.
-
+    seed : int or 1-d array_like, optional
+        Seed for numpy's RandomState. Must be convertible to 32 bit unsigned integers.
 
     Returns
     -------
     d : Table
         Table containing the sample of simulated planets. Replaces the input Table.
     """
+
+    np.random.seed(seed)
 
     # SAG13 power law parameters
     R_break = 3.4
@@ -295,7 +307,7 @@ def name_planets(d):
     d['planet_name'] = d['star_name'] + alph[d['order']]
     return d
     
-def assign_orbital_elements(d, transit_mode=False):
+def assign_orbital_elements(d, transit_mode=False, seed=42):
     """ Draws values for any remaining Keplerian orbital elements. Eccentricities
     are drawn from a beta distribution following Kipping et al. (2013).
 
@@ -305,6 +317,8 @@ def assign_orbital_elements(d, transit_mode=False):
         Table containing the sample of simulated planets.
     transit_mode : bool, optional
         If True, only transiting planets are simulated, so cos(i) < R_*/a for all planets.
+    seed : int or 1-d array_like, optional
+        Seed for numpy's RandomState. Must be convertible to 32 bit unsigned integers.
 
     Returns
     -------
@@ -312,6 +326,8 @@ def assign_orbital_elements(d, transit_mode=False):
         Table containing the sample of simulated planets.
 
     """
+
+    np.random.seed(seed)
 
     for key in ['e','cos(i)','M0','w_LAN','w_AP']:
         # Skip keys which have already been assigned
@@ -605,7 +621,7 @@ def scale_height(d):
 
     return d
 
-def geometric_albedo(d, A_g_min=0.1, A_g_max=0.7):
+def geometric_albedo(d, A_g_min=0.1, A_g_max=0.7, seed=42):
     """ Assigns each planet a random geometric albedo from 0.1 -- 0.7, and computes the contrast ratio when viewed at quadrature.
     
     Parameters
@@ -616,12 +632,17 @@ def geometric_albedo(d, A_g_min=0.1, A_g_max=0.7):
         Minimum geometric albedo.
     A_g_max : float, optional
         Maximum geometric albedo.
+    seed : int or 1-d array_like, optional
+        Seed for numpy's RandomState. Must be convertible to 32 bit unsigned integers.
 
     Returns
     -------
     d : Table
         Table containing the sample of simulated planets.
     """
+
+    np.random.seed(seed)
+
     # Random albedo
     d['A_g'] = np.random.uniform(A_g_min, A_g_max, len(d))
 
@@ -669,7 +690,7 @@ def compute_transit_params(d):
 
     return d
 
-def Example1_water(d, f_water_habitable=0.75, f_water_nonhabitable=0.1, minimum_size=True):
+def Example1_water(d, f_water_habitable=0.75, f_water_nonhabitable=0.1, minimum_size=True, seed=42):
     """ Determines which planets have water, according to the following model:
 
     f(S,R)  = f_water_habitable     if S_inner < S < S_outer and 0.8 S^0.25 < R < 1.4
@@ -685,12 +706,17 @@ def Example1_water(d, f_water_habitable=0.75, f_water_nonhabitable=0.1, minimum_
         Fraction of non-habitable planets with atmospheric water vapor.
     minimum_size : bool, optional
         Whether or not to enforce a minimum size for non-habitable planets to have H2O atmospheres.
+    seed : int or 1-d array_like, optional
+        Seed for numpy's RandomState. Must be convertible to 32 bit unsigned integers.
 
     Returns
     -------
     d : Table
         Table containing the sample of simulated planets.
     """
+
+    np.random.seed(seed)
+
     d['has_H2O'] = np.zeros(len(d),dtype=bool)
 
     # Non-habitable planets with atmospheres
@@ -703,7 +729,7 @@ def Example1_water(d, f_water_habitable=0.75, f_water_nonhabitable=0.1, minimum_
 
     return d
 
-def Example2_oxygen(d, f_life=0.7, t_half=2.3):
+def Example2_oxygen(d, f_life=0.7, t_half=2.3, seed=42):
     """ Applies the age-oxygen correlation from Example 2.
 
     Parameters
@@ -714,13 +740,17 @@ def Example2_oxygen(d, f_life=0.7, t_half=2.3):
         Fraction of EECs (Earth-sized planets in the habitable zone) with life.
     tau : float, optional
         Timescale of atmospheric oxygenation (in Gyr), i.e. the age by which 63% of inhabited planets have oxygen.
+    seed : int or 1-d array_like, optional
+        Seed for numpy's RandomState. Must be convertible to 32 bit unsigned integers.
 
     Returns
     -------
     d : Table
         Table containing the sample of simulated planets.
     """
-    
+
+    np.random.seed(seed)
+
     # Determine which planets have life
     d['life'] = d['EEC'] & (np.random.uniform(0, 1, len(d)) < f_life)
     
