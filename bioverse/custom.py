@@ -42,10 +42,16 @@ def magma_ocean(d, f_magma=0.1, a_max=0.1):
         Table containing the sample of simulated planets.
 
     """
+
+    # randomly assign planets to have a magma ocean
     d['has_magmaocean'] = np.random.binomial(1, f_magma, len(d)).astype(bool)
-    # d.loc[d['a'] > a_max, 'has_magmaocean'] = False
+
+    # but only for planets with a semimajor-axis less than a_max
+    mask = d['a'] > a_max
+    d['has_magmaocean'][mask] = False
 
     # reduce the radius of the planets with magma oceans
-    d[d['has_magmaocean']]['R'] *= .8         # HAS TO BE REPLACED WITH MODEL OUTPUT FOR MAGMA OCEAN PLANETS
+    mask = d['has_magmaocean']
+    d['R'][mask] *= .8         # HAS TO BE REPLACED WITH MODEL OUTPUT FOR MAGMA OCEAN PLANETS
 
     return d
