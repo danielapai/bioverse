@@ -40,7 +40,7 @@ Given a simulated set of planets to observe, the Survey first determines which o
 
 .. code-block:: python
 
-    detected = s_imaging.compute_yield(sample)
+    detected = survey_imaging.compute_yield(sample)
 
 Conducting measurements
 ************************************
@@ -58,7 +58,7 @@ To conduct these measurements and produce a dataset:
 
 .. code-block:: python
 
-    data = s_imaging.observe(detected)
+    data = survey_imaging.observe(detected)
 
 Quick-run
 *********
