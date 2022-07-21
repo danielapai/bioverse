@@ -281,8 +281,11 @@ class Measurement():
         s = "Measures parameter '{:s}'".format(self.key)
         if self.precision != 0.:
             s += " with {:s} precision".format(str(self.precision))
-        for i,cdtn in enumerate(self.conditions):
-            s += "\n    Conditions: {:s}".format(cdtn) if i == 0 else ' AND {:s}'.format(cdtn)
+        try:
+            for i,cdtn in enumerate(self.conditions):
+                s += "\n    Conditions: {:s}".format(cdtn) if i == 0 else ' AND {:s}'.format(cdtn)
+        except AttributeError:
+            pass
         if self.t_ref is not None:
             s += "\n    Average time required: {:.1f} d".format(self.t_ref)
             
