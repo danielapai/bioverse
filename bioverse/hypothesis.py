@@ -338,3 +338,43 @@ h_age_oxygen_null = Hypothesis(f_null, bounds_age_oxygen_null, log=(True,))
 h_age_oxygen = Hypothesis(f_age_oxygen, bounds_age_oxygen, params=params_age_oxygen, features=features_age_oxygen,
                           labels=labels_age_oxygen, log=(True, True), h_null=h_age_oxygen_null)
 
+
+def magma_ocean_hypo(theta, X):
+    """ Define a hypothesis for the functional form of a magma ocean-adapted radius-sma distribution.
+
+    Parameters
+    ----------
+    theta : array_like
+        Array of parameters for the hypothesis.
+        f_magma : float
+            fraction of planets having a magma ocean
+        a_cut: float
+            cutoff sma for magma oceans. Defines position of the exponential decay.
+        lambda_a: float
+            Decay parameter for the semi-major axis dependence of having a global magma ocean.
+    X : array_like
+        Independent variable. Includes semimajor axis a.
+
+    Returns
+    -------
+    array_like
+        Functional form of hypothesis
+    """
+    f_magma, a_cut, lambda_a = theta
+    a = X
+    return f_magma * np.exp(-(a/a_cut)**lambda_a)
+
+
+params = ('f_magma', 'a_cut', 'lambda_a')
+features = ('a',)
+labels = ('has_magmaocean',)
+
+# define priors for the parameters in theta (uniform for f_magma, lambda_a; log-uniform for a_cut)
+bounds = np.array([[0.00, 1.0], [0.01, 10.], [0.1, 100.]])
+h_magmaocean = Hypothesis(magma_ocean_hypo, bounds, params=params, features=features, labels=labels, log=(False, True, False))
+
+def magma_ocean_f0(theta, X):
+    """ Define the null hypothesis that the radius distribution is random and independent of sma.
+    """
+    return np.full(np.shape(X), theta)
+
