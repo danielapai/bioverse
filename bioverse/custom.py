@@ -24,7 +24,7 @@ def occurrence_hypo(theta, X):
     return None
 
 
-def magma_ocean(d, f_magma=0.1, lambda_a=2., a_cut=0.1):
+def magma_ocean(d, f_magma=0.1, lambda_a=2., a_cut=0.1, radius_factor=0.8):
     """Assign a fraction of planets global magma oceans that change the planet's radius.
 
     Parameters:
@@ -37,11 +37,13 @@ def magma_ocean(d, f_magma=0.1, lambda_a=2., a_cut=0.1):
         Decay parameter for the semi-major axis dependence of having a global magma ocean.
     a_cut: float
         cutoff sma for magma oceans. Defines position of the exponential decay.
+    radius_factor: float
+        The fraction of a planet's original radius that is reduced due to a global magma ocean.
 
     Returns
     -------
     d : Table
-        Table containing the sample of simulated planets.
+        Table containing the sample of simulated planets with new columns 'has_magmaocean' and 'is_small'.
 
     """
     # randomly assign planets to have a magma ocean, depending on the semi-major axes
@@ -50,6 +52,9 @@ def magma_ocean(d, f_magma=0.1, lambda_a=2., a_cut=0.1):
 
     # reduce the radius of the planets with magma oceans
     mask = d['has_magmaocean']
-    d['R'][mask] *= .8         # HAS TO BE REPLACED WITH MODEL OUTPUT FOR MAGMA OCEAN PLANETS
+    d['R'][mask] *= radius_factor # HAS TO BE REPLACED WITH MODEL OUTPUT FOR MAGMA OCEAN PLANETS
+
+    # define planets with smaller radius than expected. THIS SHOULD BE REPLACED WITH SOMETHING MORE REALISTIC
+    d['is_small'] = d['R'] < np.mean(d['R'])
 
     return d
