@@ -349,7 +349,7 @@ def magma_ocean_hypo(theta, X):
         f_magma : float
             fraction of planets having a magma ocean
         a_cut: float
-            cutoff sma for magma oceans. Defines position of the exponential decay.
+            cutoff effective sma for magma oceans. Defines position of the exponential decay.
         lambda_a: float
             Decay parameter for the semi-major axis dependence of having a global magma ocean.
     X : array_like
@@ -366,8 +366,8 @@ def magma_ocean_hypo(theta, X):
 
 
 params = ('f_magma', 'a_cut', 'lambda_a')
-features = ('a',)
-labels = ('has_magmaocean',)
+features = ('a_eff',)
+labels = ('is_small',)
 
 # define priors for the parameters in theta (uniform for f_magma, lambda_a; log-uniform for a_cut)
 bounds = np.array([[0.00, 1.0], [0.01, 10.], [0.1, 100.]])

@@ -36,7 +36,7 @@ def magma_ocean(d, f_magma=0.1, lambda_a=2., a_cut=0.1, radius_factor=0.8):
     lambda_a: float
         Decay parameter for the semi-major axis dependence of having a global magma ocean.
     a_cut: float
-        cutoff sma for magma oceans. Defines position of the exponential decay.
+        cutoff effective sma for magma oceans. Defines position of the exponential decay.
     radius_factor: float
         The fraction of a planet's original radius that is reduced due to a global magma ocean.
 
@@ -47,7 +47,7 @@ def magma_ocean(d, f_magma=0.1, lambda_a=2., a_cut=0.1, radius_factor=0.8):
 
     """
     # randomly assign planets to have a magma ocean, depending on the semi-major axes
-    P_magma = f_magma * np.exp(-(d['a']/a_cut)**lambda_a) # HAS TO BE REPLACED WITH MODEL OUTPUT FOR MAGMA OCEAN PLANETS
+    P_magma = f_magma * np.exp(-(d['a_eff']/a_cut)**lambda_a) # HAS TO BE REPLACED WITH MODEL OUTPUT FOR MAGMA OCEAN PLANETS
     d['has_magmaocean'] = np.random.uniform(0, 1, len(d)) < P_magma
 
     # reduce the radius of the planets with magma oceans
