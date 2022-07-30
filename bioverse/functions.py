@@ -816,8 +816,11 @@ def effective_values(d):
     d['a_eff'] = d['a'] * d['L_st']**-0.5
 
     # Effective radius = radius if A_g = 0.29
-    d['R_eff'] = (d['contrast'] * np.pi / 0.29)**0.5 / (4.258756e-5 / d['a'])
-
+    try:
+        d['R_eff'] = (d['contrast'] * np.pi / 0.29)**0.5 / (4.258756e-5 / d['a'])
+    except KeyError:
+        # 'contrast' is not always available
+        pass
     return d
 
 def compute_transit_params(d):
