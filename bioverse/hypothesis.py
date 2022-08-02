@@ -339,8 +339,8 @@ h_age_oxygen = Hypothesis(f_age_oxygen, bounds_age_oxygen, params=params_age_oxy
                           labels=labels_age_oxygen, log=(True, True), h_null=h_age_oxygen_null)
 
 
-def magma_ocean_hypo(theta, X):
-    """ Define a hypothesis for the functional form of a magma ocean-adapted radius-sma distribution.
+def magma_ocean_hypo_exp(theta, X):
+    """ Define a hypothesis for a magma ocean-adapted radius-sma distribution that follows an exponential decay.
 
     Parameters
     ----------
@@ -361,17 +361,48 @@ def magma_ocean_hypo(theta, X):
         Functional form of hypothesis
     """
     f_magma, a_cut, lambda_a = theta
-    a = X
-    return f_magma * np.exp(-(a/a_cut)**lambda_a)
+    a_eff = X
+    return f_magma * np.exp(-(a_eff/a_cut)**lambda_a)
+
+def magma_ocean_hypo_step(theta, X):
+    """ Define a hypothesis for a magma ocean-adapted radius-sma distribution following a step function. Tests the
+    hypothesis that the average planet size is smaller within the cutoff effective radius.
+
+    Parameters
+    ----------
+    theta : array_like
+        Array of parameters for the hypothesis.
+        f_magma : float
+            fraction of planets having a magma ocean
+        a_cut: float
+            cutoff effective sma for magma oceans. Defines where the step occurs.
+        radius_factor: float
+            Factor by which the radius is multiplied for magma ocean-bearing planets.
+        R_avg : float
+            Average radius of the planets _without_ magma oceans.
+    X : array_like
+        Independent variable. Includes semimajor axis a.
+
+    Returns
+    -------
+    array_like
+        Functional form of hypothesis
+    """
+    f_magma, a_cut, radius_factor, R_avg = theta
+    a_eff = X
+
+    # R_avg for a_eff >= a_cut, reduced, f_magma-weighted average radius otherwise
+    return (R_avg - f_magma * (1 - radius_factor)) * (a_eff < a_cut) + R_avg * (a_eff >= a_cut)
 
 
-params = ('f_magma', 'a_cut', 'lambda_a')
-features = ('a_eff',)
-labels = ('is_small',)
+# params = ('f_magma', 'a_cut', 'lambda_a')
+# features = ('a_eff',)
+# labels = ('is_small',)
 
 # define priors for the parameters in theta (uniform for f_magma, lambda_a; log-uniform for a_cut)
-bounds = np.array([[0.00, 1.0], [0.01, 10.], [0.1, 100.]])
-h_magmaocean = Hypothesis(magma_ocean_hypo, bounds, params=params, features=features, labels=labels, log=(False, True, False))
+# bounds = np.array([[0.00, 1.0], [0.01, 10.], [0.1, 100.]])
+# h_magmaocean = Hypothesis(magma_ocean_hypo, bounds, params=params, features=features, labels=labels, log=(False, True, False))
+
 
 def magma_ocean_f0(theta, X):
     """ Define the null hypothesis that the radius distribution is random and independent of sma.

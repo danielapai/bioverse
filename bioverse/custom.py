@@ -24,19 +24,22 @@ def occurrence_hypo(theta, X):
     return None
 
 
-def magma_ocean(d, f_magma=0.1, lambda_a=2., a_cut=0.1, radius_factor=0.8):
+def magma_ocean(d, funform='exp_decay', f_magma=0.1, lambda_a=2., a_cut=0.1, radius_factor=0.8):
     """Assign a fraction of planets global magma oceans that change the planet's radius.
 
     Parameters:
     -----------
     d: Table
         The population of planets.
+    funform: str
+        The functional form of the magma ocean probability as a function of effective semi-major axis (sma).
+        Can be 'exp_decay' or 'step'.
     f_magma: float
         The fraction of planets that have global magma oceans.
     lambda_a: float
         Decay parameter for the semi-major axis dependence of having a global magma ocean.
     a_cut: float
-        cutoff effective sma for magma oceans. Defines position of the exponential decay.
+        cutoff effective sma for magma oceans. Defines position of the exponential decay or step.
     radius_factor: float
         The fraction of a planet's original radius that is reduced due to a global magma ocean.
 
@@ -47,7 +50,15 @@ def magma_ocean(d, f_magma=0.1, lambda_a=2., a_cut=0.1, radius_factor=0.8):
 
     """
     # randomly assign planets to have a magma ocean, depending on the semi-major axes
-    P_magma = f_magma * np.exp(-(d['a_eff']/a_cut)**lambda_a) # HAS TO BE REPLACED WITH MODEL OUTPUT FOR MAGMA OCEAN PLANETS
+    if funform == 'exp_decay':
+        # assign magma ocean with a probability following a exponential decay function
+        P_magma = f_magma * np.exp(-(d['a_eff']/a_cut)**lambda_a) # HAS TO BE REPLACED WITH MODEL OUTPUT FOR MAGMA OCEAN PLANETS
+    elif funform == 'step':
+        # assign a magma ocean with probability f_magma, but only to planets with a_eff < a_cut
+        P_magma = f_magma * (d['a_eff'] < a_cut)
+    else:
+        raise ValueError('funform must be either "exp_decay" or "step"')
+
     d['has_magmaocean'] = np.random.uniform(0, 1, len(d)) < P_magma
 
     # reduce the radius of the planets with magma oceans
