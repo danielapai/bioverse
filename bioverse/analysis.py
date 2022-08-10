@@ -109,8 +109,13 @@ def test_hypothesis_grid_iter(h, generator, survey, bins, return_chains,
 
     # Count the number of hot/warm/cold planets and EECs which were characterized
     obs = detected[h.get_observed(data)]
-    N_hot, N_warm, N_cold = [int((obs['class1']==typ).sum()) for typ in ['hot', 'warm', 'cold']]
-    N_EEC, N_pl = int(obs['EEC'].sum()), len(obs)
+    try:
+        N_hot, N_warm, N_cold = [int((obs['class1']==typ).sum()) for typ in ['hot', 'warm', 'cold']]
+        N_EEC, N_pl = int(obs['EEC'].sum()), len(obs)
+        results['N_hot'], results['N_warm'], results['N_cold'] = N_hot, N_warm, N_cold
+        results['N_EEC'], results['N_pl'] = N_EEC, N_pl
+    except KeyError:
+        pass
 
     # Compute the average value of labels versus features
     obs = data[h.get_observed(data)]
@@ -119,8 +124,6 @@ def test_hypothesis_grid_iter(h, generator, survey, bins, return_chains,
     else:
         bins, values, errors = np.full((3, bins), np.nan)
 
-    results['N_hot'], results['N_warm'], results['N_cold'] = N_hot, N_warm, N_cold
-    results['N_EEC'], results['N_pl'] = N_EEC, N_pl
     results['bins'], results['values'], results['errors'] = bins, values, errors
     results['t_sim'], results['t_fit'] = t_sim, t_fit
     
