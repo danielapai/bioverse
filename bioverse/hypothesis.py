@@ -391,17 +391,8 @@ def magma_ocean_hypo_step(theta, X):
     f_magma, a_cut, radius_factor, R_avg = theta
     a_eff = X
 
-    # R_avg for a_eff >= a_cut, reduced, f_magma-weighted average radius otherwise
+    # R_avg for a_eff >= a_cut; reduced, f_magma-weighted average radius otherwise
     return (R_avg - f_magma * (1 - radius_factor)) * (a_eff < a_cut) + R_avg * (a_eff >= a_cut)
-
-
-# params = ('f_magma', 'a_cut', 'lambda_a')
-# features = ('a_eff',)
-# labels = ('is_small',)
-
-# define priors for the parameters in theta (uniform for f_magma, lambda_a; log-uniform for a_cut)
-# bounds = np.array([[0.00, 1.0], [0.01, 10.], [0.1, 100.]])
-# h_magmaocean = Hypothesis(magma_ocean_hypo, bounds, params=params, features=features, labels=labels, log=(False, True, False))
 
 
 def magma_ocean_f0(theta, X):
