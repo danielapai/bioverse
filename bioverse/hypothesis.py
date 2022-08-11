@@ -376,8 +376,8 @@ def magma_ocean_hypo_step(theta, X):
             fraction of planets having a magma ocean
         a_cut: float
             cutoff effective sma for magma oceans. Defines where the step occurs.
-        radius_factor: float
-            Factor by which the radius is multiplied for magma ocean-bearing planets.
+        radius_reduction: float
+            The fraction by which a planet's radius is reduced due to a global magma ocean.
         R_avg : float
             Average radius of the planets _without_ magma oceans.
     X : array_like
@@ -388,11 +388,11 @@ def magma_ocean_hypo_step(theta, X):
     array_like
         Functional form of hypothesis
     """
-    f_magma, a_cut, radius_factor, R_avg = theta
+    f_magma, a_cut, radius_reduction, R_avg = theta
     a_eff = X
 
     # R_avg for a_eff >= a_cut; reduced, f_magma-weighted average radius otherwise
-    return (R_avg - f_magma * (1 - radius_factor)) * (a_eff < a_cut) + R_avg * (a_eff >= a_cut)
+    return (R_avg - f_magma * (radius_reduction)) * (a_eff < a_cut) + R_avg * (a_eff >= a_cut)
 
 
 def magma_ocean_f0(theta, X):
