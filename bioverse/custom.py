@@ -63,7 +63,10 @@ def magma_ocean(d, funform='exp_decay', f_magma=0.1, lambda_a=2., a_cut=0.1, rad
 
     # reduce the radius of the planets with magma oceans
     mask = d['has_magmaocean']
-    d['R'][mask] *= (1 - radius_reduction) # HAS TO BE REPLACED WITH MODEL OUTPUT FOR MAGMA OCEAN PLANETS
+    try:
+        d.loc[mask,'R'] *= (1 - radius_reduction) # HAS TO BE REPLACED WITH MODEL OUTPUT FOR MAGMA OCEAN PLANETS
+    except AttributeError:
+        d['R'][mask] *= (1 - radius_reduction) # HAS TO BE REPLACED WITH MODEL OUTPUT FOR MAGMA OCEAN PLANETS
 
     # define planets with smaller radius than expected. THIS SHOULD BE REPLACED WITH SOMETHING MORE REALISTIC
     d['is_small'] = d['R'] < np.mean(d['R'])
