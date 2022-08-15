@@ -392,7 +392,7 @@ def magma_ocean_hypo_step(theta, X):
     a_eff = X
 
     # R_avg for a_eff >= a_cut; reduced, f_magma-weighted average radius otherwise
-    return (R_avg - f_magma * (radius_reduction)) * (a_eff < a_cut) + R_avg * (a_eff >= a_cut)
+    return (R_avg * (1 - radius_reduction * f_magma)) * (a_eff < a_cut) + R_avg * (a_eff >= a_cut)
 
 
 def magma_ocean_f0(theta, X):
