@@ -191,7 +191,8 @@ class Hypothesis():
 
     def fit(self, data, nsteps=500, nwalkers=16, nburn=100, nlive=100, return_chains=False,
             verbose=False, method='dynesty', mw_alternative='greater', return_data=False):
-        """ Sample the posterior distribution of h(theta | x, y) using a simulated data set, and compare
+        """
+        Sample the posterior distribution of h(theta | x, y) using a simulated data set, and compare
         to the null hypothesis via a model comparison metric.
 
         Parameters
@@ -200,9 +201,31 @@ class Hypothesis():
             Simulated data set containing the features and labels.
         nsteps : int, optional
             Number of steps per MCMC walker.
+        nburn : int, optional
+            Number of burn-in steps for the Monte Carlo walk.
+        nlive : int, optional
+            Number of live points for the nested sampler.
         return_chains : bool, optional
-            If True, return the full MCMC posterior distribution samples.
-        
+            Wether or not to return the Monte Carlo chains.
+        verbose :
+            Wether or not to generate extra output during the run.
+        method : str, optional
+            Which sampling method to use. Options: dynesty (default), emcee, mannwhitney,
+        mw_alternative : str, {'two-sided', 'less', 'greater'}, optional
+            Defines the alternative hypothesis. Default is 'two-sided'.
+            Let *F(u)* and *G(u)* be the cumulative distribution functions of the
+            distributions underlying `x` and `y`, respectively. Then the following
+            alternative hypotheses are available:
+
+            * 'two-sided': the distributions are not equal, i.e. *F(u) ≠ G(u)* for
+              at least one *u*.
+            * 'less': the distribution underlying `x` is stochastically less
+              than the distribution underlying `y`, i.e. *F(u) > G(u)* for all *u*.
+            * 'greater': the distribution underlying `x` is stochastically greater
+              than the distribution underlying `y`, i.e. *F(u) < G(u)* for all *u*.
+        return_data : bool
+            Wether or not to return the data
+
         Returns
         -------
         results : dict
