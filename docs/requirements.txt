@@ -1,4 +1,4 @@
-sphinx==3.0.2
+sphinx
 nbsphinx
 ipykernel
 
