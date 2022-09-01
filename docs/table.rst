@@ -15,12 +15,14 @@ Bioverse uses the :class:`~bioverse.classes.Table` class to manage large simulat
     # Returns all parameters for the first 50 planets
     table[:50]
 
-A Table is somewhat similar to a Pandas DataFrame; indeed, if Pandas is installed, then the Table can be displayed as one using the :meth:`~bioverse.classes.Table.pdshow` method:
+A Table is somewhat similar to a Pandas DataFrame.
+Indeed, if Pandas is installed, the Table will be displayed as one.
+To export a Table as a Pandas DataFrame, we can use the :meth:`~bioverse.classes.Table.to_pandas` method:
 
 .. code-block:: python
 
-    table.pdshow()
-    Table of 522 objects with 22 parameters
+    table.to_pandas()
+
               d      M_st      R_st      L_st   T_eff_st SpT  ...  N_pl  order         R            P         a           S
     0    13.779  0.891276  0.912031  0.668409  5469.6313   G  ...     1      0  2.279597   680.071360  1.456531    0.315067
     1    17.990  1.368140  1.285004  2.995380  6704.4496   F  ...     1      0  1.603131  4461.320947  5.887965    0.086402
