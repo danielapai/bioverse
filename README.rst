@@ -1,3 +1,5 @@
+[![Documentation Status](https://readthedocs.org/projects/bioverse/badge/?version=latest)](https://bioverse.readthedocs.io/en/latest/?badge=latest)
+
 Bioverse
 ********
 
