@@ -234,7 +234,7 @@ def plot_spectrum(x,y,dy=None,xunit=None,yunit=None,lw=2):
     plt.show()
 
 def occurrence_by_class(d,compare=True):
-    """ Plots the number of planets per star as a function of size and insolation. """
+    """ Plots the number of planets per star as a function of size and instellation. """
 
     # Boundary radii
     R0 = np.array([0.5,1.0,1.75,3.5,6.0,14.3])
@@ -252,12 +252,12 @@ def occurrence_by_class(d,compare=True):
               [0.07,0.08,0.90],
               [0.07,0.10,0.98]]
 
-    # First and second insolation boundaries
+    # First and second instellation boundaries
     R = np.linspace(min(R0),max(R0),100)
     S_inner = np.interp(R,R0,S0[1,:])
     S_outer = np.interp(R,R0,S0[2,:])
 
-    # Plot the boundaries in size and insolation
+    # Plot the boundaries in size and instellation
     fig,ax = plt.subplots(figsize=(8,6))
     for radius in R0:
         ax.axhline(radius,c='black',lw=2)
@@ -281,7 +281,7 @@ def occurrence_by_class(d,compare=True):
     ax.set_ylim([0.3,20])
     ax.set_xscale('log')
     ax.set_yscale('log')
-    ax.set_xlabel('Insolation ($S_\oplus$)',fontsize=labelfontsize)
+    ax.set_xlabel('Instellation ($S_\oplus$)',fontsize=labelfontsize)
     ax.set_ylabel('Radius ($R_\oplus$)',fontsize=labelfontsize)
 
     plt.subplots_adjust(bottom=0.2,left=0.2)

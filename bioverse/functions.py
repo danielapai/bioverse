@@ -430,7 +430,7 @@ def create_planets_SAG13(d, eta_Earth=0.075, R_min=0.5, R_max=14.3, P_min=0.01, 
     if normalize_SpT:
         d['P'] *= np.interp(d['M_st'], x_M, y_P)
 
-    # Compute semi-major axis and insolation
+    # Compute semi-major axis and instellation
     d.compute('a')
     d.compute('S')
 
@@ -580,7 +580,7 @@ def assign_mass(d):
     return d
 
 def classify_planets(d):
-    """ Classifies planets by size and insolation following Kopparapu et al. (2018).
+    """ Classifies planets by size and instellation following Kopparapu et al. (2018).
     
     Parameters
     ----------
@@ -611,7 +611,7 @@ def classify_planets(d):
     S_inner = np.interp(R,R0,S0[1,:])
     S_outer = np.interp(R,R0,S0[2,:])
 
-    # Insolation-based classification
+    # Instellation-based classification
     class1[S>S_inner] = 'hot'
     class1[(S<S_inner)&(S>S_outer)] = 'warm'
     class1[S<S_outer] = 'cold'
@@ -628,7 +628,7 @@ def classify_planets(d):
     d['class2'] = class2
 
     # Determine which planets are "exo-Earth candidates"
-    # The lower limit on planet size depends on insolation
+    # The lower limit on planet size depends on instellation
     lim = 0.8*d['S']**0.25
     d['EEC'] = (d['R'] > lim) & (d['R'] < 1.4) & (d['a'] > d['a_inner']) & (d['a'] < d['a_outer'])
 
@@ -733,7 +733,7 @@ def scale_height(d):
     d['pCO2'][m] = 1.0
     d['mu'][m] = 44.01
 
-    # For rocky HZ planets, assume 1 bar N2/CO2 atmospheres and estimate pCO2 (bars) versus insolation
+    # For rocky HZ planets, assume 1 bar N2/CO2 atmospheres and estimate pCO2 (bars) versus instellation
     # following Lehmer et al. (2020) (Figure 1).
     x0, y0 = 1.05, 0.01
     m = rocky & (d['a0'] > d['a_inner']) & (d['a0'] < d['a_outer'])
