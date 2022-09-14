@@ -34,6 +34,7 @@ CONST['R_Earth'] = 6.371e8
 CONST['R_Sun'] = 6.9634e10
 CONST['h_Earth'] = 8.5e5
 CONST['P_Earth'] = 101325.
+CONST['S_Earth'] = 680.         # dayside-averaged, top-of-atmosphere insolation of Earth in W/m2.
 
 # Data types
 ARRAY_TYPES = (np.ndarray,list,tuple)
