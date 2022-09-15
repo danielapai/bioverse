@@ -1,3 +1,12 @@
+.. image:: https://readthedocs.org/projects/bioverse/badge/?version=latest
+    :target: https://bioverse.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
+    
+.. image:: https://img.shields.io/badge/paper-Astronomical%20Journal-blue.svg
+    :target: https://doi.org/10.3847/1538-3881/abe042
+    :alt: Read the paper
+    
+
 Bioverse
 ********
 
