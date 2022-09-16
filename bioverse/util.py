@@ -415,3 +415,25 @@ def compute_logbins(binWidth_dex, Range):
     # add binWidth_dex to logrange to include last bin edge
     logRange = (np.log10(Range[0]), np.log10(Range[1]) + binWidth_dex)
     return 10**np.arange(logRange[0], logRange[1], binWidth_dex)
+
+def interpolate_df(xvals, df, xcol, ycol):
+    """
+    Interpolate values in a pandas DataFrame.
+
+    Parameters
+    ----------
+    xvals : iterable
+        input values for which to search in the x column
+    df : pandas DataFrame
+        dataframe in which to interpolate. Expected to be sorted by xcol.
+    xcol : str
+        column with values we're comparing to xval
+    ycol : str
+        column with interpolated output values
+
+    Returns
+    -------
+        y_interp : iterable
+            interpolated values
+    """
+    return np.interp(xvals, df[xcol], df[ycol])

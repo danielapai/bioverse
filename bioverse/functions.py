@@ -2,13 +2,14 @@
 
 # Python imports
 import numpy as np
+import pandas as pd
 import os
 import sys
 
 # Bioverse modules and constants
 from .classes import Table
 from . import util
-from .util import CATALOG
+from .util import CATALOG, interpolate_df
 from .constants import CONST, ROOT_DIR, DATA_DIR
 
 def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_max=10., T_eff_split=4500., seed=42):
@@ -908,5 +909,67 @@ def Example2_oxygen(d, f_life=0.7, t_half=2.3, seed=42):
     # Determine which planets have oxygenated atmospheres
     f_oxy = 1 - 0.5**(d['age']/t_half)
     d['has_O2'] = d['life'] & (np.random.uniform(0, 1, len(d)) < f_oxy)
+
+    return d
+
+
+def magma_ocean_NEW(d, gh_increase=True, wrr=0.01, water_incorp=True):
+    """Assign a fraction of planets global magma oceans that change the planet's radius.
+
+    Parameters:
+    -----------
+    d : Table
+        The population of planets.
+    gh_increase : bool, optional
+        wether or not to consider radius increase due to runaway greenhouse effect (Turbet+2020)
+    wrr : float, optional
+        water-to-rock ratio for Turbet+2020 model.
+        Possible values: [0.0001, 0.001 , 0.005 , 0.01  , 0.02  , 0.03  , 0.04  , 0.05  ] (default: 0.05 = 5% water)
+    water_incorp : bool, optional
+        wether or not to consider water incorporation in the melt of global magma oceans (Dorn & Lichtenberg 2021)
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets with new columns 'has_magmaocean'.
+
+    """
+
+    # As a reference, add a new column with the original planet radii before we modify them here.
+    # TODO: check if this is needed
+    d['R_orig'] = d.copy()['R']
+
+    # First, define which planets should have magma oceans
+    d['runaway_gh'] = d['S_abs'] > 280.                  # Dorn & Lichtenberg 2021
+    d['has_magmaocean'] = d['runaway_gh']                # simplest case: every planet with runaway greenhouse has a MO.
+
+    # Second, change properties of planets with magma oceans
+    if gh_increase:
+        # radius increase due to runaway greenhouse effect (Turbet+2020)
+        turbet2020 = pd.read_csv(DATA_DIR+'mass-radius_relationships_STEAM_TURBET2020_FIG2b.dat', comment='#')
+        mass_radius = turbet2020[turbet2020.wrr == wrr]
+
+        # for runaway GH planets from 0.1 Mearth to 2.0 Mearth, interpolate in Turbet+2020 mass-radius relationship,
+        # assign planets a new radius based on their mass
+        R = d['R']
+        mask = d['runaway_gh'] & ((d['M'] > min(turbet2020.mass)) & (d['M'] < max(turbet2020.mass)))
+        R[mask] = interpolate_df(d['M'][mask], mass_radius, 'mass', 'radius')
+        d['R'] = R
+
+
+
+    # reduce the radius of the planets with magma oceans according to Dorn & Lichtenberg (2021)
+    if water_incorp:
+        pass
+
+
+    # mask = d['has_magmaocean']
+    # try:
+    #     d.loc[mask,'R'] *= (1 - radius_reduction) # HAS TO BE REPLACED WITH MODEL OUTPUT FOR MAGMA OCEAN PLANETS
+    # except AttributeError:
+    #     d['R'][mask] *= (1 - radius_reduction) # HAS TO BE REPLACED WITH MODEL OUTPUT FOR MAGMA OCEAN PLANETS
+    #
+    # # define planets with smaller radius than expected. THIS SHOULD BE REPLACED WITH SOMETHING MORE REALISTIC
+    # d['is_small'] = d['R'] < np.mean(d['R'])
 
     return d
