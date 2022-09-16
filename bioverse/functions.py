@@ -9,7 +9,7 @@ import sys
 from .classes import Table
 from . import util
 from .util import CATALOG
-from .constants import CONST, ROOT_DIR
+from .constants import CONST, ROOT_DIR, DATA_DIR
 
 def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_max=10., T_eff_split=4500., seed=42):
     """ Reads temperatures and coordinates for high-mass stars from Gaia DR2. Simulates low-mass stars from the
@@ -45,7 +45,7 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
 
     # Create a stellar property conversion table from Pecaut+2013, sorted by ascending temperature
     # Note: the table from Pecaut+2013 was filtered down to A0V - L2V
-    table = np.genfromtxt(ROOT_DIR+'/Pecaut2013.dat', dtype=None, encoding=None, names=True)
+    table = np.genfromtxt(DATA_DIR+'Pecaut2013.dat', dtype=None, encoding=None, names=True)
     table = table[np.argsort(table['Teff'])]
     cvt = {}
     cvt['subSpT'], cvt['SpT'], cvt['L_st'] = table['SpT'], np.array([s[0] for s in table['SpT']]), 10**table['logL']
@@ -119,7 +119,7 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
 
     return d
 
-def read_stellar_catalog(d, filename='LUVOIR_targets.dat', d_max=30., T_min=0., T_max=10., mult=1, seed=42):
+def read_stellar_catalog(d, filename=DATA_DIR+'LUVOIR_targets.dat', d_max=30., T_min=0., T_max=10., mult=1, seed=42):
     """ Reads a list of stellar properties from the LUVOIR target catalog and fills in missing values.
 
     Parameters

@@ -7,7 +7,7 @@ import pickle
 import time
 
 # Bioverse modules and constants
-from .constants import ROOT_DIR, OBJECTS_DIR
+from .constants import DATA_DIR, OBJECTS_DIR
 from .constants import STR_TYPES, INT_TYPES
 from .constants import CONST
 
@@ -175,7 +175,7 @@ class Table(dict):
         idxes = np.array([np.where(self['starID']==idx)[0][0] for idx in np.unique(self['starID'])])
         return self[idxes]
 
-    def legend(self, keys=None, filename=ROOT_DIR+'/legend.dat'):
+    def legend(self, keys=None, filename=DATA_DIR+'legend.dat'):
         """ Prints the description of parameter(s) in the Table.
 
         Parameters

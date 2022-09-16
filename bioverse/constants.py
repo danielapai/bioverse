@@ -7,6 +7,7 @@ import numpy as np
 # Top-level code directory and sub-directories
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 UI_DIR = ROOT_DIR+'/UI/'
+DATA_DIR = ROOT_DIR+'/Data/'
 ATMOSPHERE_TEMPLATES_DIR = ROOT_DIR+'/Templates/Atmospheres/'
 MODELS_DIR = ROOT_DIR+'/Objects/Models/'
 INSTRUMENTS_DIR = ROOT_DIR+'/Instruments/'
@@ -15,7 +16,7 @@ GENERATORS_DIR = OBJECTS_DIR+'/Generators/'
 SURVEYS_DIR = OBJECTS_DIR+'/Surveys/'
 PLOTS_DIR = ROOT_DIR+'/Plots/'
 RESULTS_DIR = ROOT_DIR+'/Results/'
-CATALOG_FILE = ROOT_DIR+'/Gaia.csv'
+CATALOG_FILE = DATA_DIR+'Gaia.csv'
 FUNCTIONS_DIR = ROOT_DIR+'/functions/'
 
 # Program version
