@@ -913,7 +913,7 @@ def Example2_oxygen(d, f_life=0.7, t_half=2.3, seed=42):
     return d
 
 
-def magma_ocean_NEW(d, gh_increase=True, wrr=0.01, water_incorp=True):
+def magma_ocean_NEW(d, gh_increase=True, wrr=0.01, S_thresh=280., water_incorp=True):
     """Assign a fraction of planets global magma oceans that change the planet's radius.
 
     Parameters:
@@ -925,6 +925,8 @@ def magma_ocean_NEW(d, gh_increase=True, wrr=0.01, water_incorp=True):
     wrr : float, optional
         water-to-rock ratio for Turbet+2020 model.
         Possible values: [0.0001, 0.001 , 0.005 , 0.01  , 0.02  , 0.03  , 0.04  , 0.05  ] (default: 0.05 = 5% water)
+    S_thresh : float, optional
+        threshold instellation for runaway greenhouse phase
     water_incorp : bool, optional
         wether or not to consider water incorporation in the melt of global magma oceans (Dorn & Lichtenberg 2021)
 
@@ -940,7 +942,7 @@ def magma_ocean_NEW(d, gh_increase=True, wrr=0.01, water_incorp=True):
     d['R_orig'] = d.copy()['R']
 
     # First, define which planets should have magma oceans
-    d['runaway_gh'] = d['S_abs'] > 280.                  # Dorn & Lichtenberg 2021
+    d['runaway_gh'] = d['S_abs'] > S_thresh              # Dorn & Lichtenberg 2021
     d['has_magmaocean'] = d['runaway_gh']                # simplest case: every planet with runaway greenhouse has a MO.
 
     # Second, change properties of planets with magma oceans
