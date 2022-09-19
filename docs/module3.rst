@@ -53,8 +53,8 @@ In order to test the evidence in favor of ``h_mass_radius``, we must define an a
 .. code-block:: python
 
     def f_null(theta, X):
-         shape = (np.shape(X)[0], 1)
-         return np.full(shape, theta)
+        shape = (np.shape(X)[0], 1)
+        return np.full(shape, theta)
     
     bounds_null = np.array([[0.01, 100]])
     h_mass_radius.h_null = Hypothesis(f_null, bounds, params=('M_random',), log=(True,))

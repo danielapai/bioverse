@@ -388,3 +388,30 @@ def compute_t_ref(filenames, t_exp, wl_min, wl_max, threshold=5, usecols=(0, 1, 
     t_ref = t_exp * (threshold/snr)**2
 
     return t_ref
+
+
+def compute_logbins(binWidth_dex, Range):
+    """ Compute the bin edges for a logarithmic grid.
+
+    Parameters
+    ----------
+    binWidth_dex : float
+        width of bins in log space (dex)
+    Range : Tuple
+        range for parameter
+
+    Returns
+    -------
+    bins : array
+        bins for one dimension
+
+    Example
+    -------
+    >>> binWidth_dex = 1.0
+    >>> Range = (10., 1000.)
+    >>> compute_logbins(binWidth_dex, Range)
+    array([   10.,   100.,  1000.])
+    """
+    # add binWidth_dex to logrange to include last bin edge
+    logRange = (np.log10(Range[0]), np.log10(Range[1]) + binWidth_dex)
+    return 10**np.arange(logRange[0], logRange[1], binWidth_dex)
