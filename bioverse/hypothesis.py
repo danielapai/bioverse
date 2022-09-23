@@ -38,13 +38,17 @@ class Hypothesis():
         If None, assume a (log-)uniform distribution.
     log : bool array, optional
         Array of length N specifying which parameters should be sampled by a log-uniform distribution.
+    kwargs : key, value pairs
+        Additional keyword arguments (e.g., boolean switches) for the hypothesis function
     """
-    def __init__(self, f, bounds, params=(), features=(), labels=(), lnprior_function=None, guess_function=None, tfprior_function=None, log=None, h_null=None):
+    def __init__(self, f, bounds, params=(), features=(), labels=(), lnprior_function=None, guess_function=None,
+                 tfprior_function=None, log=None, h_null=None, **kwargs):
         self.f, self.bounds = f, np.array(bounds)
         self.lnprior_function, self.guess_function, self.tfprior_function = lnprior_function, guess_function, tfprior_function
         self.log = np.zeros(len(self.bounds), dtype=bool) if log is None else np.array(log)
         self.h_null = h_null
         self.lnlike = None
+        self.kwargs = kwargs
 
         # Warn if only one prior function is defined
         if self.lnprior_function is None and self.tfprior_function is not None:
@@ -118,13 +122,13 @@ class Hypothesis():
 
     def lnlike_binary(self, theta, x, y, _):
         """ Likelihood function L(y | x, theta) if y is binary. The last argument is a placeholder. """
-        yh = self.f(theta, x)
+        yh = self.f(theta, x, **self.kwargs)
         terms = np.log(y*yh + (1-y)*(1-yh))
         return np.sum(terms) 
 
     def lnlike_multivariate(self, theta, x, y, sigma):
         """ Likelihood function L(y | x, theta) if y is continuous and has `sigma` uncertainty. """
-        yh = self.f(theta, x)
+        yh = self.f(theta, x, **self.kwargs)
         terms = -(y-yh)**2 / (2*sigma**2)
         return np.sum(terms)
 
