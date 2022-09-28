@@ -1,11 +1,12 @@
 """ Contains all functions currently used to simulate planetary systems. To define new functions, add them to custom.py. """
 
 # Python imports
-import numpy as np
-import pandas as pd
 import os
 import sys
 import glob
+import numpy as np
+import pandas as pd
+from scipy.interpolate import interp1d
 
 # Bioverse modules and constants
 from .classes import Table
@@ -565,7 +566,7 @@ def impact_parameter(d, transit_mode=False):
     
     return d
 
-def assign_mass(d):
+def assign_mass(d, mr_relation='Wolfgang2016'):
     """ Determines planet masses using a probabilistic mass-radius relationship,
     following Wolfgang et al. (2016). Also calculates density and surface gravity.
 
@@ -573,6 +574,9 @@ def assign_mass(d):
     ----------
     d : Table
         Table containing the sample of simulated planets.
+    mr_relation : str, optional
+        Mass-radius relationship to consider.
+        Must be either 'Wolfgang2016' (Wolfgang et al., 2016) or 'Zeng2016' (Zeng et al., 2016).
 
     Returns
     -------
@@ -583,24 +587,40 @@ def assign_mass(d):
     R = d['R']
     M = np.zeros(R.shape)
 
-    # Determine which are small, large planets
-    mask1 = R>=1.6
-    mask2 = (R>0.8)&(R<1.6)
-    mask3 = R<=0.8
+    if mr_relation == 'Wolfgang2016':
+        # Determine which are small, large planets
+        mask1 = R>=1.6
+        mask2 = (R>0.8)&(R<1.6)
+        mask3 = R<=0.8
 
-    # Draw masses for larger planets, with a spread of 1.9 M_E, with a minimum of 0.01 M_E
-    M[mask1] = util.normal(2.7*R[mask1]**1.3,1.9,0.01,10000,mask1.sum())
+        # Draw masses for larger planets, with a spread of 1.9 M_E, with a minimum of 0.01 M_E
+        M[mask1] = util.normal(2.7*R[mask1]**1.3,1.9,0.01,10000,mask1.sum())
 
-    # Compute the maximum mass for each planet (Wolfgang 2016, Equation 5) where R > 0.2
-    a,b,c = 0.0975,0.4938,0.7932
-    M_max = 10**((-b+(b**2-4*a*(c-R[mask2]))**0.5)/(2*a))
+        # Compute the maximum mass for each planet (Wolfgang 2016, Equation 5) where R > 0.2
+        a,b,c = 0.0975,0.4938,0.7932
+        M_max = 10**((-b+(b**2-4*a*(c-R[mask2]))**0.5)/(2*a))
 
-    # Draw masses for the small planets from a truncated normal distribution (minimum: 0.1 Earth density)
-    mu = 1.4*R[mask2]**2.3
-    M[mask2] = util.normal(mu,0.3*mu,0.1*R[mask2]**3,M_max,mask2.sum())
+        # Draw masses for the small planets from a truncated normal distribution (minimum: 0.1 Earth density)
+        mu = 1.4*R[mask2]**2.3
+        M[mask2] = util.normal(mu,0.3*mu,0.1*R[mask2]**3,M_max,mask2.sum())
 
-    # For planets smaller than R < 0.2, assume Earth density
-    M[mask3] = R[mask3]**3
+        # For planets smaller than R < 0.2, assume Earth density
+        M[mask3] = R[mask3]**3
+
+    elif mr_relation == 'Zeng2016':
+        # read mass-radius table from Zeng+2016 and interpolate
+        purerock = pd.read_csv(DATA_DIR + 'mass-radius_relationships_mgsio3_Zeng2016.txt')
+        f_mr = interp1d(purerock.radius, purerock.mass, fill_value='extrapolate')
+
+        # separate planet radius range into small and large
+        smallplanets_mask = R <= purerock.radius.max()
+        largeplanets_mask = R > purerock.radius.max()
+
+        M[smallplanets_mask] = f_mr(R[smallplanets_mask])
+
+        # for planets outside the radius range of Zeng+2016, use the Wolfgang+2016 M-R relation
+        largeplanets = assign_mass(d[largeplanets_mask], mr_relation='Wolfgang2016')
+        M[largeplanets_mask] = largeplanets['M']
 
     # Store the calculated masses in the database
     d['M'] = M
