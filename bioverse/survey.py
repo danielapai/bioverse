@@ -58,7 +58,7 @@ class Survey(dict, Object):
             Keyword arguments passed to Measurement.__init__().
         """
         self.measurements[key] = Measurement(key, self, **kwargs)
-        print(self.measurements[key].survey is self)
+        # print(self.measurements[key].survey is self) # TODO: is this needed for something or a leftover from debugging?
         if idx is not None:
             self.move_measurement(key, idx)
     
