@@ -966,7 +966,7 @@ def Example2_oxygen(d, f_life=0.7, t_half=2.3, seed=42):
     return d
 
 
-def magma_ocean_NEW(d, gh_increase=True, wrr=0.01, S_thresh=280., simplified=False, water_incorp=True):
+def magma_ocean(d, gh_increase=True, wrr=0.01, S_thresh=280., simplified=False, diff_frac=0.54, water_incorp=False):
     """Assign a fraction of planets global magma oceans that change the planet's radius.
 
     Parameters:
@@ -977,11 +977,14 @@ def magma_ocean_NEW(d, gh_increase=True, wrr=0.01, S_thresh=280., simplified=Fal
         wether or not to consider radius increase due to runaway greenhouse effect (Turbet+2020)
     wrr : float, optional
         water-to-rock ratio for Turbet+2020 model. Defines the amount of radius increase due to a steam atmosphere.
-        Possible values: [0.0001, 0.001 , 0.005 , 0.01  , 0.02  , 0.03  , 0.04  , 0.05  ] (default: 0.05 = 5% water)
+        Possible values: [0, 0.0001, 0.001 , 0.005 , 0.01  , 0.02  , 0.03  , 0.04  , 0.05  ] (default: 0.01 = 1% water)
+        If wrr=0, the pure rock MR relation of Zeng+2016 is applied.
     S_thresh : float, optional
         threshold instellation for runaway greenhouse phase (in W/m2)
     simplified : bool, optional
         increase the radii of all runaway greenhouse planets by the same fraction
+    diff_frac : float, optional
+        fractional radius change in the simplified case. E.g., diff_frac = -0.10 is a 10% decrease.
     water_incorp : bool, optional
         wether or not to consider water incorporation in the melt of global magma oceans (Dorn & Lichtenberg 2021)
 
@@ -1004,25 +1007,26 @@ def magma_ocean_NEW(d, gh_increase=True, wrr=0.01, S_thresh=280., simplified=Fal
     if gh_increase:
         # radius increase due to runaway greenhouse effect (Turbet+2020)
         if simplified:
-            # increase all runaway GH planet radii by 54%, the average of the more sophisticated approach below.
+            # increase all runaway GH planet radii by diff_frac
             R = d['R']
             mask = d['runaway_gh']
-            R[mask] = R[mask] * 1.54
+            R[mask] = R[mask] * (1 + diff_frac)
             d['R'] = R
-
         else:
-            turbet2020 = pd.read_csv(DATA_DIR+'mass-radius_relationships_STEAM_TURBET2020_FIG2b.dat', comment='#')
-            mass_radius = turbet2020[turbet2020.wrr == wrr]
+            # mass-radius relations for pure rock (Zeng et al. 2016) and w/ steam atmosphere (Turbet et al. 2020)
+            purerock = pd.read_csv(DATA_DIR + 'mass-radius_relationships_mgsio3_Zeng2016.txt')
+            purerock.loc[:, 'wrr'] = 0.
+            turbet2020 = pd.read_csv(DATA_DIR + 'mass-radius_relationships_STEAM_TURBET2020_FIG2b.dat', comment='#')
+            mass_radius = purerock.append(turbet2020, ignore_index=True)
+
+            mass_radius = mass_radius[mass_radius.wrr == wrr]
 
             # for runaway GH planets from 0.1 Mearth to 2.0 Mearth, interpolate in Turbet+2020 mass-radius relationship,
             # assign planets a new radius based on their mass
             R = d['R']
-            mask = d['runaway_gh'] & ((d['M'] > min(turbet2020.mass)) & (d['M'] < max(turbet2020.mass)))
+            mask = d['runaway_gh'] & ((d['M'] > min(mass_radius.mass)) & (d['M'] < max(mass_radius.mass)))
             R[mask] = interpolate_df(d['M'][mask], mass_radius, 'mass', 'radius')
             d['R'] = R
-
-
-
 
     # reduce the radius of the planets with magma oceans according to Dorn & Lichtenberg (2021)
     if water_incorp:
@@ -1037,23 +1041,10 @@ def magma_ocean_NEW(d, gh_increase=True, wrr=0.01, S_thresh=280., simplified=Fal
             # TODO: Implement water-and mass-dependent radius reduction (Dorn & Lichtenberg 2021)
             pass
 
-
     # compute bulk density again, based on new radii
     d['rho'] = CONST['rho_Earth']*d['M']/d['R']**3
 
     # Label planets with smaller radius than the average
-    d['is_small'] = d['R'] < np.mean(d['R_orig'])
-
-
-
-
-    # mask = d['has_magmaocean']
-    # try:
-    #     d.loc[mask,'R'] *= (1 - radius_reduction) # HAS TO BE REPLACED WITH MODEL OUTPUT FOR MAGMA OCEAN PLANETS
-    # except AttributeError:
-    #     d['R'][mask] *= (1 - radius_reduction) # HAS TO BE REPLACED WITH MODEL OUTPUT FOR MAGMA OCEAN PLANETS
-    #
-    # # define planets with smaller radius than expected. THIS SHOULD BE REPLACED WITH SOMETHING MORE REALISTIC
-    # d['is_small'] = d['R'] < np.mean(d['R'])
+    # d['is_small'] = d['R'] < np.mean(d['R_orig'])
 
     return d
