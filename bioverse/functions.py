@@ -177,6 +177,135 @@ def read_stellar_catalog(d, filename=DATA_DIR+'LUVOIR_targets.dat', d_max=30., T
 
     return d
 
+def create_planets_bergsten(d, R_min=1.0, R_max=3.5, P_min=2, P_max=100., seed=42):
+    """ Generates planets with periods and radii according to Bergsten+2022 occurrence rate estimates.
+
+    Parameters
+    ----------
+    d : Table
+        Table containing simulated host stars.
+    R_min : float, optional
+        Minimum planet radius, in Earth units.
+    R_max : float, optional
+        Maximum planet radius, in Earth units.
+    P_min : float, optional
+        Minimum orbital period, in days.
+    P_max : float, optional
+        Maximum orbital period, in days.
+    seed : int or 1-d array_like, optional
+        Seed for numpy's RandomState. Must be convertible to 32 bit unsigned integers.
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets. Replaces the input Table.
+    """
+
+    np.random.seed(seed)
+    
+    # Bins, Parameters, and Values from Bergsten et al. 2022
+    # Stellar Mass Bins
+    massbins = [[0.556,0.815],[0.815,0.909],[0.909,1.008],[1.008,1.16],[1.16,1.629]]
+    # Mass scalings of the Radius Valley
+    Rsplit = [1.8198343592849173,1.92711136271344,1.978919030506143,2.0407383044237983,2.173374790737642]
+
+    # Best-Fit Free Parameters
+    F_0 = [0.8856361259972422,0.6996159608485483,0.6327526676490182,0.6129575597286655,0.5009869054654867]
+    P_break = [14.288973856114884,6.133363167804966,6.918644494007631,12.017636043391624,6.958618711705457]
+    beta1 = [0.15196765221136338,1.1888123910972717,0.911590303062237,0.43848485219532984,1.9016215517122808]
+    beta2 = [-1.153131110847535,-0.6819146491558035,-0.8437029161066527,-1.101432111115821,-0.6907313978319928]
+    P_central = [7.543177275679916,11.257915734447987,12.976947091193168,17.568566667378498,16.567186596597324]
+    s = [1.4622073535853128,2.0225542991906944,2.532054278425091,2.1627543721548346,2.154972607211169]
+    chi1 = [0.7528696587569685,0.73341694903406,0.8304039843638047,0.8254924295852643,0.8725919841057193]
+    chi2 = [0.32550731709760333,0.35832058563162017,0.2560695336448793,0.3084550279549865,0.3926113907097983]
+    # Uncertainty in avg. number of planets per star
+    sigma_F0 = [0.05293837, 0.04864412, 0.04215205, 0.04083521, 0.04121296]
+
+    # pre-computed normalization parameters
+    Cn = [0.04381, 0.05183, 0.06002, 0.05155, 0.05177]
+    
+    ### Need a way to modify for transit mode...?
+#     if transit_mode:
+        
+    # Some empty arrays to temporarily store planet parameters from different stellar mass bins
+    num_planets = np.empty(len(d))
+    master_P, master_R = [],[]
+
+    # Set up probability grid in R and P
+    P,dP = np.linspace(P_min,P_max,1000,retstep=True)
+    R,dR = np.linspace(R_min,R_max,1000,retstep=True)
+    xv, yv = np.meshgrid(P, R)
+    
+    # Generate probability grids in bins of stellar mass
+    for i,_ in enumerate(F_0):
+
+        # Broken power law (overall occurrence)
+        g1 = (xv / P_break[i])**np.where(xv < P_break[i], beta1[i], beta2[i]) 
+        # Hyperbolic tangent
+        sx = 0.5 + 0.5*np.tanh((np.log10(xv)-np.log10(P_central[i]))/np.log10(s[i]))
+        X = chi1[i]*(1-sx) + sx*(chi2[i])
+        # Fractional occurrence
+        a,b,c = np.log(1.0), np.log(Rsplit[i]), np.log(3.5)
+        g2 = X*(c-b) / ((b-a) + X*(c-b) - X*(b-a))
+        g_split = np.where(yv<Rsplit[i], g2, 1-g2)
+        # Shape function (combined)
+        g = g_split/yv * g1 
+
+        # differential occurrence rate
+        dN = F_0[i] * Cn[i] * g
+        # Calculate number of planets per star (eta ~= F_0, by definition)
+        eta = dN.sum() * (dP) * (dR)
+        
+        ### ignore modulation and transit mode for now
+        N_pl = eta.astype(int)
+
+        # Identify which stars are in the current stellar mass bin
+        ### Only works if M_st_min and M_st_max are within the bin ranges for now...
+        in_mass_bin = (d['M_st'] >= massbins[i][0]) & (d['M_st'] < massbins[i][1])
+        # Give each star N_pl planets, and allow some to have an extra planet 
+        # (e.g. if eta = 2.2 then 20% of those stars will have 3 planets)
+        N_pl += np.random.uniform(0, 1, len(num_planets[in_mass_bin])) < (eta - eta.astype(int))
+        num_planets[in_mass_bin] = N_pl.astype(int).copy()
+
+        # Draw a (radius, period) for each planet in proportion to dN
+        pflat, Pflat, Rflat = dN.flatten()/dN.sum(), xv.flatten(), yv.flatten()
+        idx = np.random.choice(np.arange(len(pflat)), p=pflat, size=N_pl.sum())
+        drawnR, drawnP = Rflat[idx], Pflat[idx]
+
+        # "Smooth" the drawn values to prevent aliasing on the grid values
+        drawnR = np.random.uniform(drawnR-dR/2., drawnR+dR/2.)
+        drawnP = np.random.uniform(drawnP-dP/2., drawnP+dP/2.)
+        master_P.append(drawnP)
+        master_R.append(drawnR)
+        
+    # Expand the current table to match the number of planets, keeping the host star properties
+    num_planets = [int(n) for n in num_planets]
+    d = d[np.repeat(d['starID'], num_planets).astype(int)]
+    d['planetID'] = np.arange(len(d))
+    d['N_pl'] = np.repeat(num_planets, num_planets).astype(int)
+
+    # create empty period and radius columns to be filled in shortly
+    d['P'] = np.empty(len(d))
+    d['R'] = np.empty(len(d))
+
+    # Determine the order of the planet in the system (not necessarily by period)
+    d['order'] = util.get_order(np.array(num_planets))
+
+    # With the table expanded, now slot the (P,R) from correct distributions
+    for i,_ in enumerate(F_0):
+        in_mass_bin = (d['M_st'] >= massbins[i][0]) & (d['M_st'] < massbins[i][1])
+        # Radius (R_Earth), period (d)
+        d['R'][in_mass_bin] = master_R[i]
+        d['P'][in_mass_bin] = master_P[i]
+
+    ### No need to modulate by SpTy since the above is mass-dependent.
+
+    # Compute semi-major axis and insolation
+    d.compute('a')
+    d.compute('S')
+
+    return d
+
 def create_planets_SAG13(d, eta_Earth=0.075, R_min=0.5, R_max=14.3, P_min=0.01, P_max=10., normalize_SpT=True,
                          transit_mode=False, optimistic=False, optimistic_factor=5, seed=42):
     """ Generates planets with periods and radii according to SAG13 occurrence rate estimates, but incorporating

@@ -89,6 +89,25 @@ class Generator(Object):
         step = Step(function=function, filename=filename)
         idx = len(self.steps) if idx is None else idx
         self.steps.insert(idx,step)
+        
+    def replace_step(self, new_function, idx, new_filename=None):
+        """ Replaces a step into the program sequence at the specified index.
+
+        Parameters
+        ----------
+        new_function : str or function
+            Name of the function to be run by this step *or* the function itself.
+        idx : int
+            Position in the program at which to replace the step.
+        new_filename : str, optional
+            Filename containing the function.
+        """
+        # Remove the old step at the specified index
+        self.steps.pop(idx)
+        # Insert the new step at the specified index
+        step = Step(function=new_function, filename=new_filename)
+        idx = len(self.steps) if idx is None else idx
+        self.steps.insert(idx,step)
 
     def get_arg(self, key):
         """ Gets the default value of a keyword argument, and warns if there are multiple values. """
@@ -285,7 +304,7 @@ def reset_imaging_generator():
     """ Re-creates the default Generator for imaging surveys. """
     g_imaging = Generator(label=None)
     g_imaging.insert_step('read_stellar_catalog')
-    g_imaging.insert_step('create_planets_SAG13')
+    g_imaging.insert_step('create_planets_bergsten')
     g_imaging.insert_step('assign_orbital_elements')
     g_imaging.insert_step('impact_parameter')
     g_imaging.insert_step('assign_mass')
@@ -302,7 +321,7 @@ def reset_transit_generator():
     """ Re-creates the default Generator for transit surveys. """
     g_transit = Generator(label=None)
     g_transit.insert_step('create_stars_Gaia')
-    g_transit.insert_step('create_planets_SAG13')
+    g_transit.insert_step('create_planets_bergsten')
     g_transit.insert_step('assign_orbital_elements')
     g_transit.insert_step('geometric_albedo')
     g_transit.insert_step('impact_parameter')
