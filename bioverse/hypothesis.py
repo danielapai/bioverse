@@ -8,7 +8,7 @@ from scipy.stats import mannwhitneyu
 from warnings import warn
 
 # Bioverse modules
-from .util import is_bool, as_tuple, compute_avg_deltaR_deltaRho
+from .util import is_bool, as_tuple
 from .constants import CONST, DATA_DIR
 
 class Hypothesis():
