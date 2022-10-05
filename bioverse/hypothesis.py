@@ -3,12 +3,13 @@
 import dynesty
 import emcee
 import numpy as np
+import pandas as pd
 from scipy.stats import mannwhitneyu
 from warnings import warn
 
 # Bioverse modules
-from .util import is_bool, as_tuple
-from .constants import CONST
+from .util import is_bool, as_tuple, compute_avg_deltaR_deltaRho
+from .constants import CONST, DATA_DIR
 
 class Hypothesis():
     """ Describes a Bayesian hypothesis.
@@ -128,6 +129,8 @@ class Hypothesis():
 
     def lnlike_multivariate(self, theta, x, y, sigma):
         """ Likelihood function L(y | x, theta) if y is continuous and has `sigma` uncertainty. """
+        if 0. in sigma[:,0]:
+            warn('A sigma of zero causes division by zero. Ensure a measurement error is defined for the variable!')
         yh = self.f(theta, x, **self.kwargs)
         terms = -(y-yh)**2 / (2*sigma**2)
         return np.sum(terms)
@@ -313,17 +316,17 @@ def f_HZ(theta, X):
     in_HZ = (X > a_inner) & (X < (a_inner + delta_a))
     return in_HZ * f_HZ + (~in_HZ) * f_HZ*df_notHZ
 
-params_HZ = ('a_inner', 'delta_a', 'f_HZ', 'df_notHZ')
-features_HZ = ('a_eff',)
-labels_HZ = ('has_H2O',)
-bounds_HZ = np.array([[0.1, 2], [0.01, 10], [0.001, 1.0], [0.001, 1.0]])
-
-# Null hypothesis: log-uniform from 0.001 to 1
-bounds_HZ_null = np.array([[0.001, 1.0]]) 
-h_HZ_null = Hypothesis(f_null, bounds_HZ_null, log=(True,))
-
-h_HZ = Hypothesis(f_HZ, bounds_HZ, params=params_HZ, features=features_HZ, labels=labels_HZ,
-                  log=(True, True, True, True), h_null=h_HZ_null)
+# params_HZ = ('a_inner', 'delta_a', 'f_HZ', 'df_notHZ')
+# features_HZ = ('a_eff',)
+# labels_HZ = ('has_H2O',)
+# bounds_HZ = np.array([[0.1, 2], [0.01, 10], [0.001, 1.0], [0.001, 1.0]])
+#
+# # Null hypothesis: log-uniform from 0.001 to 1
+# bounds_HZ_null = np.array([[0.001, 1.0]])
+# h_HZ_null = Hypothesis(f_null, bounds_HZ_null, log=(True,))
+#
+# h_HZ = Hypothesis(f_HZ, bounds_HZ, params=params_HZ, features=features_HZ, labels=labels_HZ,
+#                   log=(True, True, True, True), h_null=h_HZ_null)
 
 # AGE-OXYGEN CORRELATION HYPOTHESIS (2-parameter)
 def f_age_oxygen(theta, X): 
@@ -331,18 +334,18 @@ def f_age_oxygen(theta, X):
     f_life, t_half = theta
     return f_life * (1 - 0.5**(X/t_half))
 
-params_age_oxygen = ('f_life', 't_half')
-features_age_oxygen = ('age',)
-labels_age_oxygen = ('has_O2',)
-bounds_age_oxygen = np.array([[0.01, 1], [0.1, 100]])
-
-# Null hypothesis: log-uniform from 0.001 to 1
-bounds_age_oxygen_null = np.array([[0.001, 1.0]])
-h_age_oxygen_null = Hypothesis(f_null, bounds_age_oxygen_null, log=(True,))
-
-h_age_oxygen = Hypothesis(f_age_oxygen, bounds_age_oxygen, params=params_age_oxygen, features=features_age_oxygen,
-                          labels=labels_age_oxygen, log=(True, True), h_null=h_age_oxygen_null)
-
+# params_age_oxygen = ('f_life', 't_half')
+# features_age_oxygen = ('age',)
+# labels_age_oxygen = ('has_O2',)
+# bounds_age_oxygen = np.array([[0.01, 1], [0.1, 100]])
+#
+# # Null hypothesis: log-uniform from 0.001 to 1
+# bounds_age_oxygen_null = np.array([[0.001, 1.0]])
+# h_age_oxygen_null = Hypothesis(f_null, bounds_age_oxygen_null, log=(True,))
+#
+# h_age_oxygen = Hypothesis(f_age_oxygen, bounds_age_oxygen, params=params_age_oxygen, features=features_age_oxygen,
+#                           labels=labels_age_oxygen, log=(True, True), h_null=h_age_oxygen_null)
+#
 
 def magma_ocean_hypo_exp(theta, X):
     """ Define a hypothesis for a magma ocean-adapted radius-sma distribution that follows an exponential decay.
@@ -405,7 +408,10 @@ def magma_ocean_f0(theta, X):
     """
     return np.full(np.shape(X), theta)
 
-def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=True, dR_frac=-0.10):
+avg_deltaR_deltaRho = pd.read_csv(DATA_DIR + 'avg_deltaR_deltaRho.csv', comment='#')
+
+def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=True, diff_frac=-0.10,
+                     parameter_of_interest='R', avg_deltaR_deltaRho=None):
     """ Define a hypothesis for a magma ocean-adapted radius-sma distribution following a step function.
 
     Parameters
@@ -414,8 +420,11 @@ def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=T
         Array of parameters for the hypothesis.
         S_thresh : float
             threshold instellation for runaway greenhouse phase
-        R_avg : float
-            average planet radius *outside* the runaway greenhouse region
+        wrr : float
+            water-to-rock ratio. Will be discretized to the grid used in Turbet+2020, with
+            possible values [0, 0.0001, 0.001 , 0.005 , 0.01  , 0.02  , 0.03  , 0.04  , 0.05 ].
+        avg : float
+            average planet radius or bulk density *outside* the runaway greenhouse region
     X : array_like
         Independent variable. Includes effective semimajor axis a_eff.
     gh_increase : bool, optional
@@ -424,22 +433,53 @@ def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=T
         wether or not to consider water incorporation in the melt of global magma oceans (Dorn & Lichtenberg 2021)
     simplified : bool, optional
         change the radii of all runaway greenhouse planets by the same fraction
-    dR_frac : float, optional
-        fractional radius change in the simplified case. E.g., dR_frac = -0.10 is a 10% decrease in radius.
+    diff_frac : float, optional
+        fractional radius or bulk density change in the simplified case. E.g., diff_frac = -0.10 is a 10% decrease.
+    parameter_of_interest : str, optional
+        'label', i.e. the observable in which to search for the pattern. Can be 'R' or 'rho'.
 
     Returns
     -------
     array_like
         Functional form of hypothesis
     """
-    S_thresh, R_avg = theta
+    S_thresh, wrr, avg = theta
     a_eff = X
+
+    # discretize wrr to allowed values
+    wrr_discrete = [0, 0.0001, 0.001, 0.005, 0.01, 0.02, 0.03, 0.04, 0.05]
+    wrr_dist = [abs(wrr_d - wrr) for wrr_d in wrr_discrete]
+    wrr = wrr_discrete[np.argmin(wrr_dist)]
+
+    a_eff_thresh = 1 / (np.sqrt(S_thresh / CONST['S_Earth']))
+
+    # baseline case without steam atmosphere or water incorporation
+    exp_val = avg
+
+    if (gh_increase==False and water_incorp==False):
+        return np.full_like(a_eff, exp_val)
 
     if gh_increase:
         if simplified:
-            # beyond S_thresh: R_avg. Within S_thresh: increased R_avg
-            a_eff_thresh = 1/(np.sqrt(S_thresh/CONST['S_Earth']))
-            return (R_avg * (1 + dR_frac)) * (a_eff < a_eff_thresh) + R_avg * (a_eff >= a_eff_thresh)
+            # beyond S_thresh: avg. Within S_thresh: avg changed by a fraction of 'diff_frac'
+            exp_val =  (avg * (1 + diff_frac)) * (a_eff < a_eff_thresh) + avg * (a_eff >= a_eff_thresh)
 
-    else:
-        return None
+        else:
+            try:
+                avg_deltaR_deltaRho = avg_deltaR_deltaRho
+            except:
+                avg_deltaR_deltaRho = pd.read_csv(DATA_DIR + 'avg_deltaR_deltaRho.csv', comment='#')
+
+            # we need to map wrr to values available in our grid
+            # wrr =  avg_deltaR_deltaRho.wrr[min(range(len(avg_deltaR_deltaRho.wrr)), key=lambda i: abs(avg_deltaR_deltaRho.wrr[i] - wrr))]
+
+            deltaX = float(avg_deltaR_deltaRho[avg_deltaR_deltaRho.wrr == wrr]['delta_' + parameter_of_interest])
+
+            # beyond S_thresh: avg. Within S_thresh: avg changed by the difference from the MR models
+            exp_val = (avg + deltaX) * (a_eff < a_eff_thresh) + avg * (a_eff >= a_eff_thresh)
+
+    if water_incorp:
+        # TODO: implement radius reduction through water incorporation
+        return exp_val
+
+    return exp_val
