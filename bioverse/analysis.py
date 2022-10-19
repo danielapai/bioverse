@@ -115,6 +115,8 @@ def test_hypothesis_grid_iter(h, generator, survey, bins, return_chains,
         results['N_hot'], results['N_warm'], results['N_cold'] = N_hot, N_warm, N_cold
         results['N_EEC'], results['N_pl'] = N_EEC, N_pl
     except KeyError:
+        results['N_pl'] = len(obs)
+    finally:
         pass
 
     # Compute the average value of labels versus features
