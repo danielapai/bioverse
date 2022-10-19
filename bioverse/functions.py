@@ -1038,8 +1038,19 @@ def magma_ocean(d, gh_increase=True, wrr=0.01, S_thresh=280., simplified=False, 
             d['R'] = R
 
         else:
-            # TODO: Implement water-and mass-dependent radius reduction (Dorn & Lichtenberg 2021)
-            pass
+            R = d['R']
+            mask = d['runaway_gh']
+
+            # Read radius differences from DL21 Fig. 3b
+            delta_R = pd.read_csv(DATA_DIR + 'deltaR_DornLichtenberg21_Fig3b.csv')
+
+            # interpolate within planet masses for the given water mass fraction wrr
+            dr_wrr = delta_R.iloc[(delta_R['wrr'] - wrr).abs().argsort()[0], :][1:]
+            f_dr = interp1d(dr_wrr.index.to_numpy(dtype=float), dr_wrr.values, fill_value='extrapolate')
+
+            dr = f_dr(d['M'][mask])
+            R[mask] = R[mask] * (1 + dr)
+            d['R'] = R
 
     # compute bulk density again, based on new radii
     d['rho'] = CONST['rho_Earth']*d['M']/d['R']**3
