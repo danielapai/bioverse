@@ -177,7 +177,8 @@ def read_stellar_catalog(d, filename=DATA_DIR+'LUVOIR_targets.dat', d_max=30., T
 
     return d
 
-def create_planets_bergsten(d, R_min=1.0, R_max=3.5, P_min=2, P_max=100., seed=42):
+
+def create_planets_bergsten(d, R_min=1.0, R_max=3.5, P_min=2, P_max=100., transit_mode=False, f_eta=1., seed=42):
     """ Generates planets with periods and radii according to Bergsten+2022 occurrence rate estimates.
 
     Parameters
@@ -192,6 +193,11 @@ def create_planets_bergsten(d, R_min=1.0, R_max=3.5, P_min=2, P_max=100., seed=4
         Minimum orbital period, in days.
     P_max : float, optional
         Maximum orbital period, in days.
+    transit_mode : bool, optional
+        If True, only transiting planets are simulated.
+    f_eta : float, optional
+        Occurrence rate scaling factor. The default f_eta = 1 represents the occurrence rates in Bergsten+2022.
+        A different factor will scale the overall occurrence rates accordingly.
     seed : int or 1-d array_like, optional
         Seed for numpy's RandomState. Must be convertible to 32 bit unsigned integers.
 
@@ -202,82 +208,90 @@ def create_planets_bergsten(d, R_min=1.0, R_max=3.5, P_min=2, P_max=100., seed=4
     """
 
     np.random.seed(seed)
-    
+
     # Bins, Parameters, and Values from Bergsten et al. 2022
     # Stellar Mass Bins
-    massbins = [[0.010,0.556], [0.556,0.815],[0.815,0.909],[0.909,1.008],[1.008,1.16],[1.16,1.629]]
+    massbins = [[0.010, 0.556], [0.556, 0.815], [0.815, 0.909], [0.909, 1.008], [1.008, 1.16], [1.16, 1.629]]
     # Mass scalings of the Radius Valley
-    Rsplit = [1.6288632680969475,1.8198343592849173,1.92711136271344,1.978919030506143,2.0407383044237983,2.173374790737642]
+    Rsplit = [1.6288632680969475, 1.8198343592849173, 1.92711136271344, 1.978919030506143, 2.0407383044237983,
+              2.173374790737642]
 
     # Best-Fit Free Parameters
-    F_0 = [0.8572602784891945, 0.8856361259972422,0.6996159608485483,0.6327526676490182,0.6129575597286655,0.5009869054654867]
-    P_break = [5.182154312557346, 14.288973856114884,6.133363167804966,6.918644494007631,12.017636043391624,6.958618711705457]
-    beta1 = [1.142521139770055, 0.15196765221136338,1.1888123910972717,0.911590303062237,0.43848485219532984,1.9016215517122808]
-    beta2 = [-1.1634582522517818, -1.153131110847535,-0.6819146491558035,-0.8437029161066527,-1.101432111115821,-0.6907313978319928]
-    P_central = [4.149223628736287,7.543177275679916,11.257915734447987,12.976947091193168,17.568566667378498,16.567186596597324]
-    s = [1.4953322904205124, 1.4622073535853128,2.0225542991906944,2.532054278425091,2.1627543721548346,2.154972607211169]
-    chi1 = [0.7396990128696062, 0.7528696587569685,0.73341694903406,0.8304039843638047,0.8254924295852643,0.8725919841057193]
-    chi2 = [0.4388031028416862, 0.32550731709760333,0.35832058563162017,0.2560695336448793,0.3084550279549865,0.3926113907097983]
+    F_0 = [0.8572602784891945, 0.8856361259972422, 0.6996159608485483, 0.6327526676490182, 0.6129575597286655,
+           0.5009869054654867]
+
+    F_0 = [f_eta * f for f in F_0]
+
+    P_break = [5.182154312557346, 14.288973856114884, 6.133363167804966, 6.918644494007631, 12.017636043391624,
+               6.958618711705457]
+    beta1 = [1.142521139770055, 0.15196765221136338, 1.1888123910972717, 0.911590303062237, 0.43848485219532984,
+             1.9016215517122808]
+    beta2 = [-1.1634582522517818, -1.153131110847535, -0.6819146491558035, -0.8437029161066527, -1.101432111115821,
+             -0.6907313978319928]
+    P_central = [4.149223628736287, 7.543177275679916, 11.257915734447987, 12.976947091193168, 17.568566667378498,
+                 16.567186596597324]
+    s = [1.4953322904205124, 1.4622073535853128, 2.0225542991906944, 2.532054278425091, 2.1627543721548346,
+         2.154972607211169]
+    chi1 = [0.7396990128696062, 0.7528696587569685, 0.73341694903406, 0.8304039843638047, 0.8254924295852643,
+            0.8725919841057193]
+    chi2 = [0.4388031028416862, 0.32550731709760333, 0.35832058563162017, 0.2560695336448793, 0.3084550279549865,
+            0.3926113907097983]
     # Uncertainty in avg. number of planets per star
     sigma_F0 = [0.17619481, 0.05293837, 0.04864412, 0.04215205, 0.04083521, 0.04121296]
 
     # pre-computed normalization parameters
     Cn = [0.10728, 0.04381, 0.05183, 0.06002, 0.05155, 0.05177]
-    
-    ### Need a way to modify for transit mode...?
-#     if transit_mode:
-        
+
     # Some empty arrays to temporarily store planet parameters from different stellar mass bins
     num_planets = np.empty(len(d))
-    master_P, master_R = [],[]
+    master_P, master_R = [], []
 
     # Set up probability grid in R and P
-    P,dP = np.linspace(P_min,P_max,1000,retstep=True)
-    R,dR = np.linspace(R_min,R_max,1000,retstep=True)
+    P, dP = np.linspace(P_min, P_max, 1000, retstep=True)
+    R, dR = np.linspace(R_min, R_max, 1000, retstep=True)
     xv, yv = np.meshgrid(P, R)
-    
-    # Generate probability grids in bins of stellar mass
-    for i,_ in enumerate(F_0):
 
+    # Generate probability grids in bins of stellar mass
+    for i, _ in enumerate(F_0):
         # Broken power law (overall occurrence)
-        g1 = (xv / P_break[i])**np.where(xv < P_break[i], beta1[i], beta2[i]) 
+        g1 = (xv / P_break[i]) ** np.where(xv < P_break[i], beta1[i], beta2[i])
         # Hyperbolic tangent
-        sx = 0.5 + 0.5*np.tanh((np.log10(xv)-np.log10(P_central[i]))/np.log10(s[i]))
-        X = chi1[i]*(1-sx) + sx*(chi2[i])
+        sx = 0.5 + 0.5 * np.tanh((np.log10(xv) - np.log10(P_central[i])) / np.log10(s[i]))
+        X = chi1[i] * (1 - sx) + sx * (chi2[i])
         # Fractional occurrence
-        a,b,c = np.log(1.0), np.log(Rsplit[i]), np.log(3.5)
-        g2 = X*(c-b) / ((b-a) + X*(c-b) - X*(b-a))
-        g_split = np.where(yv<Rsplit[i], g2, 1-g2)
+        a, b, c = np.log(1.0), np.log(Rsplit[i]), np.log(3.5)
+        g2 = X * (c - b) / ((b - a) + X * (c - b) - X * (b - a))
+        g_split = np.where(yv < Rsplit[i], g2, 1 - g2)
         # Shape function (combined)
-        g = g_split/yv * g1 
+        g = g_split / yv * g1
 
         # differential occurrence rate
         dN = F_0[i] * Cn[i] * g
         # Calculate number of planets per star (eta ~= F_0, by definition)
         eta = dN.sum() * (dP) * (dR)
-        
+
         ### ignore modulation and transit mode for now
         N_pl = eta.astype(int)
 
         # Identify which stars are in the current stellar mass bin
         ### Only works if M_st_min and M_st_max are within the bin ranges for now...
         in_mass_bin = (d['M_st'] >= massbins[i][0]) & (d['M_st'] < massbins[i][1])
-        # Give each star N_pl planets, and allow some to have an extra planet 
+        # Give each star N_pl planets, and allow some to have an extra planet
         # (e.g. if eta = 2.2 then 20% of those stars will have 3 planets)
         N_pl += np.random.uniform(0, 1, len(num_planets[in_mass_bin])) < (eta - eta.astype(int))
         num_planets[in_mass_bin] = N_pl.astype(int).copy()
 
         # Draw a (radius, period) for each planet in proportion to dN
-        pflat, Pflat, Rflat = dN.flatten()/dN.sum(), xv.flatten(), yv.flatten()
+        pflat, Pflat, Rflat = dN.flatten() / dN.sum(), xv.flatten(), yv.flatten()
         idx = np.random.choice(np.arange(len(pflat)), p=pflat, size=N_pl.sum())
         drawnR, drawnP = Rflat[idx], Pflat[idx]
 
         # "Smooth" the drawn values to prevent aliasing on the grid values
-        drawnR = np.random.uniform(drawnR-dR/2., drawnR+dR/2.)
-        drawnP = np.random.uniform(drawnP-dP/2., drawnP+dP/2.)
+        drawnR = np.random.uniform(drawnR - dR / 2., drawnR + dR / 2.)
+        drawnP = np.random.uniform(drawnP - dP / 2., drawnP + dP / 2.)
         master_P.append(drawnP)
         master_R.append(drawnR)
-        
+
     # Expand the current table to match the number of planets, keeping the host star properties
     num_planets = [int(n) for n in num_planets]
     d = d[np.repeat(d['starID'], num_planets).astype(int)]
@@ -292,7 +306,7 @@ def create_planets_bergsten(d, R_min=1.0, R_max=3.5, P_min=2, P_max=100., seed=4
     d['order'] = util.get_order(np.array(num_planets))
 
     # With the table expanded, now slot the (P,R) from correct distributions
-    for i,_ in enumerate(F_0):
+    for i, _ in enumerate(F_0):
         in_mass_bin = (d['M_st'] >= massbins[i][0]) & (d['M_st'] < massbins[i][1])
         # Radius (R_Earth), period (d)
         d['R'][in_mass_bin] = master_R[i]
@@ -303,6 +317,11 @@ def create_planets_bergsten(d, R_min=1.0, R_max=3.5, P_min=2, P_max=100., seed=4
     # Compute semi-major axis and insolation
     d.compute('a')
     d.compute('S')
+
+    if transit_mode:
+        # For transit mode, keep only transiting planets
+        d = assign_orbital_elements(d, transit_mode=False) # allow all inclinations
+        d = impact_parameter(d, transit_mode=True)
 
     return d
 
@@ -529,23 +548,23 @@ def assign_mass(d):
     # Extract the radius of each planet
     R = d['R']
     M = np.zeros(R.shape)
-    
+
     # Determine which are small, large planets
     mask1 = R>=1.6
     mask2 = (R>0.8)&(R<1.6)
     mask3 = R<=0.8
-    
+
     # Draw masses for larger planets, with a spread of 1.9 M_E, with a minimum of 0.01 M_E
     M[mask1] = util.normal(2.7*R[mask1]**1.3,1.9,0.01,10000,mask1.sum())
-    
+
     # Compute the maximum mass for each planet (Wolfgang 2016, Equation 5) where R > 0.2
     a,b,c = 0.0975,0.4938,0.7932
     M_max = 10**((-b+(b**2-4*a*(c-R[mask2]))**0.5)/(2*a))
-    
+
     # Draw masses for the small planets from a truncated normal distribution (minimum: 0.1 Earth density)
     mu = 1.4*R[mask2]**2.3
     M[mask2] = util.normal(mu,0.3*mu,0.1*R[mask2]**3,M_max,mask2.sum())
-    
+
     # For planets smaller than R < 0.2, assume Earth density
     M[mask3] = R[mask3]**3
 
