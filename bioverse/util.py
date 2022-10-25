@@ -6,7 +6,7 @@ import numpy as np
 from warnings import warn
 
 # Bioverse modules and constants
-from .constants import LIST_TYPES, CATALOG_FILE, INT_TYPES, FLOAT_TYPES
+from .constants import LIST_TYPES, CATALOG_FILE, INT_TYPES, FLOAT_TYPES, CONST
 from .import truncnorm_hack
 
 # Load the Gaia stellar target catalog into memory for fast access
@@ -437,3 +437,15 @@ def interpolate_df(xvals, df, xcol, ycol):
             interpolated values
     """
     return np.interp(xvals, df[xcol], df[ycol])
+
+
+def S2a_eff(S):
+    """Convert instellation in W/m2 to solar-equivalent semi-major axis."""
+    a_eff = 1 / (np.sqrt(S / CONST['S_Earth']))
+    return a_eff
+
+
+def a_eff2S(a_eff):
+    """Convert solar-equivalent semi-major axis to instellation in W/m2."""
+    S = CONST['S_Earth'] * a_eff**-2
+    return S
