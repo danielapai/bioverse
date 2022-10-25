@@ -408,7 +408,13 @@ def magma_ocean_f0(theta, X):
     """
     return np.full(np.shape(X), theta)
 
-avg_deltaR_deltaRho = pd.read_csv(DATA_DIR + 'avg_deltaR_deltaRho.csv', comment='#')
+def get_avg_deltaR_deltaRho(path=None):
+    """ Read pre-calculated radius and density differences."""
+    if path:
+        avg_deltaR_deltaRho = pd.read_csv(path, comment='#')
+    else:
+        avg_deltaR_deltaRho = pd.read_csv(DATA_DIR + 'avg_deltaR_deltaRho.csv', comment='#')
+    return avg_deltaR_deltaRho
 
 def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=True, diff_frac=-0.10,
                      parameter_of_interest='R', avg_deltaR_deltaRho=None):
@@ -453,33 +459,32 @@ def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=T
 
     a_eff_thresh = 1 / (np.sqrt(S_thresh / CONST['S_Earth']))
 
-    # baseline case without steam atmosphere or water incorporation
-    exp_val = avg
+    # # baseline case without steam atmosphere or water incorporation
+    # exp_val = avg
 
     if (gh_increase==False and water_incorp==False):
         return np.full_like(a_eff, exp_val)
 
-    if gh_increase:
-        if simplified:
+    if simplified:
+        if gh_increase:
             # beyond S_thresh: avg. Within S_thresh: avg changed by a fraction of 'diff_frac'
             exp_val =  (avg * (1 + diff_frac)) * (a_eff < a_eff_thresh) + avg * (a_eff >= a_eff_thresh)
+        # TODO: implement SIMPLIFIED water_incorp
 
-        else:
-            try:
-                avg_deltaR_deltaRho = avg_deltaR_deltaRho
-            except:
-                avg_deltaR_deltaRho = pd.read_csv(DATA_DIR + 'avg_deltaR_deltaRho.csv', comment='#')
+    else:
+        try:
+            avg_deltaR_deltaRho = avg_deltaR_deltaRho
+        except:
+            avg_deltaR_deltaRho = get_avg_deltaR_deltaRho()
 
-            # we need to map wrr to values available in our grid
-            # wrr =  avg_deltaR_deltaRho.wrr[min(range(len(avg_deltaR_deltaRho.wrr)), key=lambda i: abs(avg_deltaR_deltaRho.wrr[i] - wrr))]
+        # we need to map wrr to values available in our grid
+        # wrr =  avg_deltaR_deltaRho.wrr[min(range(len(avg_deltaR_deltaRho.wrr)), key=lambda i: abs(avg_deltaR_deltaRho.wrr[i] - wrr))]
 
-            deltaX = float(avg_deltaR_deltaRho[avg_deltaR_deltaRho.wrr == wrr]['delta_' + parameter_of_interest])
+        select_mechanisms =  (avg_deltaR_deltaRho.gh_increase == gh_increase) & (avg_deltaR_deltaRho.water_incorp == water_incorp)
+        deltaX = avg_deltaR_deltaRho[(select_mechanisms) & (avg_deltaR_deltaRho.wrr == wrr)]['delta_' + parameter_of_interest].iloc[0]
 
-            # beyond S_thresh: avg. Within S_thresh: avg changed by the difference from the MR models
-            exp_val = (avg + deltaX) * (a_eff < a_eff_thresh) + avg * (a_eff >= a_eff_thresh)
+        # beyond S_thresh: avg. Within S_thresh: avg changed by the difference from the MR models
+        exp_val = (avg + deltaX) * (a_eff < a_eff_thresh) + avg * (a_eff >= a_eff_thresh)
 
-    if water_incorp:
-        # TODO: implement radius reduction through water incorporation
-        return exp_val
 
     return exp_val

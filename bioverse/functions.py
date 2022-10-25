@@ -996,7 +996,6 @@ def magma_ocean(d, gh_increase=True, wrr=0.01, S_thresh=280., simplified=False, 
     """
 
     # As a reference, add a new column with the original planet radii before we modify them here.
-    # TODO: check if this is needed
     d['R_orig'] = d.copy()['R']
 
     # First, define which planets should have magma oceans
