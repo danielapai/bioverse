@@ -443,6 +443,9 @@ def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=T
         fractional radius or bulk density change in the simplified case. E.g., diff_frac = -0.10 is a 10% decrease.
     parameter_of_interest : str, optional
         'label', i.e. the observable in which to search for the pattern. Can be 'R' or 'rho'.
+    avg_deltaR_deltaRho : pandas DataFrame, optional
+        table containing pre-computed average radius and bulk density differences.
+        If not provided, the values will be computed for a grid of water-to-rock ratios (this might be slow).
 
     Returns
     -------

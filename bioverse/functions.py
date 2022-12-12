@@ -895,6 +895,37 @@ def compute_transit_params(d):
 
     return d
 
+
+def apply_bias(d, M_min=0., M_max=np.inf, S_min=0., S_max=np.inf, depth_min=0.):
+    """ Apply detection biases and custom selections to the sample to generate.
+
+    Parameters
+    ----------
+    d : Table
+        Table containing the sample of simulated planets.
+    M_min : float
+        Minimum planet mass in Mearth
+    M_max : float
+        Maximum planet mass in Mearth
+    S_min : float
+        Minimum absolute instellation in W/m2
+    S_max : float
+        Maximum absolute instellation in W/m2
+    depth_min : float
+        Minimum transit depth
+
+    Returns
+    -------
+    d : Table
+        Table containing the new sample after applying the cuts.
+    """
+    d = d[d.to_pandas()['M'].between(M_min, M_max).values]
+    d = d[d.to_pandas()['S_abs'].between(S_min, S_max).values]
+    d = d[d['depth'] > depth_min]
+
+    return d
+
+
 def Example1_water(d, f_water_habitable=0.75, f_water_nonhabitable=0.1, minimum_size=True, seed=42):
     """ Determines which planets have water, according to the following model:
 
@@ -1058,3 +1089,7 @@ def magma_ocean(d, gh_increase=True, wrr=0.01, S_thresh=280., simplified=False, 
     # d['is_small'] = d['R'] < np.mean(d['R_orig'])
 
     return d
+
+
+
+
