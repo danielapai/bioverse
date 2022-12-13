@@ -408,12 +408,107 @@ def magma_ocean_f0(theta, X):
     """
     return np.full(np.shape(X), theta)
 
+def compute_avg_deltaR_deltaRho(stars_args, planets_args):
+    """ Compute average radius and bulk density changes of the magma ocean-bearing planets
+    as a function of water-to-rock ratio. This will be used to inform the magma ocean
+    hypothesis function and avoids lengthy computations on each call of the hypothesis.
+
+    Parameters
+    ----------
+    stars_args : dict
+        dictionary containing parameters for star generation.
+        Should contain all non-default arguments for star-related generator modules.
+    planets_args : dict
+        As stars_args, but for planet-related generator modules.
+
+    Returns
+    -------
+    avg_deltaR_deltaRho : pandas DataFrame
+        DataFrame containing the average radius/density differences.
+
+    """
+    from bioverse.generator import Generator
+    wrr_grid = [0.0001, 0.001, 0.005, 0.01, 0.02, 0.03, 0.04, 0.05]
+    avg_deltaR_deltaRho = []
+
+    def zero_change(avg_deltaR_deltaRho, gh_increase, water_incorp, wrr):
+        avg_deltaR_deltaRho.append({
+            'gh_increase': gh_increase,
+            'water_incorp': water_incorp,
+            'wrr': wrr,
+            'delta_R': 0.,
+            'delta_rho': 0.
+        })
+        return (avg_deltaR_deltaRho)
+
+    for gh_increase in [False, True]:
+        for water_incorp in [False, True]:
+            # wrr=0 case:
+            avg_deltaR_deltaRho = zero_change(avg_deltaR_deltaRho, gh_increase, water_incorp, wrr=0.)
+            if gh_increase or water_incorp:
+                for wrr in wrr_grid:
+                    planets_args['wrr'] = wrr
+                    g_transit = Generator(label=None)
+                    g_transit.insert_step('read_stars_Gaia')
+                    g_transit.insert_step('create_planets_bergsten')
+                    g_transit.insert_step('assign_orbital_elements')
+                    g_transit.insert_step('impact_parameter')
+                    g_transit.insert_step('assign_mass')
+                    g_transit.insert_step('effective_values')
+                    g_transit.insert_step('magma_ocean')
+                    g_transit.insert_step('compute_transit_params')
+                    g_transit.insert_step(
+                        'apply_bias')  # apply the exact same sample selections as in the actual analysis
+
+                    [g_transit.set_arg(key, val) for key, val in stars_args.items()]
+                    [g_transit.set_arg(key, val) for key, val in planets_args.items()]
+
+                    # set MO mechanisms according to current iteration
+                    g_transit.set_arg('gh_increase', gh_increase)
+                    g_transit.set_arg('water_incorp', water_incorp)
+
+                    # generate stars and planets
+                    planets = g_transit.generate()
+
+                    d = planets.to_pandas()
+                    mo = d[d.has_magmaocean]
+
+                    avg_deltaR_deltaRho.append({
+                        'gh_increase': gh_increase,
+                        'water_incorp': water_incorp,
+                        'wrr': wrr,
+                        'delta_R': np.average(mo.R / mo.R_orig) - 1,
+                        'delta_rho': np.average(mo.rho / (CONST['rho_Earth'] * mo.M / mo.R_orig ** 3)) - 1
+                    })
+            else:
+                # if none of the mechanisms active: zero change.
+                for wrr in wrr_grid:
+                    avg_deltaR_deltaRho = zero_change(avg_deltaR_deltaRho, gh_increase, water_incorp, wrr)
+
+    avg_deltaR_deltaRho = pd.DataFrame(avg_deltaR_deltaRho)
+
+    # write table to file
+    with open(DATA_DIR + 'avg_deltaR_deltaRho.csv', 'w') as f:
+        f.write('# Radius and bulk density differences based on a sample of low-mass ({:.1f}-{:.1f} Mearth) '
+                'and detectable (transit depth >{:.2E}) planets, excluding extreme irradiances '
+                '(>{:.0f} W/m2).\n'.format(*[planets_args[key] for key in ['M_min', 'M_max', 'depth_min', 'S_max']]))
+        avg_deltaR_deltaRho.to_csv(f, index=False)
+
+    return avg_deltaR_deltaRho
+
+
 def get_avg_deltaR_deltaRho(path=None):
-    """ Read pre-calculated radius and density differences."""
+    """ Read pre-calculated radius and density differences.
+    If file does not exist, compute the values and create it.
+    """
     if path:
         avg_deltaR_deltaRho = pd.read_csv(path, comment='#')
     else:
-        avg_deltaR_deltaRho = pd.read_csv(DATA_DIR + 'avg_deltaR_deltaRho.csv', comment='#')
+        try:
+            avg_deltaR_deltaRho = pd.read_csv(DATA_DIR + 'avg_deltaR_deltaRho.csv', comment='#')
+        except:
+            raise FileNotFoundError('File with pre-calculated average radius/density differences not found. '
+                                    'Please compute it for your sample with the compute_avg_deltaR_deltaRho() function.')
     return avg_deltaR_deltaRho
 
 def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=True, diff_frac=-0.10,
@@ -475,9 +570,7 @@ def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=T
         # TODO: implement SIMPLIFIED water_incorp
 
     else:
-        try:
-            avg_deltaR_deltaRho = avg_deltaR_deltaRho
-        except:
+        if avg_deltaR_deltaRho is None:
             avg_deltaR_deltaRho = get_avg_deltaR_deltaRho()
 
         # we need to map wrr to values available in our grid
