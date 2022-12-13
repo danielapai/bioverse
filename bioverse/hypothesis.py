@@ -412,7 +412,7 @@ def magma_ocean_f0(theta, X):
     """
     return np.full(np.shape(X), theta)
 
-def compute_avg_deltaR_deltaRho(stars_args, planets_args):
+def compute_avg_deltaR_deltaRho(stars_args, planets_args, transiting_only=True):
     """ Compute average radius and bulk density changes of the magma ocean-bearing planets
     as a function of water-to-rock ratio. This will be used to inform the magma ocean
     hypothesis function and avoids lengthy computations on each call of the hypothesis.
@@ -424,6 +424,8 @@ def compute_avg_deltaR_deltaRho(stars_args, planets_args):
         Should contain all non-default arguments for star-related generator modules.
     planets_args : dict
         As stars_args, but for planet-related generator modules.
+    transiting_only : bool
+        Consider only transiting planets?
 
     Returns
     -------
@@ -470,6 +472,9 @@ def compute_avg_deltaR_deltaRho(stars_args, planets_args):
                     # set MO mechanisms according to current iteration
                     g_transit.set_arg('gh_increase', gh_increase)
                     g_transit.set_arg('water_incorp', water_incorp)
+
+                    if transiting_only:
+                        g_transit.set_arg('transit_mode', True)
 
                     # generate stars and planets
                     planets = g_transit.generate()
