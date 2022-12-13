@@ -145,7 +145,7 @@ class Hypothesis():
             print(x, y)
         return lnlk + lnpr, lnlk
     
-    def sample_posterior_dynesty(self, X, Y, sigma, nlive=100, nburn=None, verbose=False):
+    def sample_posterior_dynesty(self, X, Y, sigma, nlive=100, nburn=None, verbose=False, sampler_results=False):
         """ Uses dynesty to sample the parameter posterior distributions and compute the log-evidence."""
         # If not explicitly set, nburn=10
         nburn = 10 if nburn is None else nburn
@@ -160,7 +160,7 @@ class Hypothesis():
 
         # Return the posterior distribution samples and logZ difference
         lnZ = sampler.results.logz[-1] - sampler_null.results.logz[-1]
-        return sampler.results.samples[nburn:, :], sampler.results.logl[nburn:], lnZ
+        return sampler.results.samples[nburn:, :], sampler.results.logl[nburn:], lnZ, sampler.results if sampler_results else None
 
     def sample_posterior_emcee(self, x, y, sigma, nsteps=500, nwalkers=32, nburn=100, autocorr=False):
         """ Uses emcee to sample the parameter posterior distributions. """
@@ -198,7 +198,7 @@ class Hypothesis():
         return X, Y, sigma
 
     def fit(self, data, nsteps=500, nwalkers=16, nburn=100, nlive=100, return_chains=False,
-            verbose=False, method='dynesty', mw_alternative='greater', return_data=False):
+            verbose=False, method='dynesty', mw_alternative='greater', return_data=False, sampler_results=False):
         """
         Sample the posterior distribution of h(theta | x, y) using a simulated data set, and compare
         to the null hypothesis via a model comparison metric.
@@ -233,6 +233,8 @@ class Hypothesis():
               than the distribution underlying `y`, i.e. *F(u) < G(u)* for all *u*.
         return_data : bool
             Wether or not to return the data
+        sampler_results : bool
+            Wether or not to return the whole results object from dynesty runs
 
         Returns
         -------
@@ -268,7 +270,8 @@ class Hypothesis():
 
         # Sample the posterior distribution (dynesty)
         if 'dynesty' in method:
-            chains, loglikes, dlnZ = self.sample_posterior_dynesty(X, Y, sigma, nlive=nlive, nburn=nburn, verbose=verbose)
+            chains, loglikes, dlnZ, sampler_results = self.sample_posterior_dynesty(X, Y, sigma, nlive=nlive, nburn=nburn,
+                                                                   verbose=verbose, sampler_results=sampler_results)
 
         # Sample the posterior distribution (emcee)
         # If both emcee and dynesty are used, then emcee will override the posterior distribution
@@ -299,7 +302,8 @@ class Hypothesis():
             # Return the results in a dict
             results.update({'means':means, 'stds':stds, 'medians':medians, 'LCIs':LCIs, 'UCIs':UCIs, 'CIs':UCIs+LCIs,
                             'dAIC':dAIC, 'dBIC':dBIC, 'dlnZ': dlnZ if 'dynesty' in method else None,
-                            'chains':chains if return_chains else None, 'niter':chains.shape[0]})
+                            'chains':chains if return_chains else None, 'niter':chains.shape[0],
+                            'sampler_results':sampler_results if sampler_results else None})
 
         return results
 
