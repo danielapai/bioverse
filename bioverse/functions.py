@@ -1058,6 +1058,9 @@ def magma_ocean(d, gh_increase=True, wrr=0.01, S_thresh=280., simplified=False, 
             R[mask] = interpolate_df(d['M'][mask], mass_radius, 'mass', 'radius')
             d['R'] = R
 
+            # save radii with only steam atmosphere effect
+            d['R_steam'] = d.copy()['R']
+
     # reduce the radius of the planets with magma oceans according to Dorn & Lichtenberg (2021)
     if water_incorp:
         if simplified:
