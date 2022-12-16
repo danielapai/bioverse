@@ -8,7 +8,7 @@ The :class:`~bioverse.generator.Generator` class
 Bioverse uses the :class:`~bioverse.generator.Generator` class to generate planetary systems in the solar neighborhood. A Generator object specifies a list of functions to be performed in sequential order onto a shared :class:`~bioverse.classes.Table`. For example, a simple generator might implement this algorithm:
 
 - Function 1: Return the `Gaia DR2 <https://www.cosmos.esa.int/web/gaia/dr2>`_ catalog of all stars within 30 parsecs with effective temperatures above 4000 K.
-- Function 2: Simulate one or more planets around each star according to `SAG 13 <https://exoplanets.nasa.gov/exep/exopag/sag//#sag13>`_ occurrence rates (see also `Kopparapu et al. 2018 <https://ui.adsabs.harvard.edu/abs/2018ApJ...856..122K/abstract>`_).
+- Function 2: Simulate one or more planets around each star according to the occurrence rate estimates in `Bergsten et al. 2022 <https://ui.adsabs.harvard.edu/link_gateway/2022AJ....164..190B/doi:10.3847/1538-3881/ac8fea>`_.
 - Function 3: Evaluate the mass of each planet based on its radius and the mass-radius relationship published by `Wolfgang et al. (2016) <https://ui.adsabs.harvard.edu/abs/2016ApJ...825...19W/abstract>`_.
 
 The generator will feed the output of Function 1 into Function 2, then the output of Function 2 into Function 3, and finally will return the output of Function 3 (i.e. a table of planets with known masses, radii, orbital properties, and host star properties).
@@ -30,7 +30,7 @@ We can inspect the Generator to see which functions it implements:
         
     Generator with 11 steps:
     0: Function 'read_stellar_catalog' with 5 keyword arguments.
-    1: Function 'create_planets_SAG13' with 9 keyword arguments.
+    1: Function 'create_planets_bergsten' with 7 keyword arguments.
     2: Function 'assign_orbital_elements' with 1 keyword arguments.
     3: Function 'impact_parameter' with 1 keyword arguments.
     4: Function 'assign_mass' with no keyword arguments.
@@ -46,13 +46,13 @@ Each of these functions is documented under the :mod:`~bioverse.functions` modul
 Passing keyword arguments
 *************************
 
-Many of the functions in the Generator accept keyword arguments that affect the properties of the simualted sample. For example, the :func:`~bioverse.functions.create_planets_SAG13` function scales the planet occurrence rates uniformly in response to its keyword argument ``eta_Earth``. To change the value of ``eta_Earth``, simply pass it to :func:`~bioverse.generator.Generator.generate` as follows:
+Many of the functions in the Generator accept keyword arguments that affect the properties of the simulated sample. For example, the :func:`~bioverse.functions.create_planets_bergsten` function scales the planet occurrence rates uniformly in response to its keyword argument ``f_eta``. To change the value of ``f_eta``, simply pass it to :func:`~bioverse.generator.Generator.generate` as follows:
 
 .. code-block:: python
     
-    sample = generator.generate(eta_Earth=0.15)
+    sample = generator.generate(f_eta=1.5)
 
-Note that this value will be passed to any function in the generator for which ``eta_Earth`` is an argument. This can be useful for sharing arguments across multiple functions, but be careful not to accidentally use the same keywords for two different functions.
+Note that this value will be passed to any function in the generator for which ``f_eta`` is an argument. This can be useful for sharing arguments across multiple functions, but be careful not to accidentally use the same keywords for two different functions.
 
 Transit mode
 ************
