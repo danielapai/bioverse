@@ -522,7 +522,7 @@ def get_avg_deltaR_deltaRho(path=None):
     return avg_deltaR_deltaRho
 
 def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=True, diff_frac=-0.10,
-                     parameter_of_interest='R', avg_deltaR_deltaRho=None):
+                     parameter_of_interest='R', f_dR=None):
     """ Define a hypothesis for a magma ocean-adapted radius-sma distribution following a step function.
 
     Parameters
@@ -548,8 +548,8 @@ def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=T
         fractional radius or bulk density change in the simplified case. E.g., diff_frac = -0.10 is a 10% decrease.
     parameter_of_interest : str, optional
         'label', i.e. the observable in which to search for the pattern. Can be 'R' or 'rho'.
-    avg_deltaR_deltaRho : pandas DataFrame, optional
-        table containing pre-computed average radius and bulk density differences.
+    f_dR : scipy.interpolate.interpolate.interp1d, optional
+        function that interpolates in the table containing pre-computed average radius and bulk density differences.
         If not provided, the values will be computed for a grid of water-to-rock ratios (this might be slow).
 
     Returns
@@ -575,14 +575,14 @@ def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=T
         # TODO: implement SIMPLIFIED water_incorp
 
     else:
-        # interpolate in pre-calculated average delta R/rho table to enable sampling from continuous wrr
-        if avg_deltaR_deltaRho is None:
+        if f_dR is None:
+            # interpolate in pre-calculated average delta R/rho table to enable sampling from continuous wrr
             avg_deltaR_deltaRho = get_avg_deltaR_deltaRho()
-        select_mechanisms = (avg_deltaR_deltaRho.gh_increase == gh_increase) & (
-                    avg_deltaR_deltaRho.water_incorp == water_incorp)
-        f_dR = interp1d(avg_deltaR_deltaRho[select_mechanisms].wrr,
-                        avg_deltaR_deltaRho[select_mechanisms]['delta_' + parameter_of_interest],
-                        fill_value='extrapolate')
+            select_mechanisms = (avg_deltaR_deltaRho.gh_increase == gh_increase) & (
+                        avg_deltaR_deltaRho.water_incorp == water_incorp)
+            f_dR = interp1d(avg_deltaR_deltaRho[select_mechanisms].wrr,
+                            avg_deltaR_deltaRho[select_mechanisms]['delta_' + parameter_of_interest],
+                            fill_value='extrapolate')
 
         # beyond S_thresh: avg. Within S_thresh: avg changed by the difference from the MR models
         exp_val = (avg + f_dR(wrr)) * (a_eff < a_eff_thresh) + avg * (a_eff >= a_eff_thresh)
