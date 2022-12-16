@@ -5,6 +5,7 @@ import emcee
 import numpy as np
 import pandas as pd
 from scipy.stats import mannwhitneyu
+from scipy.interpolate import interp1d
 from warnings import warn
 
 # Bioverse modules
@@ -559,11 +560,6 @@ def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=T
     S_thresh, wrr, avg = theta
     a_eff = X
 
-    # discretize wrr to allowed values
-    wrr_discrete = [0, 0.0001, 0.001, 0.005, 0.01, 0.02, 0.03, 0.04, 0.05]
-    wrr_dist = [abs(wrr_d - wrr) for wrr_d in wrr_discrete]
-    wrr = wrr_discrete[np.argmin(wrr_dist)]
-
     a_eff_thresh = 1 / (np.sqrt(S_thresh / CONST['S_Earth']))
 
     # # baseline case without steam atmosphere or water incorporation
@@ -579,17 +575,16 @@ def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=T
         # TODO: implement SIMPLIFIED water_incorp
 
     else:
+        # interpolate in pre-calculated average delta R/rho table to enable sampling from continuous wrr
         if avg_deltaR_deltaRho is None:
             avg_deltaR_deltaRho = get_avg_deltaR_deltaRho()
-
-        # we need to map wrr to values available in our grid
-        # wrr =  avg_deltaR_deltaRho.wrr[min(range(len(avg_deltaR_deltaRho.wrr)), key=lambda i: abs(avg_deltaR_deltaRho.wrr[i] - wrr))]
-
-        select_mechanisms =  (avg_deltaR_deltaRho.gh_increase == gh_increase) & (avg_deltaR_deltaRho.water_incorp == water_incorp)
-        deltaX = avg_deltaR_deltaRho[(select_mechanisms) & (avg_deltaR_deltaRho.wrr == wrr)]['delta_' + parameter_of_interest].iloc[0]
+        select_mechanisms = (avg_deltaR_deltaRho.gh_increase == gh_increase) & (
+                    avg_deltaR_deltaRho.water_incorp == water_incorp)
+        f_dR = interp1d(avg_deltaR_deltaRho[select_mechanisms].wrr,
+                        avg_deltaR_deltaRho[select_mechanisms]['delta_' + parameter_of_interest],
+                        fill_value='extrapolate')
 
         # beyond S_thresh: avg. Within S_thresh: avg changed by the difference from the MR models
-        exp_val = (avg + deltaX) * (a_eff < a_eff_thresh) + avg * (a_eff >= a_eff_thresh)
-
+        exp_val = (avg + f_dR(wrr)) * (a_eff < a_eff_thresh) + avg * (a_eff >= a_eff_thresh)
 
     return exp_val
