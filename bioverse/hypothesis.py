@@ -408,11 +408,6 @@ def magma_ocean_hypo_step(theta, X):
     return (R_avg * (1 - radius_reduction * f_magma)) * (a_eff < a_cut) + R_avg * (a_eff >= a_cut)
 
 
-def magma_ocean_f0(theta, X):
-    """ Define the null hypothesis that the radius distribution is random and independent of sma.
-    """
-    return np.full(np.shape(X), theta)
-
 def compute_avg_deltaR_deltaRho(stars_args, planets_args, transiting_only=True):
     """ Compute average radius and bulk density changes of the magma ocean-bearing planets
     as a function of water-to-rock ratio. This will be used to inform the magma ocean
@@ -487,8 +482,9 @@ def compute_avg_deltaR_deltaRho(stars_args, planets_args, transiting_only=True):
                         'gh_increase': gh_increase,
                         'water_incorp': water_incorp,
                         'wrr': wrr,
-                        'delta_R': np.average(mo.R / mo.R_orig) - 1,
-                        'delta_rho': np.average(mo.rho / (CONST['rho_Earth'] * mo.M / mo.R_orig ** 3)) - 1
+                        'delta_R': np.average(mo.R) - np.average(d[~d.has_magmaocean].R_orig),
+                        'delta_rho': np.average(mo.rho) - np.average(
+                            CONST['rho_Earth'] * d[~d.has_magmaocean].M / d[~d.has_magmaocean].R_orig ** 3)
                     })
             else:
                 # if none of the mechanisms active: zero change.
@@ -521,7 +517,14 @@ def get_avg_deltaR_deltaRho(path=None):
                                     'Please compute it for your sample with the compute_avg_deltaR_deltaRho() function.')
     return avg_deltaR_deltaRho
 
-def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=True, diff_frac=-0.10,
+
+def magma_ocean_f0(theta, X):
+    """ Define the null hypothesis that the radius distribution is random and independent of sma.
+    """
+    return np.full(np.shape(X), theta)
+
+
+def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=False, diff_frac=-0.10,
                      parameter_of_interest='R', f_dR=None):
     """ Define a hypothesis for a magma ocean-adapted radius-sma distribution following a step function.
 
