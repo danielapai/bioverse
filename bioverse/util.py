@@ -449,3 +449,41 @@ def a_eff2S(a_eff):
     """Convert solar-equivalent semi-major axis to instellation in W/m2."""
     S = CONST['S_Earth'] * a_eff**-2
     return S
+
+
+def compute_moving_average(d, window=25):
+    """Compute rolling mean of radius and density and their uncertainties,
+    ordered by instellation.
+
+    Parameters
+    ----------
+    d : Table
+        Table containing the sample of simulated planets.
+    window : int, optional
+        window size of the rolling mean
+
+    Returns
+    -------
+    d : Table
+        Table containing new columns for rolling mean of radius, density.
+    """
+    # ensure we have everything we need
+    if not (('R' in d) & ('rho' in d) & ('S_abs' in d)):
+        raise ValueError("observables 'R', 'rho', and 'S_abs' must be measured for population-level statistics")
+    dd = d.to_pandas()
+    R_mean = dd.sort_values('S_abs')['R'].rolling(window, center=True,min_periods=1).mean()
+    R_sem = dd.sort_values('S_abs')['R'].rolling(window, center=True,min_periods=1).sem()  # rolling standard error of mean
+    rho_mean = dd.sort_values('S_abs')['rho'].rolling(window, center=True,min_periods=1).mean()
+    rho_sem = dd.sort_values('S_abs')['rho'].rolling(window, center=True,min_periods=1).sem()  # rolling standard error of mean
+
+    d.sort_by('S_abs', inplace=True)
+    d['R_mean'] = R_mean
+    d['rho_mean'] = rho_mean
+    d.error.sort_by('S_abs', inplace=True)
+    d.error['R_mean'] = R_sem
+    d.error['rho_mean'] = rho_sem
+
+    # crank up rolling mean errors to account for measurement errors
+    d.error['R_mean'] *= 2.
+    d.error['rho_mean'] *= 2.
+    return d
