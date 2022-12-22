@@ -124,7 +124,7 @@ class Survey(dict, Object):
 
         return sample, detected, data
         
-    def observe(self, y, t_total=None, data=None, error=None):
+    def observe(self, y, t_total=None, data=None, error=None, demographics=True):
         """ Returns a simulated data set for a Table of simulated planets.
         
         Parameters
@@ -137,6 +137,8 @@ class Survey(dict, Object):
             Pre-existing Table in which to store the new measurements.
         error : Table, optional
             Pre-existing Table containing uncertainties on `data` values.
+        demographics : Bool, optional
+            compute some population-level statistics after taking all measurements
 
         Returns
         -------
@@ -163,6 +165,14 @@ class Survey(dict, Object):
                     t = t_total
                     
             data = m.measure(y, data, t_total=t)
+
+        if demographics:
+            # compute moving averages for R, rho
+            try:
+                data = util.compute_moving_average(data)
+            except ValueError:
+                pass
+
         return data
 
 @dataclass(repr=False)
