@@ -505,7 +505,6 @@ def compute_avg_deltaR_deltaRho(stars_args, planets_args, transiting_only=True):
 
 def get_avg_deltaR_deltaRho(path=None):
     """ Read pre-calculated radius and density differences.
-    If file does not exist, compute the values and create it.
     """
     if path:
         avg_deltaR_deltaRho = pd.read_csv(path, comment='#')
@@ -537,6 +536,8 @@ def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=F
         wrr : float
             water-to-rock ratio. Will be discretized to the grid used in Turbet+2020, with
             possible values [0, 0.0001, 0.001 , 0.005 , 0.01  , 0.02  , 0.03  , 0.04  , 0.05 ].
+        f_rgh : float
+            fraction of planets within the runaway gh regime that have a runaway gh climate
         avg : float
             average planet radius or bulk density *outside* the runaway greenhouse region
     X : array_like
@@ -560,7 +561,7 @@ def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=F
     array_like
         Functional form of hypothesis
     """
-    S_thresh, wrr, avg = theta
+    S_thresh, wrr, f_rgh, avg = theta
     a_eff = X
 
     a_eff_thresh = 1 / (np.sqrt(S_thresh / CONST['S_Earth']))
@@ -575,7 +576,7 @@ def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=F
         if gh_increase:
             # beyond S_thresh: avg. Within S_thresh: avg changed by a fraction of 'diff_frac'
             exp_val =  (avg * (1 + diff_frac)) * (a_eff < a_eff_thresh) + avg * (a_eff >= a_eff_thresh)
-        # TODO: implement SIMPLIFIED water_incorp
+        # TODO (if needed): implement f_rgh factor, SIMPLIFIED water_incorp
 
     else:
         if f_dR is None:
@@ -587,7 +588,7 @@ def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=F
                             avg_deltaR_deltaRho[select_mechanisms]['delta_' + parameter_of_interest],
                             fill_value='extrapolate')
 
-        # beyond S_thresh: avg. Within S_thresh: avg changed by the difference from the MR models
-        exp_val = (avg + f_dR(wrr)) * (a_eff < a_eff_thresh) + avg * (a_eff >= a_eff_thresh)
+        # beyond S_thresh: avg. Within S_thresh: avg changed by the difference from the MR models, diluted by f_rgh
+        exp_val = (avg + f_dR(wrr)*f_rgh) * (a_eff < a_eff_thresh) + avg * (a_eff >= a_eff_thresh)
 
     return exp_val

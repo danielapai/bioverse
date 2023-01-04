@@ -997,15 +997,13 @@ def Example2_oxygen(d, f_life=0.7, t_half=2.3, seed=42):
     return d
 
 
-def magma_ocean(d, gh_increase=True, wrr=0.01, S_thresh=280., simplified=False, diff_frac=0.54, water_incorp=False):
+def magma_ocean(d, wrr=0.005, S_thresh=280., simplified=False, diff_frac=0.54, f_rgh=1.0, gh_increase=True, water_incorp=True):
     """Assign a fraction of planets global magma oceans that change the planet's radius.
 
     Parameters:
     -----------
     d : Table
         The population of planets.
-    gh_increase : bool, optional
-        wether or not to consider radius increase due to runaway greenhouse effect (Turbet+2020)
     wrr : float, optional
         water-to-rock ratio for Turbet+2020 model. Defines the amount of radius increase due to a steam atmosphere.
         Possible values: [0, 0.0001, 0.001 , 0.005 , 0.01  , 0.02  , 0.03  , 0.04  , 0.05  ] (default: 0.01 = 1% water)
@@ -1016,6 +1014,10 @@ def magma_ocean(d, gh_increase=True, wrr=0.01, S_thresh=280., simplified=False, 
         increase the radii of all runaway greenhouse planets by the same fraction
     diff_frac : float, optional
         fractional radius change in the simplified case. E.g., diff_frac = -0.10 is a 10% decrease.
+    f_rgh : float, optional
+       fraction of planets within the runaway gh regime that have a runaway gh climate
+    gh_increase : bool, optional
+        wether or not to consider radius increase due to runaway greenhouse effect (Turbet+2020)
     water_incorp : bool, optional
         wether or not to consider water incorporation in the melt of global magma oceans (Dorn & Lichtenberg 2021)
 
@@ -1031,7 +1033,7 @@ def magma_ocean(d, gh_increase=True, wrr=0.01, S_thresh=280., simplified=False, 
 
     # First, define which planets should have magma oceans
     d['runaway_gh'] = d['S_abs'] > S_thresh              # Dorn & Lichtenberg 2021
-    d['has_magmaocean'] = d['runaway_gh']                # simplest case: every planet with runaway greenhouse has a MO.
+    d['has_magmaocean'] = d['runaway_gh'] & (np.random.uniform(0, 1, len(d)) < f_rgh)  # only a fraction of planets within the rgh regime have rgh climate
 
     # Second, change properties of planets with magma oceans
     if gh_increase:
@@ -1039,7 +1041,7 @@ def magma_ocean(d, gh_increase=True, wrr=0.01, S_thresh=280., simplified=False, 
         if simplified:
             # increase all runaway GH planet radii by diff_frac
             R = d['R']
-            mask = d['runaway_gh']
+            mask = d['has_magmaocean']
             R[mask] = R[mask] * (1 + diff_frac)
             d['R'] = R
         else:
@@ -1054,7 +1056,7 @@ def magma_ocean(d, gh_increase=True, wrr=0.01, S_thresh=280., simplified=False, 
             # for runaway GH planets from 0.1 Mearth to 2.0 Mearth, interpolate in Turbet+2020 mass-radius relationship,
             # assign planets a new radius based on their mass
             R = d['R']
-            mask = d['runaway_gh'] & ((d['M'] > min(mass_radius.mass)) & (d['M'] < max(mass_radius.mass)))
+            mask = d['has_magmaocean'] & ((d['M'] > min(mass_radius.mass)) & (d['M'] < max(mass_radius.mass)))
             R[mask] = interpolate_df(d['M'][mask], mass_radius, 'mass', 'radius')
             d['R'] = R
 
@@ -1066,13 +1068,13 @@ def magma_ocean(d, gh_increase=True, wrr=0.01, S_thresh=280., simplified=False, 
         if simplified:
             # decrease all runaway GH planet radii by 10%.
             R = d['R']
-            mask = d['runaway_gh']
+            mask = d['has_magmaocean']
             R[mask] = R[mask] * .90
             d['R'] = R
 
         else:
             R = d['R']
-            mask = d['runaway_gh']
+            mask = d['has_magmaocean']
 
             # Read radius differences from DL21 Fig. 3b
             delta_R = pd.read_csv(DATA_DIR + 'deltaR_DornLichtenberg21_Fig3b.csv')
