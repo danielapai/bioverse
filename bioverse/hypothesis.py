@@ -408,7 +408,7 @@ def magma_ocean_hypo_step(theta, X):
     return (R_avg * (1 - radius_reduction * f_magma)) * (a_eff < a_cut) + R_avg * (a_eff >= a_cut)
 
 
-def compute_avg_deltaR_deltaRho(stars_args, planets_args, transiting_only=True):
+def compute_avg_deltaR_deltaRho(stars_args, planets_args, transiting_only=True, savefile=True):
     """ Compute average radius and bulk density changes of the magma ocean-bearing planets
     as a function of water-to-rock ratio. This will be used to inform the magma ocean
     hypothesis function and avoids lengthy computations on each call of the hypothesis.
@@ -422,6 +422,8 @@ def compute_avg_deltaR_deltaRho(stars_args, planets_args, transiting_only=True):
         As stars_args, but for planet-related generator modules.
     transiting_only : bool
         Consider only transiting planets?
+    savefile : bool
+        Save data to file in `DATA_DIR + 'avg_deltaR_deltaRho.csv'`?
 
     Returns
     -------
