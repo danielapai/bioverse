@@ -578,7 +578,7 @@ def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=F
         if gh_increase:
             # beyond S_thresh: avg. Within S_thresh: avg changed by a fraction of 'diff_frac'
             exp_val =  (avg * (1 + diff_frac)) * (a_eff < a_eff_thresh) + avg * (a_eff >= a_eff_thresh)
-        # TODO (if needed): implement f_rgh factor, SIMPLIFIED water_incorp
+            # TODO (if simplified case needed): implement f_rgh factor, SIMPLIFIED water_incorp
 
     else:
         if f_dR is None:

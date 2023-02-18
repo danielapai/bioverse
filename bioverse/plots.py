@@ -21,9 +21,6 @@ try:
 except ValueError:
     pass
 
-# Pyplot parameters
-plt.rcParams['font.size'] = 22
-labelfontsize = 28
 
 def plot(d,starID=None,order=None,fig=None,canvas=None):
     show = fig is None
@@ -989,7 +986,8 @@ def plot_Example2_constraints(results, fig=None, ax=None, show=True, c='black', 
         return fig, ax
 
 def image_contour_plot(x, y, z, colorbar=True, labels=None, levels=None, fmt=' %.0f ', ticks=4, vmin=None, vmax=None,
-                       linecolor='black', log=None, fig=None, ax=None, return_ctr=False, zoom_factor=None, cmap='Greens', plus=False, smooth_sigma=0):
+                       linecolor='black', log=None, fig=None, ax=None, return_ctr=False, zoom_factor=None, cmap='Greens',
+                       plus=False, smooth_sigma=0):
     """ Plots z(x, y) with a colorbar and contours. """
     
     if fig is None:
@@ -1023,7 +1021,7 @@ def image_contour_plot(x, y, z, colorbar=True, labels=None, levels=None, fmt=' %
 
     # Color plot
     if colorbar:
-        im = ax.pcolormesh(x, y, z, vmin=vmin, vmax=vmax, cmap=cmap, lw=0, rasterized=True, shading='auto')
+        im = ax.pcolormesh(x, y, z, vmin=vmin, vmax=vmax, cmap=cmap, lw=0, rasterized=True, shading='auto', edgecolors='k', linewidths=4)
         cmap = copy.copy(im.cmap)
         cmap.set_bad(color='white', alpha=0.5)
         im.set_cmap(cmap)
@@ -1039,7 +1037,7 @@ def image_contour_plot(x, y, z, colorbar=True, labels=None, levels=None, fmt=' %
     if levels is not None:
         ctr = ax.contour(x, y, z, levels=levels, colors=linecolor, linewidths=3)
         if not return_ctr:
-            ax.clabel(ctr, ctr.levels, inline=True, fmt=fmt, inline_spacing=-10)
+            ax.clabel(ctr, ctr.levels, inline=True, fmt=fmt, inline_spacing=20)
 
     if labels is not None:
         ax.set_xlabel(labels[0], fontsize=labelfontsize)

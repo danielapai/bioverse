@@ -140,7 +140,7 @@ def compute_statistical_power(results, threshold=None, method='dlnZ'):
     Parameters
     ----------
     results : dict
-        Output of fit_hypothesis_grid.
+        Output of test_hypothesis_grid.
     threshold: float, optional
         Significance threshold to enforce.
     method: ('dAIC', 'dBIC', 'dlnZ', 'p', 'logp')
