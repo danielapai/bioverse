@@ -124,7 +124,7 @@ class Survey(dict, Object):
 
         return sample, detected, data
         
-    def observe(self, y, t_total=None, data=None, error=None, demographics=True):
+    def observe(self, y, t_total=None, data=None, error=None, demographics=False):
         """ Returns a simulated data set for a Table of simulated planets.
         
         Parameters
@@ -170,6 +170,7 @@ class Survey(dict, Object):
             # compute moving averages for R, rho
             try:
                 data = util.compute_moving_average(data)
+                data = util.compute_binned_average(data)
             except ValueError:
                 pass
 

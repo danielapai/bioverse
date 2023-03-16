@@ -1,9 +1,11 @@
 """ Miscellanous functions used elsewhere in the code. """
-
+from matplotlib import pyplot as plt
 # Python imports
+from scipy.stats import binned_statistic
 import importlib.util
 import numpy as np
 from warnings import warn
+from astropy.visualization import hist as astropyhist
 
 # Bioverse modules and constants
 from .constants import LIST_TYPES, CATALOG_FILE, INT_TYPES, FLOAT_TYPES, CONST
@@ -486,4 +488,62 @@ def compute_moving_average(d, window=25):
     # crank up rolling mean errors to account for measurement errors
     d.error['R_mean'] *= 2.
     d.error['rho_mean'] *= 2.
+    return d
+
+def get_ideal_bins(data, method='freedman'):
+    """return optimal bins for a given 1D data set"""
+    _n, bins, _patches = astropyhist(data, bins=method)
+    plt.clf()
+    return bins
+
+def binned_stats(df, x_param, y_param, bins=None, statistic='mean', scale='log'):
+    """Compute a binned statistic of parameter y's mean with respect to bins in parameter x."""
+    if bins is None:
+        if scale == 'log':
+            logged_bins = get_ideal_bins(np.log10(df[x_param]))
+            bins = 10**logged_bins
+        else:
+            bins = get_ideal_bins(df[x_param])
+    elif type(bins) == int:
+        bins = compute_logbins((np.log10(max(df[x_param])) - np.log10(min(df[x_param])))/bins, (min(df[x_param]), max(df[x_param])))
+    means, edges, n = binned_statistic(df[x_param], df[y_param], statistic=statistic, bins=bins)
+    std = []
+    for e_lo, e_hi in zip(edges[:-1], edges[1:]):
+        std.append(np.std(df[(df[x_param] >= e_lo) & (df[x_param] <= e_hi)][y_param]))
+    return means, edges, n, std
+
+def compute_binned_average(d, x_param='S_abs', y_params=['R', 'rho']):
+    """Compute mean of radius and density and their uncertainties,
+    binned in instellation.
+
+    Parameters
+    ----------
+    d : Table
+        Table containing the sample of simulated planets.
+    x_param : str
+        Parameter axis along which we want to bin.
+    y_params : str or iterable
+        Parameter(s) on which the binned average will be computed.
+
+    Returns
+    -------
+    d : Table
+        Table containing new columns for rolling mean of radius, density.
+    """
+    try:
+        N = len(y_params)
+    except TypeError:
+        y_params = [y_params]
+
+    df = d.to_pandas()
+
+    for y in y_params:
+        mean, edges, n, std = binned_stats(df, 'S_abs', y, bins=None)
+        for i, (m, s) in enumerate(zip(mean, std)):
+            df.loc[(df[x_param] >= edges[i]) & (df[x_param] < edges[i+1]),'_mean'] = m
+            df.loc[(df[x_param] >= edges[i]) & (df[x_param] < edges[i+1]),'_std'] = s
+
+        d[y + '_mean_binned'] = df['_mean']
+        d.error[y + '_mean_binned'] = df['_std'] + 1e-3  # add an 'epsilon' to avoid dividing by zero
+
     return d

@@ -21,6 +21,8 @@ try:
 except ValueError:
     pass
 
+# Pyplot parameters
+labelfontsize = 12
 
 def plot(d,starID=None,order=None,fig=None,canvas=None):
     show = fig is None
