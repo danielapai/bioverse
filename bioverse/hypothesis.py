@@ -461,8 +461,7 @@ def compute_avg_deltaR_deltaRho(stars_args, planets_args, transiting_only=True, 
                     g_transit.insert_step('effective_values')
                     g_transit.insert_step('magma_ocean')
                     g_transit.insert_step('compute_transit_params')
-                    g_transit.insert_step(
-                        'apply_bias')  # apply the exact same sample selections as in the actual analysis
+                    g_transit.insert_step('apply_bias')  # apply the exact same sample selections as in the actual analysis
 
                     [g_transit.set_arg(key, val) for key, val in stars_args.items()]
                     [g_transit.set_arg(key, val) for key, val in planets_args.items()]

@@ -587,7 +587,7 @@ def assign_mass(d, mr_relation='Wolfgang2016'):
     R = d['R']
     M = np.zeros(R.shape)
 
-    if mr_relation == 'Wolfgang2016':
+    if mr_relation.lower() == 'wolfgang2016':
         # Determine which are small, large planets
         mask1 = R>=1.6
         mask2 = (R>0.8)&(R<1.6)
@@ -607,14 +607,29 @@ def assign_mass(d, mr_relation='Wolfgang2016'):
         # For planets smaller than R < 0.2, assume Earth density
         M[mask3] = R[mask3]**3
 
-    elif mr_relation == 'Zeng2016':
-        # read mass-radius table from Zeng+2016 and interpolate
+    elif mr_relation.lower() in ['mgsio3', 'silicate', 'zeng2016']:    # 'zeng2016' for backward compability
+        # read pure silicate mass-radius table from Zeng+2016 and interpolate
         purerock = pd.read_csv(DATA_DIR + 'mass-radius_relationships_mgsio3_Zeng2016.txt')
         f_mr = interp1d(purerock.radius, purerock.mass, fill_value='extrapolate')
 
         # separate planet radius range into small and large
         smallplanets_mask = R <= purerock.radius.max()
         largeplanets_mask = R > purerock.radius.max()
+
+        M[smallplanets_mask] = f_mr(R[smallplanets_mask])
+
+        # for planets outside the radius range of Zeng+2016, use the Wolfgang+2016 M-R relation
+        largeplanets = assign_mass(d[largeplanets_mask], mr_relation='Wolfgang2016')
+        M[largeplanets_mask] = largeplanets['M']
+
+    elif mr_relation.lower() in ['earth', 'earth-like', 'earthlike']:
+        # read Earth-like mass-radius table from Zeng+2016 and interpolate (32.5% Fe + 67.5% MgSiO3)
+        earthlike = pd.read_csv(DATA_DIR + 'mass-radius_relationships_Earthlike_Zeng2016.txt')
+        f_mr = interp1d(earthlike.radius, earthlike.mass, fill_value='extrapolate')
+
+        # separate planet radius range into small and large
+        smallplanets_mask = R <= earthlike.radius.max()
+        largeplanets_mask = R > earthlike.radius.max()
 
         M[smallplanets_mask] = f_mr(R[smallplanets_mask])
 
