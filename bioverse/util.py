@@ -10,6 +10,7 @@ from astropy.visualization import hist as astropyhist
 # Bioverse modules and constants
 from .constants import LIST_TYPES, CATALOG_FILE, INT_TYPES, FLOAT_TYPES, CONST
 from .import truncnorm_hack
+from .generator import Generator
 
 # Load the Gaia stellar target catalog into memory for fast access
 try:
@@ -547,3 +548,75 @@ def compute_binned_average(d, x_param='S_abs', y_params=['R', 'rho']):
         d.error[y + '_mean_binned'] = df['_std'] + 1e-3  # add an 'epsilon' to avoid dividing by zero
 
     return d
+
+def generate_generator(g_args, stars_only=False, **kwargs):
+    """Helper function to create a planet generator."""
+    for key, value in kwargs.items():
+        g_args[key] = value
+    g_transit = Generator(label=None)
+    g_transit.insert_step('read_stars_Gaia')
+    if not stars_only:
+        g_transit.insert_step('create_planets_bergsten')
+        g_transit.insert_step('assign_orbital_elements')
+        g_transit.insert_step('impact_parameter')
+        g_transit.insert_step('assign_mass')
+        g_transit.insert_step('effective_values')
+        g_transit.insert_step('magma_ocean')     # here we inject the magma oceans
+        g_transit.insert_step('compute_transit_params')
+        g_transit.insert_step('apply_bias')
+    [g_transit.set_arg(key, val) for key, val in g_args.items()]
+    return g_transit
+
+def find_distance4samplesize(N_target, g_args, tolerance=2, max_iterations=10, h=5):
+    """
+    Iteratively find the distance d_max needed to achieve a specified
+    planet sample size. Uses the Secant method for root-finding.
+    Sort of.
+
+    Parameters
+    ----------
+    N_target : int
+        target sample size
+    g_args : dict
+        arguments for generator object
+    tolerance : int
+        range around N_target into which we need to land
+    max_iterations : int
+        maximum number of iterations
+    h : int
+        distance delta (in pc) used for initial guess
+
+    Returns
+    -------
+    N : int
+        closest sample size achieved
+    d0 : float
+        distance at closest sample size
+    """
+    def get_delta(d1, N_target):
+        sample = generate_generator(g_args, d_max=d1).generate()
+        N = len(sample)
+        return N - N_target, N
+
+    # initial guess
+    d1 = 10 * np.cbrt(N_target)
+
+    # first iteration: compute delta
+    N = 9999
+    i = 0
+    d0 = d1 - h
+    delta0, N = get_delta(d0, N_target)
+
+    while abs(N - N_target) > tolerance:
+        if i == max_iterations:
+            print('maximum number of iterations ({}) reached.'.format(max_iterations))
+            return N, d1
+        delta1, N = get_delta(d1, N_target)
+        print('sample size at iteration {}: N = {:.0f} at $d_{{max}}$ = {:.1f} pc.'.format(i, N, d1))
+
+        d2 = d0 - (d1 - d0)*delta0/(delta1 - delta0)
+
+        d0 = d1
+        d1 = d2
+        i += 1
+    return N, d0

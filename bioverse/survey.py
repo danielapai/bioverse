@@ -124,7 +124,7 @@ class Survey(dict, Object):
 
         return sample, detected, data
         
-    def observe(self, y, t_total=None, data=None, error=None, demographics=False):
+    def observe(self, y, t_total=None, data=None, error=None, demographics=True):
         """ Returns a simulated data set for a Table of simulated planets.
         
         Parameters
