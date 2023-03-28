@@ -10,7 +10,6 @@ from astropy.visualization import hist as astropyhist
 # Bioverse modules and constants
 from .constants import LIST_TYPES, CATALOG_FILE, INT_TYPES, FLOAT_TYPES, CONST
 from .import truncnorm_hack
-from .generator import Generator
 
 # Load the Gaia stellar target catalog into memory for fast access
 try:
@@ -551,6 +550,7 @@ def compute_binned_average(d, x_param='S_abs', y_params=['R', 'rho']):
 
 def generate_generator(g_args, stars_only=False, **kwargs):
     """Helper function to create a planet generator."""
+    from .generator import Generator
     for key, value in kwargs.items():
         g_args[key] = value
     g_transit = Generator(label=None)
