@@ -1,7 +1,14 @@
-""" Define new functions for planet simulation here. Funnction arguments should be provided a default value."""
+""" Define new functions for planet simulation here. Function arguments should be provided a default value."""
 
 # Add import statements as necessary
 import numpy as np
+
+# Bioverse modules and constants
+from .classes import Table
+from . import util
+from .util import CATALOG
+from .constants import CONST, ROOT_DIR, DATA_DIR
+
 
 
 def M_R(observed):

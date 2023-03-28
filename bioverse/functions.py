@@ -5,12 +5,45 @@ import numpy as np
 import pandas as pd
 import os
 import sys
+import glob
 
 # Bioverse modules and constants
 from .classes import Table
 from . import util
 from .util import CATALOG, interpolate_df
 from .constants import CONST, ROOT_DIR, DATA_DIR
+
+def luminosity_evolution(d):
+    """
+    Computes age-dependent luminosities based on the stellar evolution tracks in Baraffe et al. (1998).
+
+    Parameters
+    ----------
+    d : Table
+        Table with stars. Has to have columns for mass and age.
+    Returns
+    -------
+    d : Table containing age-dependent luminosities.
+
+
+    """
+    lum_tracks = glob.glob(DATA_DIR + 'luminosity_tracks/' + "Lum_m*.txt")
+    lum_tracks.sort()
+    star_masses = [float(filename[-7:-4]) for filename in lum_tracks]
+    tracks = {}
+    for star_mass, lum_track in zip(star_masses, lum_tracks):
+        tracks[star_mass] = pd.read_csv(lum_track)
+
+    tracks = pd.concat(tracks, keys=tracks.keys(), axis=0)
+
+    df = d.to_pandas()
+    for i, star in df.iterrows():
+        star_mass_bin = min(star_masses, key=lambda x: abs(x - star['M_st']))
+        closest_age_id = ((tracks.loc[star_mass_bin]['age'] - star['age']).abs()).idxmin()
+        df.at[i, 'L_st'] = tracks.loc[star_mass_bin].iloc[closest_age_id]['lum']
+    d['L_st'] = df['L_st']
+    return d
+
 
 def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_max=10., T_eff_split=4500., seed=42):
     """ Reads temperatures and coordinates for high-mass stars from Gaia DR2. Simulates low-mass stars from the
