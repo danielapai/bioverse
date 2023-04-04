@@ -6,9 +6,20 @@ import sys
 import glob
 import numpy as np
 import pandas as pd
+import astropy
 import astropy.units as u
-from astropy.coordinates import SkyCoord
+import matplotlib.pyplot as plt
+import datetime as dt
+import warnings
+
+from astropy import constants as const
+from astropy.coordinates import (SkyCoord, solar_system_ephemeris, get_body)
 from scipy.interpolate import interp1d
+from tqdm import tqdm
+from astroplan import (FixedTarget, Observer, EclipsingSystem, PrimaryEclipseConstraint, is_event_observable, AtNightConstraint, AltitudeConstraint, LocalTimeConstraint)
+from datetime import (date, datetime)
+
+warnings.filterwarnings("ignore")
 
 # Bioverse modules and constants
 from .classes import Table
@@ -48,8 +59,7 @@ def luminosity_evolution(d):
     return d
 
 
-def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, M_st_max=2.0, R_st_min=0.095,
-                    R_st_max=2.15, T_min=0., T_max=10., inc_binary=0, seed=42, M_G_max=None, lum_evo=True):  # , mult=0):
+def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, M_st_max=2.0, R_st_min=0.095, R_st_max=2.15, T_min=0., T_max=10., inc_binary=0, seed=42, M_G_max=None, lum_evo=True):  # , mult=0):
     """ Reads a list of stellar properties from the Gaia nearby stars catalog.
 
     Parameters
@@ -94,7 +104,15 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
 
     # Read the catalog with column names
     path = filename if os.path.exists(filename) else DATA_DIR + '/' + filename
-    catalog = np.genfromtxt(path, unpack=False, names=True, dtype=None, encoding=None)
+    cat = pd.read_csv(path,sep=' ',header=0,dtype={'star_name':str, 'd':np.float,
+                                                     'ra':np.float, 'dec':np.float,
+                                                     'M_G':np.float, 'M_st':np.float,
+                                                     'R_st':np.float, 'L_st':np.float,
+                                                     'T_eff_st':np.int, 'SpT':str,
+                                                     'subSpT':str, 'binary':bool,
+                                                     'RV':np.float})
+    catalog = cat.to_records(index=False)
+    # catalog = np.genfromtxt(path, unpack=False, names=True, dtype=None, encoding=None)
     for name in catalog.dtype.names:
         d[name.strip()] = list(catalog[name])  # *int(mult)
 
@@ -576,6 +594,226 @@ def create_planets_SAG13(d, eta_Earth=0.075, R_min=0.5, R_max=14.3, P_min=0.01, 
 
     return d
 
+def create_planets_custom(d, eta_Earth=0.075, R_min=0.5, R_max=14.3, P_min=0.01, P_max=10., normalize_SpT=True,
+                         transit_mode=False, separate_m=False, fmult=1, gmult=1, kmult=1, mmult=1, emmult=1, mmmult=1, lmmult=1):
+    """ Generates planets with periods and radii according to SAG13 occurrence rate estimates, but incorporating
+    the dependence of occurrence rates on spectral type from Mulders+2015 and allowing different multiplicative
+    occurrence rate factors based on spectral type.
+
+    Parameters
+    ----------
+    d : Table
+        Table containing simulated host stars.
+    eta_Earth : float, optional
+        The number of Earth-sized planets in the habitable zones of Sun-like stars. All occurrence
+        rates are uniformly scaled to produce this estimate.
+    R_min : float, optional
+        Minimum planet radius, in Earth units.
+    R_max : float, optional
+        Maximum planet radius, in Earth units.
+    P_min : float, optional
+        Minimum orbital period, in years.
+    P_max : float, optional
+        Maximum orbital period, in years.
+    normalize_SpT : bool, optional
+        If True, modulate occurrence rates by stellar mass according to Mulders+2015. Otherwise, assume no
+        dependency on stellar mass.
+    transit_mode : bool, optional
+        If True, only transiting planets are simulated. Occurrence rates are modified to reflect the R_*/a transit probability.
+    separate_m : bool, optional
+        If True, consider separate occurrence rate factors for early, mid, and late-type M dwarfs using the parameters emmult, mmmult, and lmmult.
+    fmult: int, optional
+        Multiplicative occurrence rate factor for F-type stars.
+    gmult: int, optional
+        Multiplicative occurrence rate factor for G-type stars.
+    kmult: int, optional
+        Multiplicative occurrence rate factor for K-type stars.
+    mmult: int, optional
+        Multiplicative occurrence rate factor for M-type stars.
+    emmult: int, optional
+        Multiplicative occurrence rate factor for early M-type stars.
+    mmmult: int, optional
+        Multiplicative occurrence rate factor for mid M-type stars.
+    lmmult: int, optional
+        Multiplicative occurrence rate factor for late M-type stars.    
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets. Replaces the input Table.
+    """
+
+    # SAG13 power law parameters
+    R_break = 3.4
+    gamma = [0.38, 0.73]
+    alpha = [-0.19, -1.18]
+    beta = [0.26, 0.59]
+
+    # Compute the scaling factors for planet count and period based on Mulders+2015
+    x_M, y_N, y_P = compute_occurrence_custom(separate_m, fmult, gmult, kmult, mmult, emmult, mmmult, lmmult)
+
+    if transit_mode:
+        beta = np.array(beta) - (2/3)
+        gamma = np.array(gamma) / 215
+
+    # Set up the probability grid in R and P
+    lnx = np.linspace(np.log(R_min), np.log(R_max), 100)
+    lny = np.linspace(np.log(P_min), np.log(P_max), 100)
+    lnxv, lnyv = np.meshgrid(lnx, lny)
+    dN = gamma[0]*(np.exp(lnxv)**alpha[0])*(np.exp(lnyv)**beta[0])
+    dN2 = gamma[1]*(np.exp(lnxv)**alpha[1])*(np.exp(lnyv)**beta[1])
+    dN[lnxv>np.log(R_break)] = dN2[lnxv>np.log(R_break)]
+
+    # Multiplicative factor to increase/reduce eta Earth versus the SAG13 value
+    eta_Earth_0 = 0.24
+    dilution = 1 if eta_Earth is None else eta_Earth_0 / eta_Earth
+
+    # Determine the number of planets for each star by integrating the
+    # occurrence rates and modulating for spectral type
+    eta = dN.sum() * (lnx[1]-lnx[0]) * (lny[1]-lny[0]) / dilution
+    if normalize_SpT:
+        eta = eta * np.interp(d['M_st'], x_M, y_N)
+    if transit_mode:
+        eta = eta * d['R_st'] * d['M_st']**(-1/3)
+    N_pl = eta.astype(int)
+
+    # Allow some stars an extra planet (e.g. if eta = 2.2 then 20% of those stars will have 3 planets)
+    N_pl += np.random.uniform(0, 1, len(d)) < (eta - eta.astype(int))
+
+    # Draw a (radius, period) for each planet in proportion to dN
+    Pflat, lnRflat, lnPflat = dN.flatten()/dN.sum(), lnxv.flatten(), lnyv.flatten()
+    idx = np.random.choice(np.arange(len(Pflat)), p=Pflat, size=N_pl.sum())
+    lnR, lnP = lnRflat[idx], lnPflat[idx]
+
+    # "Smooth" the drawn values to prevent aliasing on the grid values
+    dlnR, dlnP = lnx[1]-lnx[0], lny[1]-lny[0]
+    lnR = np.random.uniform(lnR-dlnR/2., lnR+dlnR/2.)
+    lnP = np.random.uniform(lnP-dlnP/2., lnP+dlnP/2.)
+
+    # Expand the current table to match the number of planets, keeping the host star properties
+    d = d[np.repeat(d['starID'], N_pl).astype(int)]
+    d['planetID'] = np.arange(len(d))
+    d['N_pl'] = np.repeat(N_pl, N_pl).astype(int)
+
+    # Determine the order of the planet in the system (not necessarily by period)
+    d['order'] = util.get_order(N_pl)
+
+    # Radius (R_Earth), period (d)
+    P_yr = np.exp(lnP)
+    d['R'] = np.exp(lnR)
+    d['P'] = P_yr*CONST['yr_to_day']
+
+    # Modulate the period based on spectral type
+    if normalize_SpT:
+        d['P'] *= np.interp(d['M_st'], x_M, y_P)
+
+    # Compute semi-major axis and insolation
+    d.compute('a')
+    d.compute('S')
+
+    return d
+
+def compute_occurrence_custom(separate_m=False, fmult=1, gmult=1, kmult=1, mmult=1, emmult=1, mmmult=1, lmmult=1, N_pts=30):
+    """ Determines the multiplier for occurrence rates and planet periods as a function of stellar mass.
+    
+    separate_m : bool, optional
+        If True, consider separate occurrence rate factors for early, mid, and late-type M dwarfs using the parameters emmult, mmmult, and lmmult.
+    fmult: int, optional
+        Multiplicative occurrence rate factor for F-type stars.
+    gmult: int, optional
+        Multiplicative occurrence rate factor for G-type stars.
+    kmult: int, optional
+        Multiplicative occurrence rate factor for K-type stars.
+    mmult: int, optional
+        Multiplicative occurrence rate factor for M-type stars.
+    emmult: int, optional
+        Multiplicative occurrence rate factor for early M-type stars.
+    mmmult: int, optional
+        Multiplicative occurrence rate factor for mid M-type stars.
+    lmmult: int, optional
+        Multiplicative occurrence rate factor for late M-type stars. 
+    N_pts: int, optional
+        Number of points over which to interpolate a grid of masses.
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets. Replaces the input Table.
+    """
+    
+    # Scaling factors for spectral type (Mulders+2015, Table 1 and Figure 4)
+    M_st_0 = [0.245, 0.671, 0.943, 1.245] # updated values based on GCNS catalog median for M, K, G, and F masses, respectively
+    # M_st_0 = [0.17, 0.69, 0.97, 1.43] # Values from bioverse 1.0
+    f_N = 1/np.array([0.35, 0.55, 0.75, 1.0])
+    f_a = 1/np.array([1.6, 1.4, 1.2, 1.0])
+
+
+    # # Edit the M star point to be 3.5x solar
+    # f_N[0] = 3.5 * f_N[2]
+    
+    # Edit the FGKM values with multiplicative factors
+    f_N[0] = mmult * f_N[0]
+    f_N[1] = kmult * f_N[1]
+    f_N[2] = gmult * f_N[2]
+    f_N[3] = fmult * f_N[3]
+
+    # Separate occurrence rates for early, mid, and late M dwarfs
+    if separate_m:
+        f_N[0] = mmmult * f_N[0]
+        M_st_0 = np.append([0.085,0.50], M_st_0)
+        f_N = np.append([lmmult*f_N[0],emmult*f_N[0]], f_N)
+        f_a = np.append([f_a[0],f_a[0]], f_a)
+        
+    # # In the "optimistic" case, assume TRAPPIST-1 analogs (M = 0.08) have 5x as many planets as the typical Kepler star
+    # if optimistic:
+    #     # Add a 0.8 solar mass point with 10x as many planets as solar type stars
+    #     M_st_0 = np.append([0.08], M_st_0)
+    #     f_N = np.append([optimistic_factor*f_N[0]], f_N)
+    #     f_a = np.append([f_a[0]], f_a)
+
+    # Fit a second-order polynomial to f_N and f_a
+    p_N = np.polyfit(M_st_0, f_N, deg=2)
+    p_a = np.polyfit(M_st_0, f_a, deg=2)
+
+    # Evaluate over a grid of masses and convert semi-major axis to period
+    x = np.logspace(np.log10(0.05), np.log10(2), N_pts)
+    #y_N = np.polyval(p_N, x)
+    #y_P = np.polyval(p_a, x)**1.5
+    y_N = np.interp(x, M_st_0, f_N)
+    y_P = np.interp(x, M_st_0, f_a)**1.5
+
+    # Normalize these factors so that y = 1 for the typical Kepler planet host
+    # (M ~ 0.965 per Kopparapu+2018)
+    M_st_typ = 0.965
+    #y_N /= np.polyval(p_N, M_st_typ)
+    #y_P /= np.polyval(p_a, M_st_typ)**1.5
+    y_N /= np.interp(M_st_typ, M_st_0, f_N)
+    y_P /= np.interp(M_st_typ, M_st_0, f_a)**1.5
+
+    return x, y_N, y_P
+
+def create_planet_per_star(d, R_min=0.5, R_max=14.3):
+    """ Generates a single planet for each star with a radius drawn from a uniform distribution between R_min and R_max
+
+    Parameters
+    ----------
+    d : Table
+        Table containing simulated host stars.
+    R_min : float, optional
+        Minimum planet radius, in Earth units.
+    R_max : float, optional
+        Maximum planet radius, in Earth units.
+    
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets. Replaces the input Table.
+    """
+
+    d['R'] = np.random.uniform(R_min,R_max,len(d))    
+
+    return d
+
 def name_planets(d):
     """ Assign a name to each star and each planet based on its order in the system.
     
@@ -881,6 +1119,742 @@ def compute_habitable_zone_boundaries(d):
     #d['zone'] = zones
 
     return d
+
+def compute_habitable_zone_boundaries_all_stars(d):
+    """ Computes the habitable zone boundaries from Kopparapu et al. (2014), including
+    dependence on planet mass.
+
+    Parameters
+    ----------
+    d : Table
+        Table containing the sample of simulated planets.
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets.
+    """
+    L,T_eff = d['L_st'],d['T_eff_st']
+    M_pl = d['M']
+    
+    # Parameters for each planet mass and boundary (Table 1)
+    M_ref = np.array([0.1,1.,5.])
+    S_eff_sol = np.array([[1.776,0.99,0.356,0.32],
+                          [1.776,1.107,0.356,0.32],
+                          [1.776,1.188,0.356,0.32]])
+    a = np.array([[2.136e-4,1.209e-4,6.171e-5,5.547e-5],
+                  [2.136e-4,1.332e-4,6.171e-5,5.547e-5],
+                  [2.136e-4,1.433e-4,6.171e-5,5.547e-5]])
+    b = np.array([[2.533e-5,1.404e-8,1.698e-9,1.526e-9],
+                  [2.533e-5,1.58e-8,1.698e-9,1.526e-9],
+                  [2.533e-5,1.707e-8,1.698e-9,1.526e-9]])
+    c = np.array([[-1.332e-11,-7.418e-12,-3.198e-12,-2.874e-12],
+                  [-1.332e-11,-8.308e-12,-3.198e-12,-2.874e-12],
+                  [-1.332e-11,-8.968e-12,-3.198e-12,-2.874e-12]])
+    d2 = np.array([[-3.097e-15,-1.713e-15,-5.575e-16,-5.011e-16],
+                  [-3.097e-15,-1.931e-15,-5.575e-16,-5.011e-16],
+                  [-3.097e-15,-2.084e-15,-5.575e-16,-5.011e-16]])
+    
+    # Interpolate in mass to estimate the constant values for each planet
+    S_eff_sol0 = np.array([np.interp(M_pl,M_ref,S_eff_sol[:,i]) for i in range(len(S_eff_sol[0]))])
+    a = np.array([np.interp(M_pl,M_ref,a[:,i]) for i in range(len(a[0]))])
+    b = np.array([np.interp(M_pl,M_ref,b[:,i]) for i in range(len(b[0]))])
+    c = np.array([np.interp(M_pl,M_ref,c[:,i]) for i in range(len(c[0]))])
+    d2 = np.array([np.interp(M_pl,M_ref,d2[:,i]) for i in range(len(d2[0]))])
+    
+    # Calculate the effective stellar flux at each boundary (Equation 4)
+    T_st = T_eff-5780.
+    S_eff = S_eff_sol0+a*T_st+b*T_st**2+c*T_st**3+d2*T_st**4
+    
+    # The corresponding distances in AU (stars with T_eff > 7200 K are not habitable so d = inf)
+    Tm = T_eff<7200
+    dist = (L/S_eff)**0.5
+    dist[:,~Tm] = np.inf
+
+    # Inner, outer HZ bounds for each planet
+    d_in,d_out = dist[1],dist[2]
+    d['a_inner'],d['a_outer'] = d_in,d_out
+    d['S_inner'],d['S_outer'] = S_eff[1],S_eff[2]
+
+    # Compute semi-major axis, eccentricity, mean anomaly, longitude of ascending node, and longitude of periapsis
+    semi = []
+    for i in range(len(d_in)):
+        if (d_in[i]==np.inf) or (d_out[i]==np.inf):
+            semi.append(np.inf)
+        else:
+            semi.append(np.exp(np.random.uniform(np.log(d_in[i]),np.log(d_out[i]),1)[0]))
+
+    d['a'] = semi
+    d['e'] = np.random.beta(0.867,3.03,size=len(d))
+    d['e'][d['e']>0.8] = np.random.uniform(0,0.8,(d['e']>0.8).sum())
+    d['M0'],d['w_LAN'],d['w_AP'] = np.random.uniform(0,2*np.pi,(3,len(d)))
+
+    # Compute geometric transit probability, period, and transit duration, assuming a planet in the middle of the habitable zone.
+    midhab = d['a']*const.au.value
+    d['GeoTrProb'] = 100*((d['R_st']*const.R_sun.value+d['R']*const.R_earth.value)/midhab)*((1+d['e']*np.sin(d['w_AP']))/(1-d['e']**2))
+    d['P'] = np.sqrt((4*np.pi**2*midhab**3)/(const.G.value*(d['M_st']*const.M_sun.value+d['M']*const.M_earth.value)))/86400
+    d['T_dur'] = (d['P']*24/np.pi)*np.arcsin(d['GeoTrProb']/100)
+        
+    # Compute the mean semi-major axis
+    d['a0'] = d['a']/(1-d['e']**2)**0.5
+
+    # By default planets are in the 'None' zone
+    zones = np.full(len(d),'None',dtype='<U20')
+    
+    # Kopparapu+2014 limits
+    zones[d['a0']<=d['a_inner']] = 'runaway'
+    zones[d['a0']>=d['a_outer']] = 'maximum'
+    zones[(d['a0']>d['a_inner'])&(d['a0']<d['a_outer'])] = 'temperate'
+    
+    # Kane+2014 "Venus zone" inner edge (also e.g. Zahnle+2013)
+    #zones[d['S']>25] = 'hot'
+
+    #d['zone'] = zones
+
+    return d
+
+def transit_obs(d, R_min=0.5, R_max=14.3, baseline=1.0, frac_transit=1.0, res=100000):
+    """ computes.
+
+    Parameters
+    ----------
+    d : Table
+        Table containing host stars.
+    R_min : float, optional
+        Minimum planet radius, in Earth units.
+    R_max : float, optional
+        Maximum planet radius, in Earth units.
+    baseline : float, optional
+        Transit baseline (pre or post, number will be doubled), in hours.
+    frac_transit : float, optional
+        Fraction of transit that needs to be observed. 
+    res : int, optional
+        Resolution of spectrograph. Current options are 100000 and 500000
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of stars with computed number of transits per year at ELTs.  
+    """
+
+    today = date.today()
+    # astropy.coordinates.EarthLocation.get_site_names()
+    gmt = Observer(longitude=-70.6830*u.deg, latitude=-29.0482*u.deg, elevation=2516*u.m, name="gmt", timezone="America/Santiago")
+    elt = Observer(longitude=-70.1919*u.deg, latitude=-24.5894*u.deg, elevation=3046*u.m, name="elt", timezone="America/Santiago")
+    tmt = Observer(longitude=-155.4816*u.deg, latitude=19.8327*u.deg, elevation=4050*u.m, name="tmt", timezone='US/Hawaii')
+
+    gmt_tr_obs = []
+    elt_tr_obs = []
+    tmt_tr_obs = []
+    gmt_tr_obs_a = []
+    elt_tr_obs_a = []
+    tmt_tr_obs_a = []
+    gmt_tr_obs_ir = []
+    elt_tr_obs_ir = []
+    tmt_tr_obs_ir = []
+    gmt_tr_obs_air = []
+    elt_tr_obs_air = []
+    tmt_tr_obs_air = []
+    gmt_tr_obs_airw = []
+    elt_tr_obs_airw = []
+    tmt_tr_obs_airw = []
+    n_tr_yr = []
+    for i in tqdm(range(len(d))):
+        # print(d['ra'][i])
+        coord = SkyCoord(ra=d['ra'][i]*u.deg, dec=d['dec'][i]*u.deg)
+        target = FixedTarget(coord=coord, name=str(d['star_name'][i]))
+
+        # obs_time = Time('2027-01-01 12:00')
+        
+        nobs = []
+        nobs1 = []
+        nobs2 = []
+        nobsa = []
+        nobs1a = []
+        nobs2a = []
+        nobsir = []
+        nobs1ir = []
+        nobs2ir = []
+        nobsair = []
+        nobs1air = []
+        nobs2air = []
+        ntr = []
+        rel_vel = []
+        for j in range(100):
+            rand = 365*np.random.random(1)
+            obs_time = Time(2462137.5+rand, format='jd') # 2462137.5 is 2029-01-01 (approximate time 1 or 2 ELTs will be in operation)
+            try:
+                midhab = np.exp(np.random.uniform(np.log(d['a_inner'][i]),np.log(d['a_outer'][i]),1))*const.au.value
+                earth = np.random.uniform(R_min,R_max,1)*const.R_earth.value
+                ecc = np.random.beta(0.867,3.03,size=1)
+                if ecc>0.8:
+                    ecc=np.random.uniform(0,0.8,1)
+                else:
+                    ecc=ecc
+                omega = np.random.uniform(0,2*np.pi,1)
+                prob = 100*((d['R_st'][i]*const.R_sun.value+earth)/midhab)*((1+ecc*np.sin(omega))/(1-ecc**2))
+                per = (np.sqrt((4*np.pi**2*midhab**3)/(const.G.value*(d['M_st'][i]*const.M_sun.value+const.M_earth.value)))/86400)
+                tdur = ((per*24/np.pi)*np.arcsin(prob/100))
+                orbital_period = per * u.day
+                eclipse_duration = (tdur+2.0*baseline)* u.hour
+                n_transits = int(365/per) # This is the roughly number of transits per year
+                ntr.append(n_transits)
+            except:
+                ntr.append(0)
+
+            rand = 365*np.random.random(1)
+            primary_eclipse_time = Time(Time.now()+rand, format='jd')
+            obj0 = EclipsingSystem(primary_eclipse_time=primary_eclipse_time,
+                                       orbital_period=orbital_period, duration=eclipse_duration*frac_transit,
+                                       name=str(d['star_name'][i]))
+            midtransit_times = obj0.next_primary_eclipse_time(obs_time, n_eclipses=n_transits)
+            # print(ecc,omega,per,prob,tdur,eclipse_duration)
+            constraints = [AtNightConstraint.twilight_nautical(),
+                           AltitudeConstraint(min=30*u.deg)]
+            ing_egr = obj0.next_primary_ingress_egress_time(obs_time, n_eclipses=n_transits)
+            solar_system_ephemeris.set('jpl') 
+            theta = np.deg2rad(get_body('sun',obs_time).ra.value)
+            phi = np.deg2rad(d['helio_ecl_lat'][i])
+            v_sun = d['RV'][i]
+            v_earth = 29.78 # km/s
+            v_star = v_sun+v_earth*np.sin(theta)*np.cos(phi)
+            # print(v_star)
+            # rel_vel.append(v_star)
+
+            try:
+                obs = is_event_observable(constraints, tmt, target, times_ingress_egress=ing_egr)
+                nobs.append(np.nansum(obs))
+            except:
+                nobs.append(0)
+            try:
+                obs1 = is_event_observable(constraints, gmt, target, times_ingress_egress=ing_egr)
+                nobs1.append(np.nansum(obs1))
+            except:
+                nobs1.append(0)
+            try:
+                obs2 = is_event_observable(constraints, elt, target, times_ingress_egress=ing_egr)
+                nobs2.append(np.nansum(obs2))
+            except:
+                nobs2.append(0)
+            if res==100000:
+                vs0=13
+                vs1=55
+                vs2=30
+                vs3=4
+                vs4=83
+                vs5=68
+            elif res==500000:
+                vs0=10
+                vs1=48
+                vs2=40
+                vs3=2
+                vs4=2
+                vs5=0
+            else:
+                print("You have entered an unsupported spectral resolution. Please select either 100000 or 500000 and try again! Good bye.")
+                sys.exit()
+            if (np.abs(v_star)<vs0):#15
+                nobsa.append(0)
+                nobs1a.append(0)
+                nobs2a.append(0)
+            elif (np.abs(v_star)<vs1 and np.abs(v_star)>vs2):#50,40
+                nobsa.append(0)
+                nobs1a.append(0)
+                nobs2a.append(0)
+            else:
+                try:
+                    obs = is_event_observable(constraints, tmt, target, times_ingress_egress=ing_egr)
+                    nobsa.append(np.nansum(obs))
+                except:
+                    nobsa.append(0)
+                try:
+                    obs1 = is_event_observable(constraints, gmt, target, times_ingress_egress=ing_egr)
+                    nobs1a.append(np.nansum(obs1))
+                except:
+                    nobs1a.append(0)
+                try:
+                    obs2 = is_event_observable(constraints, elt, target, times_ingress_egress=ing_egr)
+                    nobs2a.append(np.nansum(obs2))
+                except:
+                    nobs2a.append(0)
+            if (np.abs(v_star)<vs3):#10
+                nobsir.append(0)
+                nobs1ir.append(0)
+                nobs2ir.append(0)
+            elif (np.abs(v_star)<vs4 and np.abs(v_star)>vs5):
+                nobsir.append(0)
+                nobs1ir.append(0)
+                nobs2ir.append(0)
+            else:
+                try:
+                    obs = is_event_observable(constraints, tmt, target, times_ingress_egress=ing_egr)
+                    nobsir.append(np.nansum(obs))
+                except:
+                    nobsir.append(0)
+                try:
+                    obs1 = is_event_observable(constraints, gmt, target, times_ingress_egress=ing_egr)
+                    nobs1ir.append(np.nansum(obs1))
+                except:
+                    nobs1ir.append(0)
+                try:
+                    obs2 = is_event_observable(constraints, elt, target, times_ingress_egress=ing_egr)
+                    nobs2ir.append(np.nansum(obs2))
+                except:
+                    nobs2ir.append(0)
+            if (np.abs(v_star)<vs0):
+                nobsair.append(0)
+                nobs1air.append(0)
+                nobs2air.append(0)
+            elif (np.abs(v_star)<vs1 and np.abs(v_star)>vs2):
+                nobsair.append(0)
+                nobs1air.append(0)
+                nobs2air.append(0)
+            elif (np.abs(v_star)<vs4 and np.abs(v_star)>vs5):
+                nobsair.append(0)
+                nobs1air.append(0)
+                nobs2air.append(0)
+            else:
+                try:
+                    obs = is_event_observable(constraints, tmt, target, times_ingress_egress=ing_egr)
+                    nobsair.append(np.nansum(obs))
+                except:
+                    nobsair.append(0)
+                try:
+                    obs1 = is_event_observable(constraints, gmt, target, times_ingress_egress=ing_egr)
+                    nobs1air.append(np.nansum(obs1))
+                except:
+                    nobs1air.append(0)
+                try:
+                    obs2 = is_event_observable(constraints, elt, target, times_ingress_egress=ing_egr)
+                    nobs2air.append(np.nansum(obs2))
+                except:
+                    nobs2air.append(0)
+        
+        try:
+            n_tr_yr.append(int(np.nanmean(ntr)))
+        except:
+            n_tr_yr.append(0)
+        try:    
+            tmt_tr_obs.append(np.nanmean(nobs))
+        except:
+            tmt_tr_obs.append(0)
+        try:
+            gmt_tr_obs.append(np.nanmean(nobs1))
+        except:
+            gmt_tr_obs.append(0)
+        try:
+            elt_tr_obs.append(np.nanmean(nobs2))
+        except:
+            elt_tr_obs.append(0)
+        try:    
+            tmt_tr_obs_a.append(np.nanmean(nobsa))
+        except:
+            tmt_tr_obs_a.append(0)
+        try:
+            gmt_tr_obs_a.append(np.nanmean(nobs1a))
+        except:
+            gmt_tr_obs_a.append(0)
+        try:
+            elt_tr_obs_a.append(np.nanmean(nobs2a))
+        except:
+            elt_tr_obs_a.append(0)
+        try:    
+            tmt_tr_obs_ir.append(np.nanmean(nobsir))
+        except:
+            tmt_tr_obs_ir.append(0)
+        try:
+            gmt_tr_obs_ir.append(np.nanmean(nobs1ir))
+        except:
+            gmt_tr_obs_ir.append(0)
+        try:
+            elt_tr_obs_ir.append(np.nanmean(nobs2ir))
+        except:
+            elt_tr_obs_ir.append(0)
+        try:    
+            tmt_tr_obs_air.append(np.nanmean(nobsair))
+        except:
+            tmt_tr_obs_air.append(0)
+        try:
+            gmt_tr_obs_air.append(np.nanmean(nobs1air))
+        except:
+            gmt_tr_obs_air.append(0)
+        try:
+            elt_tr_obs_air.append(np.nanmean(nobs2air))
+        except:
+            elt_tr_obs_air.append(0)
+
+    d['n_tr_yr'] = n_tr_yr
+    d['gmt_tr_obs'] = gmt_tr_obs
+    d['elt_tr_obs'] = elt_tr_obs
+    d['tmt_tr_obs'] = tmt_tr_obs
+    d['gmt_tr_obs_a'] = gmt_tr_obs_a
+    d['elt_tr_obs_a'] = elt_tr_obs_a
+    d['tmt_tr_obs_a'] = tmt_tr_obs_a
+    d['gmt_tr_obs_ir'] = gmt_tr_obs_ir
+    d['elt_tr_obs_ir'] = elt_tr_obs_ir
+    d['tmt_tr_obs_ir'] = tmt_tr_obs_ir
+    d['gmt_tr_obs_air'] = gmt_tr_obs_air
+    d['elt_tr_obs_air'] = elt_tr_obs_air
+    d['tmt_tr_obs_air'] = tmt_tr_obs_air
+    # d['gmt_tr_obs_airw'] = d['gmt_tr_obs_air']*300/365
+    # d['elt_tr_obs_airw'] = d['elt_tr_obs_air']*320/365
+    # d['tmt_tr_obs_airw'] = d['tmt_tr_obs_air']*315/365
+    # d['gmt_tr_obs_w'] = d['gmt_tr_obs']*300/365
+    # d['elt_tr_obs_w'] = d['elt_tr_obs']*320/365
+    # d['tmt_tr_obs_w'] = d['tmt_tr_obs']*315/365
+    # d['tr_tot_airw'] = np.round(d['gmt_tr_obs_airw'])+np.round(d['elt_tr_obs_airw'])+np.round(d['tmt_tr_obs_airw'])
+
+    return d
+
+def transit_obs_eta_sim(d, R_min=0.5, R_max=14.3, baseline=1.0, frac_transit=1.0, eta=0.16, eta_up=0.17, eta_dn=0.07, sims=100, res=100000):
+    """ computes.
+
+    Parameters
+    ----------
+    df : Table
+        Table containing host stars.
+    R_min : float, optional
+        Minimum planet radius, in Earth units.
+    R_max : float, optional
+        Maximum planet radius, in Earth units.
+    baseline : float, optional
+        Transit baseline (pre or post, number will be doubled), in hours.
+    frac_transit : float, optional
+        Fraction of transit that needs to be observed.
+    res : int, optional
+        Resolution of spectrograph. Current options are 100000 and 500000
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of stars with computed number of transits per year at ELTs.  
+    """
+    import random
+    df = pd.DataFrame(list(d.values())).T
+    df.columns=d.keys()
+
+    def splitnorm(med, plus, minus, size):
+        up = np.sort(np.random.normal(med, plus, size=2*size))
+        dn = np.sort(np.random.normal(med, minus, size=2*size))
+        up = up[size:2*size]
+        dn = dn[0:size]
+        spln = np.concatenate((dn,up))
+        spln = np.random.choice(spln, size=size, replace=False)
+        return spln
+    
+    
+    for k in tqdm(range(sims)):
+    
+        eem = splitnorm(eta,eta_up,eta_dn,10000)
+        em = random.choice(eem)
+        if em<0:
+            em=0
+            
+        d = df.sample(frac=em)
+        d.reset_index(inplace=True,drop=True)
+        # print(len(d))
+        gtp = []
+        for j in range(len(d)):
+            try:
+                midhab = np.exp(np.random.uniform(np.log(d.iloc[j]['a_inner']),np.log(d.iloc[j]['a_outer']),1))*const.au.value
+                earth = np.random.uniform(R_min,R_max,1)*const.R_earth.value
+                ecc = np.random.beta(0.867,3.03,size=1)
+                if ecc>0.8:
+                    ecc=np.random.uniform(0,0.8,1)
+                else:
+                    ecc=ecc
+                omega = np.random.uniform(0,2*np.pi,1)
+                gtp.append(list(((d.iloc[j]['R_st']*const.R_sun.value+earth)/midhab)*((1+ecc*np.sin(omega))/(1-ecc**2)))[0])
+            except:
+                gtp.append(np.nan)
+        # print(gtp)
+        f = np.nanmean(gtp)
+        # print(len(d))
+        if np.isnan(f):
+            f=0
+        d1 = d.sample(frac=f)
+        # print(len(d1))
+        d1 = d1[(d1['M_G']>9) & (d1['M_G']<15.5)]
+        d1.reset_index(inplace=True,drop=True)
+        # print(len(d1))
+        today = date.today()
+        # astropy.coordinates.EarthLocation.get_site_names()
+        gmt = Observer(longitude=-70.6830*u.deg, latitude=-29.0482*u.deg, elevation=2516*u.m, name="gmt", timezone="America/Santiago")
+        elt = Observer(longitude=-70.1919*u.deg, latitude=-24.5894*u.deg, elevation=3046*u.m, name="elt", timezone="America/Santiago")
+        tmt = Observer(longitude=-155.4816*u.deg, latitude=19.8327*u.deg, elevation=4050*u.m, name="tmt", timezone='US/Hawaii')
+
+        gmt_tr_obs = []
+        elt_tr_obs = []
+        tmt_tr_obs = []
+        gmt_tr_obs_a = []
+        elt_tr_obs_a = []
+        tmt_tr_obs_a = []
+        gmt_tr_obs_ir = []
+        elt_tr_obs_ir = []
+        tmt_tr_obs_ir = []
+        gmt_tr_obs_air = []
+        elt_tr_obs_air = []
+        tmt_tr_obs_air = []
+        gmt_tr_obs_airw = []
+        elt_tr_obs_airw = []
+        tmt_tr_obs_airw = []
+        n_tr_yr = []
+        nobs = []
+        nobs1 = []
+        nobs2 = []
+        nobsa = []
+        nobs1a = []
+        nobs2a = []
+        nobsir = []
+        nobs1ir = []
+        nobs2ir = []
+        nobsair = []
+        nobs1air = []
+        nobs2air = []
+        ntr = []
+        rel_vel = []
+        for i in range(len(d1)):
+            # print(d1.iloc[i]['ra'])
+            coord = SkyCoord(ra=d1.iloc[i]['ra']*u.deg, dec=d1.iloc[i]['dec']*u.deg)
+            target = FixedTarget(coord=coord, name=str(d1.iloc[i]['star_name']))
+
+            # obs_time = Time('2027-01-01 12:00')
+
+            
+            # for j in range(100):
+            rand = 365*np.random.random(1)
+            obs_time = Time(2462137.5+rand, format='jd') # 2462137.5 is 2029-01-01 (approximate time 1 or 2 ELTs will be in operation)
+            try:
+                midhab = np.exp(np.random.uniform(np.log(d1.iloc[i]['a_inner']),np.log(d1.iloc[i]['a_outer']),1))*const.au.value
+                earth = np.random.uniform(R_min,R_max,1)*const.R_earth.value
+                ecc = np.random.beta(0.867,3.03,size=1)
+                if ecc>0.8:
+                    ecc=np.random.uniform(0,0.8,1)
+                else:
+                    ecc=ecc
+                omega = np.random.uniform(0,2*np.pi,1)
+                prob = 100*((d1.iloc[i]['R_st']*const.R_sun.value+earth)/midhab)*((1+ecc*np.sin(omega))/(1-ecc**2))
+                per = (np.sqrt((4*np.pi**2*midhab**3)/(const.G.value*(d1.iloc[i]['M_st']*const.M_sun.value+d1.iloc[i]['M']*const.M_earth.value)))/86400)
+                tdur = ((per*24/np.pi)*np.arcsin(prob/100))
+                orbital_period = per * u.day
+                eclipse_duration = (tdur+2.0*baseline)* u.hour
+                n_transits = int(365/per) # This is the roughly number of transits per year
+                ntr.append(n_transits)
+            except:
+                ntr.append(0)
+
+            rand = 365*np.random.random(1)
+            primary_eclipse_time = Time(Time.now()+rand, format='jd')
+            obj0 = EclipsingSystem(primary_eclipse_time=primary_eclipse_time,
+                                       orbital_period=orbital_period, duration=eclipse_duration*frac_transit,
+                                       name=str(d1.iloc[i]['star_name']))
+            midtransit_times = obj0.next_primary_eclipse_time(obs_time, n_eclipses=n_transits)
+            # print(ecc,omega,per,prob,tdur,eclipse_duration)
+            constraints = [AtNightConstraint.twilight_nautical(),
+                           AltitudeConstraint(min=30*u.deg)]
+            ing_egr = obj0.next_primary_ingress_egress_time(obs_time, n_eclipses=n_transits)
+            solar_system_ephemeris.set('jpl') 
+            theta = np.deg2rad(get_body('sun',obs_time).ra.value)
+            phi = np.deg2rad(d1.iloc[i]['helio_ecl_lat'])
+            v_sun = d1.iloc[i]['RV']
+            v_earth = 29.78 # km/s
+            v_star = v_sun+v_earth*np.sin(theta)*np.cos(phi)
+            # print(v_star)
+            # rel_vel.append(v_star)
+
+            try:
+                obs = is_event_observable(constraints, tmt, target, times_ingress_egress=ing_egr)
+                nobs.append(np.nansum(obs))
+            except:
+                nobs.append(0)
+            try:
+                obs1 = is_event_observable(constraints, gmt, target, times_ingress_egress=ing_egr)
+                nobs1.append(np.nansum(obs1))
+            except:
+                nobs1.append(0)
+            try:
+                obs2 = is_event_observable(constraints, elt, target, times_ingress_egress=ing_egr)
+                nobs2.append(np.nansum(obs2))
+            except:
+                nobs2.append(0)
+            if res==100000:
+                vs0=13
+                vs1=55
+                vs2=30
+                vs3=4
+                vs4=83
+                vs5=68
+            elif res==500000:
+                vs0=10
+                vs1=48
+                vs2=40
+                vs3=2
+                vs4=2
+                vs5=0
+            else:
+                print("You have entered an unsupported spectral resolution. Please select either 100000 or 500000 and try again! Good bye.")
+                sys.exit()
+            if (np.abs(v_star)<vs0):#15
+                nobsa.append(0)
+                nobs1a.append(0)
+                nobs2a.append(0)
+            elif (np.abs(v_star)<vs1 and np.abs(v_star)>vs2):
+                nobsa.append(0)
+                nobs1a.append(0)
+                nobs2a.append(0)
+            else:
+                try:
+                    obs = is_event_observable(constraints, tmt, target, times_ingress_egress=ing_egr)
+                    nobsa.append(np.nansum(obs))
+                except:
+                    nobsa.append(0)
+                try:
+                    obs1 = is_event_observable(constraints, gmt, target, times_ingress_egress=ing_egr)
+                    nobs1a.append(np.nansum(obs1))
+                except:
+                    nobs1a.append(0)
+                try:
+                    obs2 = is_event_observable(constraints, elt, target, times_ingress_egress=ing_egr)
+                    nobs2a.append(np.nansum(obs2))
+                except:
+                    nobs2a.append(0)
+            if (np.abs(v_star)<vs3):#10
+                nobsir.append(0)
+                nobs1ir.append(0)
+                nobs2ir.append(0)
+            elif (np.abs(v_star)<vs4 and np.abs(v_star)>vs5):
+                nobsir.append(0)
+                nobs1ir.append(0)
+                nobs2ir.append(0)
+            else:
+                try:
+                    obs = is_event_observable(constraints, tmt, target, times_ingress_egress=ing_egr)
+                    nobsir.append(np.nansum(obs))
+                except:
+                    nobsir.append(0)
+                try:
+                    obs1 = is_event_observable(constraints, gmt, target, times_ingress_egress=ing_egr)
+                    nobs1ir.append(np.nansum(obs1))
+                except:
+                    nobs1ir.append(0)
+                try:
+                    obs2 = is_event_observable(constraints, elt, target, times_ingress_egress=ing_egr)
+                    nobs2ir.append(np.nansum(obs2))
+                except:
+                    nobs2ir.append(0)
+            if (np.abs(v_star)<vs0):
+                nobsair.append(0)
+                nobs1air.append(0)
+                nobs2air.append(0)
+            elif (np.abs(v_star)<vs1 and np.abs(v_star)>vs2):
+                nobsair.append(0)
+                nobs1air.append(0)
+                nobs2air.append(0)
+            elif (np.abs(v_star)<vs4 and np.abs(v_star)>vs5):
+                nobsair.append(0)
+                nobs1air.append(0)
+                nobs2air.append(0)
+            else:
+                try:
+                    obs = is_event_observable(constraints, tmt, target, times_ingress_egress=ing_egr)
+                    nobsair.append(np.nansum(obs))
+                except:
+                    nobsair.append(0)
+                try:
+                    obs1 = is_event_observable(constraints, gmt, target, times_ingress_egress=ing_egr)
+                    nobs1air.append(np.nansum(obs1))
+                except:
+                    nobs1air.append(0)
+                try:
+                    obs2 = is_event_observable(constraints, elt, target, times_ingress_egress=ing_egr)
+                    nobs2air.append(np.nansum(obs2))
+                except:
+                    nobs2air.append(0)
+            # print(ntr)
+            try:
+                n_tr_yr.append(int(np.nanmean(ntr)))
+            except:
+                n_tr_yr.append(0)
+            try:    
+                tmt_tr_obs.append(np.nanmean(nobs))
+            except:
+                tmt_tr_obs.append(0)
+            try:
+                gmt_tr_obs.append(np.nanmean(nobs1))
+            except:
+                gmt_tr_obs.append(0)
+            try:
+                elt_tr_obs.append(np.nanmean(nobs2))
+            except:
+                elt_tr_obs.append(0)
+            try:    
+                tmt_tr_obs_a.append(np.nanmean(nobsa))
+            except:
+                tmt_tr_obs_a.append(0)
+            try:
+                gmt_tr_obs_a.append(np.nanmean(nobs1a))
+            except:
+                gmt_tr_obs_a.append(0)
+            try:
+                elt_tr_obs_a.append(np.nanmean(nobs2a))
+            except:
+                elt_tr_obs_a.append(0)
+            try:    
+                tmt_tr_obs_ir.append(np.nanmean(nobsir))
+            except:
+                tmt_tr_obs_ir.append(0)
+            try:
+                gmt_tr_obs_ir.append(np.nanmean(nobs1ir))
+            except:
+                gmt_tr_obs_ir.append(0)
+            try:
+                elt_tr_obs_ir.append(np.nanmean(nobs2ir))
+            except:
+                elt_tr_obs_ir.append(0)
+            try:    
+                tmt_tr_obs_air.append(np.nanmean(nobsair))
+            except:
+                tmt_tr_obs_air.append(0)
+            try:
+                gmt_tr_obs_air.append(np.nanmean(nobs1air))
+            except:
+                gmt_tr_obs_air.append(0)
+            try:
+                elt_tr_obs_air.append(np.nanmean(nobs2air))
+            except:
+                elt_tr_obs_air.append(0)
+        d1.reset_index(inplace=True,drop=True)
+        d1['n_tr_yr'] = pd.Series(n_tr_yr)
+        d1['gmt_tr_obs'] = pd.Series(gmt_tr_obs)
+        d1['elt_tr_obs'] = pd.Series(elt_tr_obs)
+        d1['tmt_tr_obs'] = pd.Series(tmt_tr_obs)
+        d1['gmt_tr_obsw'] = d1['gmt_tr_obs']*300/365
+        d1['elt_tr_obsw'] = d1['elt_tr_obs']*320/365
+        d1['tmt_tr_obsw'] = d1['tmt_tr_obs']*315/365
+        d1['gmt_tr_obs_a'] = pd.Series(gmt_tr_obs_a)
+        d1['elt_tr_obs_a'] = pd.Series(elt_tr_obs_a)
+        d1['tmt_tr_obs_a'] = pd.Series(tmt_tr_obs_a)
+        d1['gmt_tr_obs_aw'] = d1['gmt_tr_obs_a']*300/365
+        d1['elt_tr_obs_aw'] = d1['elt_tr_obs_a']*320/365
+        d1['tmt_tr_obs_aw'] = d1['tmt_tr_obs_a']*315/365
+        d1['gmt_tr_obs_ir'] = pd.Series(gmt_tr_obs_ir)
+        d1['elt_tr_obs_ir'] = pd.Series(elt_tr_obs_ir)
+        d1['tmt_tr_obs_ir'] = pd.Series(tmt_tr_obs_ir)
+        d1['gmt_tr_obs_irw'] = d1['gmt_tr_obs_ir']*300/365
+        d1['elt_tr_obs_irw'] = d1['elt_tr_obs_ir']*320/365
+        d1['tmt_tr_obs_irw'] = d1['tmt_tr_obs_ir']*315/365
+        d1['gmt_tr_obs_air'] = pd.Series(gmt_tr_obs_air)
+        d1['elt_tr_obs_air'] = pd.Series(elt_tr_obs_air)
+        d1['tmt_tr_obs_air'] = pd.Series(tmt_tr_obs_air)
+        d1['gmt_tr_obs_airw'] = d1['gmt_tr_obs_air']*300/365
+        d1['elt_tr_obs_airw'] = d1['elt_tr_obs_air']*320/365
+        d1['tmt_tr_obs_airw'] = d1['tmt_tr_obs_air']*315/365
+        d1['universe'] = pd.Series(np.ones(len(d1))*k)#np.round(d1['gmt_tr_obs_airw'])+np.round(d1['elt_tr_obs_airw'])+np.round(d1['tmt_tr_obs_airw'])
+        if k==0:
+            d2 = d1
+        else:
+            d2 = pd.concat([d2,d1])
+    return d2
 
 def scale_height(d):
     """ Computes the equilibrium temperature and isothermal scale height
