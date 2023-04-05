@@ -2,14 +2,11 @@
 
 # Python imports
 import os
-import sys
 import glob
 import numpy as np
 import pandas as pd
-import astropy
 import astropy.units as u
 import warnings
-import random
 
 from astropy import constants as const
 from astropy.coordinates import SkyCoord
@@ -900,80 +897,6 @@ def compute_habitable_zone_boundaries(d):
     d['a_inner'],d['a_outer'] = d_in,d_out
     d['S_inner'],d['S_outer'] = S_eff[1],S_eff[2]
 
-    # Compute the mean semi-major axis
-    d['a0'] = d['a']/(1-d['e']**2)**0.5
-
-    # By default planets are in the 'None' zone
-    zones = np.full(len(d),'None',dtype='<U20')
-    
-    # Kopparapu+2014 limits
-    zones[d['a0']<=d['a_inner']] = 'runaway'
-    zones[d['a0']>=d['a_outer']] = 'maximum'
-    zones[(d['a0']>d['a_inner'])&(d['a0']<d['a_outer'])] = 'temperate'
-    
-    # Kane+2014 "Venus zone" inner edge (also e.g. Zahnle+2013)
-    #zones[d['S']>25] = 'hot'
-
-    #d['zone'] = zones
-
-    return d
-
-def compute_habitable_zone_boundaries_all_stars(d):
-    """ Computes the habitable zone boundaries from Kopparapu et al. (2014), including
-    dependence on planet mass.
-
-    Parameters
-    ----------
-    d : Table
-        Table containing the sample of simulated planets.
-
-    Returns
-    -------
-    d : Table
-        Table containing the sample of simulated planets.
-    """
-    L,T_eff = d['L_st'],d['T_eff_st']
-    M_pl = d['M']
-    
-    # Parameters for each planet mass and boundary (Table 1)
-    M_ref = np.array([0.1,1.,5.])
-    S_eff_sol = np.array([[1.776,0.99,0.356,0.32],
-                          [1.776,1.107,0.356,0.32],
-                          [1.776,1.188,0.356,0.32]])
-    a = np.array([[2.136e-4,1.209e-4,6.171e-5,5.547e-5],
-                  [2.136e-4,1.332e-4,6.171e-5,5.547e-5],
-                  [2.136e-4,1.433e-4,6.171e-5,5.547e-5]])
-    b = np.array([[2.533e-5,1.404e-8,1.698e-9,1.526e-9],
-                  [2.533e-5,1.58e-8,1.698e-9,1.526e-9],
-                  [2.533e-5,1.707e-8,1.698e-9,1.526e-9]])
-    c = np.array([[-1.332e-11,-7.418e-12,-3.198e-12,-2.874e-12],
-                  [-1.332e-11,-8.308e-12,-3.198e-12,-2.874e-12],
-                  [-1.332e-11,-8.968e-12,-3.198e-12,-2.874e-12]])
-    d2 = np.array([[-3.097e-15,-1.713e-15,-5.575e-16,-5.011e-16],
-                  [-3.097e-15,-1.931e-15,-5.575e-16,-5.011e-16],
-                  [-3.097e-15,-2.084e-15,-5.575e-16,-5.011e-16]])
-    
-    # Interpolate in mass to estimate the constant values for each planet
-    S_eff_sol0 = np.array([np.interp(M_pl,M_ref,S_eff_sol[:,i]) for i in range(len(S_eff_sol[0]))])
-    a = np.array([np.interp(M_pl,M_ref,a[:,i]) for i in range(len(a[0]))])
-    b = np.array([np.interp(M_pl,M_ref,b[:,i]) for i in range(len(b[0]))])
-    c = np.array([np.interp(M_pl,M_ref,c[:,i]) for i in range(len(c[0]))])
-    d2 = np.array([np.interp(M_pl,M_ref,d2[:,i]) for i in range(len(d2[0]))])
-    
-    # Calculate the effective stellar flux at each boundary (Equation 4)
-    T_st = T_eff-5780.
-    S_eff = S_eff_sol0+a*T_st+b*T_st**2+c*T_st**3+d2*T_st**4
-    
-    # The corresponding distances in AU (stars with T_eff > 7200 K are not habitable so d = inf)
-    Tm = T_eff<7200
-    dist = (L/S_eff)**0.5
-    dist[:,~Tm] = np.inf
-
-    # Inner, outer HZ bounds for each planet
-    d_in,d_out = dist[1],dist[2]
-    d['a_inner'],d['a_outer'] = d_in,d_out
-    d['S_inner'],d['S_outer'] = S_eff[1],S_eff[2]
-
     # Compute semi-major axis, eccentricity, mean anomaly, longitude of ascending node, and longitude of periapsis
     semi = []
     for i in range(len(d_in)):
@@ -992,7 +915,7 @@ def compute_habitable_zone_boundaries_all_stars(d):
     d['GeoTrProb'] = 100*((d['R_st']*const.R_sun.value+d['R']*const.R_earth.value)/midhab)*((1+d['e']*np.sin(d['w_AP']))/(1-d['e']**2))
     d['P'] = np.sqrt((4*np.pi**2*midhab**3)/(const.G.value*(d['M_st']*const.M_sun.value+d['M']*const.M_earth.value)))/86400
     d['T_dur'] = (d['P']*24/np.pi)*np.arcsin(d['GeoTrProb']/100)
-        
+
     # Compute the mean semi-major axis
     d['a0'] = d['a']/(1-d['e']**2)**0.5
 
@@ -1010,6 +933,7 @@ def compute_habitable_zone_boundaries_all_stars(d):
     #d['zone'] = zones
 
     return d
+
 
 def scale_height(d):
     """ Computes the equilibrium temperature and isothermal scale height
