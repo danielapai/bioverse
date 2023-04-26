@@ -22,8 +22,7 @@ except ValueError:
     pass
 
 # Pyplot parameters
-plt.rcParams['font.size'] = 22
-labelfontsize = 28
+labelfontsize = 12
 
 def plot(d,starID=None,order=None,fig=None,canvas=None):
     show = fig is None
@@ -234,7 +233,7 @@ def plot_spectrum(x,y,dy=None,xunit=None,yunit=None,lw=2):
     plt.show()
 
 def occurrence_by_class(d,compare=True):
-    """ Plots the number of planets per star as a function of size and insolation. """
+    """ Plots the number of planets per star as a function of size and instellation. """
 
     # Boundary radii
     R0 = np.array([0.5,1.0,1.75,3.5,6.0,14.3])
@@ -252,12 +251,12 @@ def occurrence_by_class(d,compare=True):
               [0.07,0.08,0.90],
               [0.07,0.10,0.98]]
 
-    # First and second insolation boundaries
+    # First and second instellation boundaries
     R = np.linspace(min(R0),max(R0),100)
     S_inner = np.interp(R,R0,S0[1,:])
     S_outer = np.interp(R,R0,S0[2,:])
 
-    # Plot the boundaries in size and insolation
+    # Plot the boundaries in size and instellation
     fig,ax = plt.subplots(figsize=(8,6))
     for radius in R0:
         ax.axhline(radius,c='black',lw=2)
@@ -281,7 +280,7 @@ def occurrence_by_class(d,compare=True):
     ax.set_ylim([0.3,20])
     ax.set_xscale('log')
     ax.set_yscale('log')
-    ax.set_xlabel('Insolation ($S_\oplus$)',fontsize=labelfontsize)
+    ax.set_xlabel('Instellation ($S_\oplus$)',fontsize=labelfontsize)
     ax.set_ylabel('Radius ($R_\oplus$)',fontsize=labelfontsize)
 
     plt.subplots_adjust(bottom=0.2,left=0.2)
@@ -989,7 +988,8 @@ def plot_Example2_constraints(results, fig=None, ax=None, show=True, c='black', 
         return fig, ax
 
 def image_contour_plot(x, y, z, colorbar=True, labels=None, levels=None, fmt=' %.0f ', ticks=4, vmin=None, vmax=None,
-                       linecolor='black', log=None, fig=None, ax=None, return_ctr=False, zoom_factor=None, cmap='Greens', plus=False, smooth_sigma=0):
+                       linecolor='black', log=None, fig=None, ax=None, return_ctr=False, zoom_factor=None, cmap='Greens',
+                       plus=False, smooth_sigma=0):
     """ Plots z(x, y) with a colorbar and contours. """
     
     if fig is None:
@@ -1023,7 +1023,7 @@ def image_contour_plot(x, y, z, colorbar=True, labels=None, levels=None, fmt=' %
 
     # Color plot
     if colorbar:
-        im = ax.pcolormesh(x, y, z, vmin=vmin, vmax=vmax, cmap=cmap, lw=0, rasterized=True, shading='auto')
+        im = ax.pcolormesh(x, y, z, vmin=vmin, vmax=vmax, cmap=cmap, lw=0, rasterized=True, shading='auto', edgecolors='k', linewidths=4)
         cmap = copy.copy(im.cmap)
         cmap.set_bad(color='white', alpha=0.5)
         im.set_cmap(cmap)
@@ -1039,7 +1039,7 @@ def image_contour_plot(x, y, z, colorbar=True, labels=None, levels=None, fmt=' %
     if levels is not None:
         ctr = ax.contour(x, y, z, levels=levels, colors=linecolor, linewidths=3)
         if not return_ctr:
-            ax.clabel(ctr, ctr.levels, inline=True, fmt=fmt, inline_spacing=-10)
+            ax.clabel(ctr, ctr.levels, inline=True, fmt=fmt, inline_spacing=20)
 
     if labels is not None:
         ax.set_xlabel(labels[0], fontsize=labelfontsize)

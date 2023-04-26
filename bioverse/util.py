@@ -1,12 +1,14 @@
 """ Miscellanous functions used elsewhere in the code. """
-
+from matplotlib import pyplot as plt
 # Python imports
+from scipy.stats import binned_statistic
 import importlib.util
 import numpy as np
 from warnings import warn
+from astropy.visualization import hist as astropyhist
 
 # Bioverse modules and constants
-from .constants import LIST_TYPES, CATALOG_FILE, INT_TYPES, FLOAT_TYPES
+from .constants import LIST_TYPES, CATALOG_FILE, INT_TYPES, FLOAT_TYPES, CONST
 from .import truncnorm_hack
 
 # Load the Gaia stellar target catalog into memory for fast access
@@ -415,3 +417,206 @@ def compute_logbins(binWidth_dex, Range):
     # add binWidth_dex to logrange to include last bin edge
     logRange = (np.log10(Range[0]), np.log10(Range[1]) + binWidth_dex)
     return 10**np.arange(logRange[0], logRange[1], binWidth_dex)
+
+def interpolate_df(xvals, df, xcol, ycol):
+    """
+    Interpolate values in a pandas DataFrame.
+
+    Parameters
+    ----------
+    xvals : iterable
+        input values for which to search in the x column
+    df : pandas DataFrame
+        dataframe in which to interpolate. Expected to be sorted by xcol.
+    xcol : str
+        column with values we're comparing to xval
+    ycol : str
+        column with interpolated output values
+
+    Returns
+    -------
+        y_interp : iterable
+            interpolated values
+    """
+    return np.interp(xvals, df[xcol], df[ycol])
+
+
+def S2a_eff(S):
+    """Convert instellation in W/m2 to solar-equivalent semi-major axis."""
+    a_eff = 1 / (np.sqrt(S / CONST['S_Earth']))
+    return a_eff
+
+
+def a_eff2S(a_eff):
+    """Convert solar-equivalent semi-major axis to instellation in W/m2."""
+    S = CONST['S_Earth'] * a_eff**-2
+    return S
+
+
+def compute_moving_average(d, window=25):
+    """Compute rolling mean of radius and density and their uncertainties,
+    ordered by instellation.
+
+    Parameters
+    ----------
+    d : Table
+        Table containing the sample of simulated planets.
+    window : int, optional
+        window size of the rolling mean
+
+    Returns
+    -------
+    d : Table
+        Table containing new columns for rolling mean of radius, density.
+    """
+    # ensure we have everything we need
+    if not (('R' in d) & ('rho' in d) & ('S_abs' in d)):
+        raise ValueError("observables 'R', 'rho', and 'S_abs' must be measured for population-level statistics")
+    dd = d.to_pandas()
+    R_mean = dd.sort_values('S_abs')['R'].rolling(window, center=True,min_periods=1).mean()
+    R_sem = dd.sort_values('S_abs')['R'].rolling(window, center=True,min_periods=1).sem()  # rolling standard error of mean
+    rho_mean = dd.sort_values('S_abs')['rho'].rolling(window, center=True,min_periods=1).mean()
+    rho_sem = dd.sort_values('S_abs')['rho'].rolling(window, center=True,min_periods=1).sem()  # rolling standard error of mean
+
+    d.sort_by('S_abs', inplace=True)
+    d['R_mean'] = R_mean
+    d['rho_mean'] = rho_mean
+    d.error.sort_by('S_abs', inplace=True)
+    d.error['R_mean'] = R_sem
+    d.error['rho_mean'] = rho_sem
+
+    # crank up rolling mean errors to account for measurement errors
+    d.error['R_mean'] *= 2.
+    d.error['rho_mean'] *= 2.
+    return d
+
+def get_ideal_bins(data, method='freedman'):
+    """return optimal bins for a given 1D data set"""
+    _n, bins, _patches = astropyhist(data, bins=method)
+    plt.clf()
+    return bins
+
+def binned_stats(df, x_param, y_param, bins=None, statistic='mean', scale='log'):
+    """Compute a binned statistic of parameter y's mean with respect to bins in parameter x."""
+    if bins is None:
+        if scale == 'log':
+            logged_bins = get_ideal_bins(np.log10(df[x_param]))
+            bins = 10**logged_bins
+        else:
+            bins = get_ideal_bins(df[x_param])
+    elif type(bins) == int:
+        bins = compute_logbins((np.log10(max(df[x_param])) - np.log10(min(df[x_param])))/bins, (min(df[x_param]), max(df[x_param])))
+    means, edges, n = binned_statistic(df[x_param], df[y_param], statistic=statistic, bins=bins)
+    std = []
+    for e_lo, e_hi in zip(edges[:-1], edges[1:]):
+        std.append(np.std(df[(df[x_param] >= e_lo) & (df[x_param] <= e_hi)][y_param]))
+    return means, edges, n, std
+
+def compute_binned_average(d, x_param='S_abs', y_params=['R', 'rho']):
+    """Compute mean of radius and density and their uncertainties,
+    binned in instellation.
+
+    Parameters
+    ----------
+    d : Table
+        Table containing the sample of simulated planets.
+    x_param : str
+        Parameter axis along which we want to bin.
+    y_params : str or iterable
+        Parameter(s) on which the binned average will be computed.
+
+    Returns
+    -------
+    d : Table
+        Table containing new columns for rolling mean of radius, density.
+    """
+    try:
+        N = len(y_params)
+    except TypeError:
+        y_params = [y_params]
+
+    df = d.to_pandas()
+
+    for y in y_params:
+        mean, edges, n, std = binned_stats(df, 'S_abs', y, bins=None)
+        for i, (m, s) in enumerate(zip(mean, std)):
+            df.loc[(df[x_param] >= edges[i]) & (df[x_param] < edges[i+1]),'_mean'] = m
+            df.loc[(df[x_param] >= edges[i]) & (df[x_param] < edges[i+1]),'_std'] = s
+
+        d[y + '_mean_binned'] = df['_mean']
+        d.error[y + '_mean_binned'] = df['_std'] + 1e-3  # add an 'epsilon' to avoid dividing by zero
+
+    return d
+
+def generate_generator(g_args, stars_only=False, **kwargs):
+    """Helper function to create a planet generator."""
+    from .generator import Generator
+    for key, value in kwargs.items():
+        g_args[key] = value
+    g_transit = Generator(label=None)
+    g_transit.insert_step('read_stars_Gaia')
+    if not stars_only:
+        g_transit.insert_step('create_planets_bergsten')
+        g_transit.insert_step('assign_orbital_elements')
+        g_transit.insert_step('impact_parameter')
+        g_transit.insert_step('assign_mass')
+        g_transit.insert_step('effective_values')
+        g_transit.insert_step('magma_ocean')     # here we inject the magma oceans
+        g_transit.insert_step('compute_transit_params')
+        g_transit.insert_step('apply_bias')
+    [g_transit.set_arg(key, val) for key, val in g_args.items()]
+    return g_transit
+
+def find_distance4samplesize(N_target, g_args, tolerance=2, max_iterations=10, h=5):
+    """
+    Iteratively find the distance d_max needed to achieve a specified
+    planet sample size. Uses the Secant method for root-finding.
+    Sort of.
+
+    Parameters
+    ----------
+    N_target : int
+        target sample size
+    g_args : dict
+        arguments for generator object
+    tolerance : int
+        range around N_target into which we need to land
+    max_iterations : int
+        maximum number of iterations
+    h : int
+        distance delta (in pc) used for initial guess
+
+    Returns
+    -------
+    N : int
+        closest sample size achieved
+    d0 : float
+        distance at closest sample size
+    """
+    def get_delta(d1, N_target):
+        sample = generate_generator(g_args, d_max=d1).generate()
+        N = len(sample)
+        return N - N_target, N
+
+    # initial guess
+    d1 = 10 * np.cbrt(N_target)
+
+    # first iteration: compute delta
+    N = 9999
+    i = 0
+    d0 = d1 - h
+    delta0, N = get_delta(d0, N_target)
+
+    while abs(N - N_target) > tolerance:
+        if i == max_iterations:
+            print('maximum number of iterations ({}) reached.'.format(max_iterations))
+            return N, d1
+        delta1, N = get_delta(d1, N_target)
+        print('sample size at iteration {}: N = {:.0f} at $d_{{max}}$ = {:.1f} pc.'.format(i, N, d1))
+
+        d2 = d0 - (d1 - d0)*delta0/(delta1 - delta0)
+
+        d0 = d1
+        d1 = d2
+        i += 1
+    return N, d0

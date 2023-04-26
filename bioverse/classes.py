@@ -273,10 +273,18 @@ class Table(dict):
             if self.error:
                 self.error['S'] = self['S'] * np.sqrt((self.error['L_st']/self['L_st'])**2 + (2*self.error['a']/self['a'])**2)
 
+            # add absolute instellation in W/m2 (assuming dayside-average)
+            self['S_abs'] = self['S']*CONST['S_Earth']
+
         elif key == 'R':
             self['R'] = (109.2**2)*self['depth']*self['R_st']**2
             if self.error:
                 self.error['R'] = self['R'] * np.sqrt((self.error['depth']/self['depth'])**2 + (2*self.error['R_st']/self['R_st'])**2)
+
+        elif key == 'rho':
+            self['rho'] = self['M']/self['R']**3
+            if self.error:
+                self.error['rho'] = self['rho'] * np.sqrt((self.error['M']/self['M'])**2 + (3*self.error['R']/self['R'])**2)
 
         elif key == 'a':
             self['a'] = (self['M_st']*(self['P']/CONST['yr_to_day'])**2)**(1/3)

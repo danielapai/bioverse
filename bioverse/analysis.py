@@ -93,6 +93,8 @@ def test_hypothesis_grid_iter(h, generator, survey, bins, return_chains,
     # Prevents duplicate results when multiprocessing
     if seed is not None:
         np.random.seed(seed)
+    else:
+        seed = 42
     
     # Format the `t_total` argument so that it only affects measurements relevant to the hypothesis
     if 't_total' in kwargs and not isinstance(kwargs['t_total'], dict):
@@ -102,7 +104,7 @@ def test_hypothesis_grid_iter(h, generator, survey, bins, return_chains,
     # Simulate a data set and fit the hypothesis with it
     # Also time each step for future reference
     t_start= time.time()
-    sample, detected, data = survey.quickrun(generator, **kwargs)
+    sample, detected, data = survey.quickrun(generator, seed=seed, **kwargs)
     t_sim = time.time() - t_start
     results = h.fit(data, return_chains=return_chains, method=method, nlive=nlive, mw_alternative=mw_alternative)
     t_fit = time.time() - t_start - t_sim
@@ -115,6 +117,8 @@ def test_hypothesis_grid_iter(h, generator, survey, bins, return_chains,
         results['N_hot'], results['N_warm'], results['N_cold'] = N_hot, N_warm, N_cold
         results['N_EEC'], results['N_pl'] = N_EEC, N_pl
     except KeyError:
+        results['N_pl'] = len(obs)
+    finally:
         pass
 
     # Compute the average value of labels versus features
@@ -136,7 +140,7 @@ def compute_statistical_power(results, threshold=None, method='dlnZ'):
     Parameters
     ----------
     results : dict
-        Output of fit_hypothesis_grid.
+        Output of test_hypothesis_grid.
     threshold: float, optional
         Significance threshold to enforce.
     method: ('dAIC', 'dBIC', 'dlnZ', 'p', 'logp')

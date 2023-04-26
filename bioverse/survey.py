@@ -58,7 +58,7 @@ class Survey(dict, Object):
             Keyword arguments passed to Measurement.__init__().
         """
         self.measurements[key] = Measurement(key, self, **kwargs)
-        print(self.measurements[key].survey is self)
+        # print(self.measurements[key].survey is self) # TODO: is this needed for something or a leftover from debugging?
         if idx is not None:
             self.move_measurement(key, idx)
     
@@ -124,7 +124,7 @@ class Survey(dict, Object):
 
         return sample, detected, data
         
-    def observe(self, y, t_total=None, data=None, error=None):
+    def observe(self, y, t_total=None, data=None, error=None, demographics=True):
         """ Returns a simulated data set for a Table of simulated planets.
         
         Parameters
@@ -137,6 +137,8 @@ class Survey(dict, Object):
             Pre-existing Table in which to store the new measurements.
         error : Table, optional
             Pre-existing Table containing uncertainties on `data` values.
+        demographics : Bool, optional
+            compute some population-level statistics after taking all measurements
 
         Returns
         -------
@@ -163,6 +165,15 @@ class Survey(dict, Object):
                     t = t_total
                     
             data = m.measure(y, data, t_total=t)
+
+        if demographics:
+            # compute moving averages for R, rho
+            try:
+                data = util.compute_moving_average(data)
+                data = util.compute_binned_average(data)
+            except ValueError:
+                pass
+
         return data
 
 @dataclass(repr=False)
@@ -281,8 +292,11 @@ class Measurement():
         s = "Measures parameter '{:s}'".format(self.key)
         if self.precision != 0.:
             s += " with {:s} precision".format(str(self.precision))
-        for i,cdtn in enumerate(self.conditions):
-            s += "\n    Conditions: {:s}".format(cdtn) if i == 0 else ' AND {:s}'.format(cdtn)
+        try:
+            for i,cdtn in enumerate(self.conditions):
+                s += "\n    Conditions: {:s}".format(cdtn) if i == 0 else ' AND {:s}'.format(cdtn)
+        except AttributeError:
+            pass
         if self.t_ref is not None:
             s += "\n    Average time required: {:.1f} d".format(self.t_ref)
             

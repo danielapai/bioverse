@@ -1,15 +1,166 @@
 """ Contains all functions currently used to simulate planetary systems. To define new functions, add them to custom.py. """
 
 # Python imports
-import numpy as np
 import os
-import sys
+import glob
+import numpy as np
+import pandas as pd
+import astropy.units as u
+import warnings
+
+from astropy import constants as const
+from astropy.coordinates import SkyCoord
+from scipy.interpolate import interp1d
+
+warnings.filterwarnings("ignore")
 
 # Bioverse modules and constants
 from .classes import Table
 from . import util
-from .util import CATALOG
+from .util import CATALOG, interpolate_df
 from .constants import CONST, ROOT_DIR, DATA_DIR
+
+def luminosity_evolution(d):
+    """
+    Computes age-dependent luminosities based on the stellar evolution tracks in Baraffe et al. (1998).
+
+    Parameters
+    ----------
+    d : Table
+        Table with stars. Has to have columns for mass and age.
+    Returns
+    -------
+    d : Table containing age-dependent luminosities.
+
+
+    """
+    lum_tracks = glob.glob(DATA_DIR + 'luminosity_tracks/' + "Lum_m*.txt")
+    lum_tracks.sort()
+    star_masses = [float(filename[-7:-4]) for filename in lum_tracks]
+    tracks = {}
+    for star_mass, lum_track in zip(star_masses, lum_tracks):
+        tracks[star_mass] = pd.read_csv(lum_track)
+
+    tracks = pd.concat(tracks, keys=tracks.keys(), axis=0)
+
+    df = d.to_pandas()
+    for i, star in df.iterrows():
+        star_mass_bin = min(star_masses, key=lambda x: abs(x - star['M_st']))
+        closest_age_id = ((tracks.loc[star_mass_bin]['age'] - star['age']).abs()).idxmin()
+        df.at[i, 'L_st'] = tracks.loc[star_mass_bin].iloc[closest_age_id]['lum']
+    d['L_st'] = df['L_st']
+    return d
+
+
+def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, M_st_max=2.0, R_st_min=0.095, R_st_max=2.15, T_min=0., T_max=10., inc_binary=0, seed=42, M_G_max=None, lum_evo=True):  # , mult=0):
+    """ Reads a list of stellar properties from the Gaia nearby stars catalog.
+
+    Parameters
+    ----------
+    d : Table
+        An empty Table object.
+    filename : str, optional
+        Filename containing the Gaia target catalog.
+    d_max : float, optional
+        Maximum distance to which to simulate stars, in parsecs.
+    M_st_min : float, optional
+        Minimum stellar mass, in solar units.
+    M_st_max : float, optional
+        Maximum stellar mass, in solar units.
+    R_st_min : float, optional
+        Minimum stellar radius, in solar units.
+    R_st_max : float, optional
+        Maximum stellar radius, in solar units.
+    T_min : float, optional
+        Minimum stellar age, in Gyr.
+    T_max : float, optional
+        Maximum stellar age, in Gyr.
+    inc_binary : bool, optional
+        Include binary stars? Default = False.
+    seed : int, optional
+        seed for the random number generators.
+    mult : float, optional
+        Multiple on the total number of stars simulated. If > 1, duplicates some entries from the LUVOIR catalog.
+    M_G_max : float, optional
+        Maximum Gaia magnitude of stars. Example: M_G_max=9. keeps all stars brighter than M_G = 9.0.
+    lum_evo : bool, optional
+        Assign age-dependent stellar luminosities (based on randomly assigned ages and stellar luminosity tracks in
+        Baraffe et al. 1998.
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of real stars.
+    """
+
+    np.random.seed(seed)
+
+    # Read the catalog with column names
+    path = filename if os.path.exists(filename) else DATA_DIR + '/' + filename
+    cat = pd.read_csv(path,sep=' ',header=0,dtype={'star_name':str, 'd':np.float,
+                                                     'ra':np.float, 'dec':np.float,
+                                                     'M_G':np.float, 'M_st':np.float,
+                                                     'R_st':np.float, 'L_st':np.float,
+                                                     'T_eff_st':np.int, 'SpT':str,
+                                                     'subSpT':str, 'binary':bool,
+                                                     'RV':np.float})
+    catalog = cat.to_records(index=False)
+    # catalog = np.genfromtxt(path, unpack=False, names=True, dtype=None, encoding=None)
+    for name in catalog.dtype.names:
+        d[name.strip()] = list(catalog[name])  # *int(mult)
+
+    # Missing values (TODO: this part is ironically incomplete)
+    if 'd' not in d.keys():
+        d['d'] = np.cbrt(np.random.uniform(0, d_max ** 3, len(d)))
+    if 'x' not in d.keys():
+        cost, phi = np.random.uniform(-1, 1, len(d)), np.random.uniform(0, 2 * np.pi, len(d))
+        r = d['d'] * np.sin(np.arccos(cost))
+        d['x'], d['y'], d['z'] = r * np.cos(phi), r * np.sin(phi), d['d'] * cost
+    if 'age' not in d.keys():
+        d['age'] = np.random.uniform(T_min, T_max, size=len(d))
+    if 'logL' not in d.keys():
+        d['logL'] = np.log10(d['L_st'])
+    if 'star_name' not in d.keys():
+        d['star_name'] = np.char.array(np.full(len(d), 'REAL-')) + np.char.array(np.arange(len(d)).astype(str))
+    if 'RV' not in d.keys():
+        d['RV'] = np.random.uniform(-200, 200, size=len(d))
+
+    # Enforce a maximum distance
+    d = d[d['d'] < d_max]
+
+    # Apply magnitude limit
+    if M_G_max:
+        d = d[d['M_G'] < M_G_max]
+
+    # Enforce a min/max mass & radius
+    d = d[(d['M_st'] < M_st_max) & (d['M_st'] > M_st_min)]
+    d = d[(d['R_st'] < R_st_max) & (d['R_st'] > R_st_min)]
+
+    # Include/exclude stars in binary systems, default is (0/False) exclude binaries
+    if inc_binary == 0:
+        d = d[(d['binary'] == False)]
+        # d.reset_index(inplace=True,drop=True)
+
+    # Assign stellar IDs and names
+    d['starID'] = np.arange(len(d), dtype=int)
+    d['simulated'] = np.zeros(len(d), dtype=bool)
+
+    # Draw a random age for each system
+    d['age'] = np.random.uniform(T_min, T_max, len(d))
+
+    # Add ecliptic coordinates
+    ra = np.array(d['ra'])
+    dec = np.array(d['dec'])
+    dist = np.array(d['d'])
+    c = SkyCoord(ra * u.degree, dec * u.degree, distance=dist * u.pc, frame='icrs', equinox='J2016.0')
+    c_ec = c.transform_to('heliocentrictrueecliptic')
+    d['helio_ecl_lon'] = np.array(c_ec.lon.value)
+    d['helio_ecl_lat'] = np.array(c_ec.lat.value)
+
+    if lum_evo:
+        d = luminosity_evolution(d)
+
+    return d
 
 def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_max=10., T_eff_split=4500., seed=42):
     """ Reads temperatures and coordinates for high-mass stars from Gaia DR2. Simulates low-mass stars from the
@@ -430,9 +581,31 @@ def create_planets_SAG13(d, eta_Earth=0.075, R_min=0.5, R_max=14.3, P_min=0.01, 
     if normalize_SpT:
         d['P'] *= np.interp(d['M_st'], x_M, y_P)
 
-    # Compute semi-major axis and insolation
+    # Compute semi-major axis and instellation
     d.compute('a')
     d.compute('S')
+
+    return d
+
+def create_planet_per_star(d, R_min=0.5, R_max=14.3):
+    """ Generates a single planet for each star with a radius drawn from a uniform distribution between R_min and R_max
+
+    Parameters
+    ----------
+    d : Table
+        Table containing simulated host stars.
+    R_min : float, optional
+        Minimum planet radius, in Earth units.
+    R_max : float, optional
+        Maximum planet radius, in Earth units.
+    
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets. Replaces the input Table.
+    """
+
+    d['R'] = np.random.uniform(R_min,R_max,len(d))    
 
     return d
 
@@ -531,7 +704,7 @@ def impact_parameter(d, transit_mode=False):
     
     return d
 
-def assign_mass(d):
+def assign_mass(d, mr_relation='Wolfgang2016'):
     """ Determines planet masses using a probabilistic mass-radius relationship,
     following Wolfgang et al. (2016). Also calculates density and surface gravity.
 
@@ -539,6 +712,9 @@ def assign_mass(d):
     ----------
     d : Table
         Table containing the sample of simulated planets.
+    mr_relation : str, optional
+        Mass-radius relationship to consider.
+        Must be either 'Wolfgang2016' (Wolfgang et al., 2016) or 'Zeng2016' (Zeng et al., 2016).
 
     Returns
     -------
@@ -549,24 +725,55 @@ def assign_mass(d):
     R = d['R']
     M = np.zeros(R.shape)
 
-    # Determine which are small, large planets
-    mask1 = R>=1.6
-    mask2 = (R>0.8)&(R<1.6)
-    mask3 = R<=0.8
+    if mr_relation.lower() == 'wolfgang2016':
+        # Determine which are small, large planets
+        mask1 = R>=1.6
+        mask2 = (R>0.8)&(R<1.6)
+        mask3 = R<=0.8
 
-    # Draw masses for larger planets, with a spread of 1.9 M_E, with a minimum of 0.01 M_E
-    M[mask1] = util.normal(2.7*R[mask1]**1.3,1.9,0.01,10000,mask1.sum())
+        # Draw masses for larger planets, with a spread of 1.9 M_E, with a minimum of 0.01 M_E
+        M[mask1] = util.normal(2.7*R[mask1]**1.3,1.9,0.01,10000,mask1.sum())
 
-    # Compute the maximum mass for each planet (Wolfgang 2016, Equation 5) where R > 0.2
-    a,b,c = 0.0975,0.4938,0.7932
-    M_max = 10**((-b+(b**2-4*a*(c-R[mask2]))**0.5)/(2*a))
+        # Compute the maximum mass for each planet (Wolfgang 2016, Equation 5) where R > 0.2
+        a,b,c = 0.0975,0.4938,0.7932
+        M_max = 10**((-b+(b**2-4*a*(c-R[mask2]))**0.5)/(2*a))
 
-    # Draw masses for the small planets from a truncated normal distribution (minimum: 0.1 Earth density)
-    mu = 1.4*R[mask2]**2.3
-    M[mask2] = util.normal(mu,0.3*mu,0.1*R[mask2]**3,M_max,mask2.sum())
+        # Draw masses for the small planets from a truncated normal distribution (minimum: 0.1 Earth density)
+        mu = 1.4*R[mask2]**2.3
+        M[mask2] = util.normal(mu,0.3*mu,0.1*R[mask2]**3,M_max,mask2.sum())
 
-    # For planets smaller than R < 0.2, assume Earth density
-    M[mask3] = R[mask3]**3
+        # For planets smaller than R < 0.2, assume Earth density
+        M[mask3] = R[mask3]**3
+
+    elif mr_relation.lower() in ['mgsio3', 'silicate', 'zeng2016']:    # 'zeng2016' for backward compability
+        # read pure silicate mass-radius table from Zeng+2016 and interpolate
+        purerock = pd.read_csv(DATA_DIR + 'mass-radius_relationships_mgsio3_Zeng2016.txt')
+        f_mr = interp1d(purerock.radius, purerock.mass, fill_value='extrapolate')
+
+        # separate planet radius range into small and large
+        smallplanets_mask = R <= purerock.radius.max()
+        largeplanets_mask = R > purerock.radius.max()
+
+        M[smallplanets_mask] = f_mr(R[smallplanets_mask])
+
+        # for planets outside the radius range of Zeng+2016, use the Wolfgang+2016 M-R relation
+        largeplanets = assign_mass(d[largeplanets_mask], mr_relation='Wolfgang2016')
+        M[largeplanets_mask] = largeplanets['M']
+
+    elif mr_relation.lower() in ['earth', 'earth-like', 'earthlike']:
+        # read Earth-like mass-radius table from Zeng+2016 and interpolate (32.5% Fe + 67.5% MgSiO3)
+        earthlike = pd.read_csv(DATA_DIR + 'mass-radius_relationships_Earthlike_Zeng2016.txt')
+        f_mr = interp1d(earthlike.radius, earthlike.mass, fill_value='extrapolate')
+
+        # separate planet radius range into small and large
+        smallplanets_mask = R <= earthlike.radius.max()
+        largeplanets_mask = R > earthlike.radius.max()
+
+        M[smallplanets_mask] = f_mr(R[smallplanets_mask])
+
+        # for planets outside the radius range of Zeng+2016, use the Wolfgang+2016 M-R relation
+        largeplanets = assign_mass(d[largeplanets_mask], mr_relation='Wolfgang2016')
+        M[largeplanets_mask] = largeplanets['M']
 
     # Store the calculated masses in the database
     d['M'] = M
@@ -580,7 +787,7 @@ def assign_mass(d):
     return d
 
 def classify_planets(d):
-    """ Classifies planets by size and insolation following Kopparapu et al. (2018).
+    """ Classifies planets by size and instellation following Kopparapu et al. (2018).
     
     Parameters
     ----------
@@ -611,7 +818,7 @@ def classify_planets(d):
     S_inner = np.interp(R,R0,S0[1,:])
     S_outer = np.interp(R,R0,S0[2,:])
 
-    # Insolation-based classification
+    # Instellation-based classification
     class1[S>S_inner] = 'hot'
     class1[(S<S_inner)&(S>S_outer)] = 'warm'
     class1[S<S_outer] = 'cold'
@@ -628,7 +835,7 @@ def classify_planets(d):
     d['class2'] = class2
 
     # Determine which planets are "exo-Earth candidates"
-    # The lower limit on planet size depends on insolation
+    # The lower limit on planet size depends on instellation
     lim = 0.8*d['S']**0.25
     d['EEC'] = (d['R'] > lim) & (d['R'] < 1.4) & (d['a'] > d['a_inner']) & (d['a'] < d['a_outer'])
 
@@ -690,6 +897,25 @@ def compute_habitable_zone_boundaries(d):
     d['a_inner'],d['a_outer'] = d_in,d_out
     d['S_inner'],d['S_outer'] = S_eff[1],S_eff[2]
 
+    # Compute semi-major axis, eccentricity, mean anomaly, longitude of ascending node, and longitude of periapsis
+    semi = []
+    for i in range(len(d_in)):
+        if (d_in[i]==np.inf) or (d_out[i]==np.inf):
+            semi.append(np.inf)
+        else:
+            semi.append(np.exp(np.random.uniform(np.log(d_in[i]),np.log(d_out[i]),1)[0]))
+
+    d['a'] = semi
+    d['e'] = np.random.beta(0.867,3.03,size=len(d))
+    d['e'][d['e']>0.8] = np.random.uniform(0,0.8,(d['e']>0.8).sum())
+    d['M0'],d['w_LAN'],d['w_AP'] = np.random.uniform(0,2*np.pi,(3,len(d)))
+
+    # Compute geometric transit probability, period, and transit duration, assuming a planet in the middle of the habitable zone.
+    midhab = d['a']*const.au.value
+    d['GeoTrProb'] = 100*((d['R_st']*const.R_sun.value+d['R']*const.R_earth.value)/midhab)*((1+d['e']*np.sin(d['w_AP']))/(1-d['e']**2))
+    d['P'] = np.sqrt((4*np.pi**2*midhab**3)/(const.G.value*(d['M_st']*const.M_sun.value+d['M']*const.M_earth.value)))/86400
+    d['T_dur'] = (d['P']*24/np.pi)*np.arcsin(d['GeoTrProb']/100)
+
     # Compute the mean semi-major axis
     d['a0'] = d['a']/(1-d['e']**2)**0.5
 
@@ -707,6 +933,7 @@ def compute_habitable_zone_boundaries(d):
     #d['zone'] = zones
 
     return d
+
 
 def scale_height(d):
     """ Computes the equilibrium temperature and isothermal scale height
@@ -733,7 +960,7 @@ def scale_height(d):
     d['pCO2'][m] = 1.0
     d['mu'][m] = 44.01
 
-    # For rocky HZ planets, assume 1 bar N2/CO2 atmospheres and estimate pCO2 (bars) versus insolation
+    # For rocky HZ planets, assume 1 bar N2/CO2 atmospheres and estimate pCO2 (bars) versus instellation
     # following Lehmer et al. (2020) (Figure 1).
     x0, y0 = 1.05, 0.01
     m = rocky & (d['a0'] > d['a_inner']) & (d['a0'] < d['a_outer'])
@@ -816,8 +1043,11 @@ def effective_values(d):
     d['a_eff'] = d['a'] * d['L_st']**-0.5
 
     # Effective radius = radius if A_g = 0.29
-    d['R_eff'] = (d['contrast'] * np.pi / 0.29)**0.5 / (4.258756e-5 / d['a'])
-
+    try:
+        d['R_eff'] = (d['contrast'] * np.pi / 0.29)**0.5 / (4.258756e-5 / d['a'])
+    except KeyError:
+        # 'contrast' is not always available
+        pass
     return d
 
 def compute_transit_params(d):
@@ -837,6 +1067,37 @@ def compute_transit_params(d):
     d['depth'] = (Rp/Rs)**2
 
     return d
+
+
+def apply_bias(d, M_min=0., M_max=np.inf, S_min=0., S_max=np.inf, depth_min=0.):
+    """ Apply detection biases and custom selections to the sample to generate.
+
+    Parameters
+    ----------
+    d : Table
+        Table containing the sample of simulated planets.
+    M_min : float
+        Minimum planet mass in Mearth
+    M_max : float
+        Maximum planet mass in Mearth
+    S_min : float
+        Minimum absolute instellation in W/m2
+    S_max : float
+        Maximum absolute instellation in W/m2
+    depth_min : float
+        Minimum transit depth
+
+    Returns
+    -------
+    d : Table
+        Table containing the new sample after applying the cuts.
+    """
+    d = d[d.to_pandas()['M'].between(M_min, M_max).values]
+    d = d[d.to_pandas()['S_abs'].between(S_min, S_max).values]
+    d = d[d['depth'] > depth_min]
+
+    return d
+
 
 def Example1_water(d, f_water_habitable=0.75, f_water_nonhabitable=0.1, minimum_size=True, seed=42):
     """ Determines which planets have water, according to the following model:
@@ -905,5 +1166,104 @@ def Example2_oxygen(d, f_life=0.7, t_half=2.3, seed=42):
     # Determine which planets have oxygenated atmospheres
     f_oxy = 1 - 0.5**(d['age']/t_half)
     d['has_O2'] = d['life'] & (np.random.uniform(0, 1, len(d)) < f_oxy)
+
+    return d
+
+
+def magma_ocean(d, wrr=0.005, S_thresh=280., simplified=False, diff_frac=0.54, f_rgh=1.0, gh_increase=True, water_incorp=True):
+    """Assign a fraction of planets global magma oceans that change the planet's radius.
+
+    Parameters:
+    -----------
+    d : Table
+        The population of planets.
+    wrr : float, optional
+        water-to-rock ratio for Turbet+2020 model. Defines the amount of radius increase due to a steam atmosphere.
+        Possible values: [0, 0.0001, 0.001 , 0.005 , 0.01  , 0.02  , 0.03  , 0.04  , 0.05  ] (default: 0.01 = 1% water)
+        If wrr=0, the pure rock MR relation of Zeng+2016 is applied.
+    S_thresh : float, optional
+        threshold instellation for runaway greenhouse phase (in W/m2)
+    simplified : bool, optional
+        increase the radii of all runaway greenhouse planets by the same fraction
+    diff_frac : float, optional
+        fractional radius change in the simplified case. E.g., diff_frac = -0.10 is a 10% decrease.
+    f_rgh : float, optional
+       fraction of planets within the runaway gh regime that have a runaway gh climate
+    gh_increase : bool, optional
+        wether or not to consider radius increase due to runaway greenhouse effect (Turbet+2020)
+    water_incorp : bool, optional
+        wether or not to consider water incorporation in the melt of global magma oceans (Dorn & Lichtenberg 2021)
+
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets with new columns 'has_magmaocean'.
+
+    """
+
+    # As a reference, add a new column with the original planet radii before we modify them here.
+    d['R_orig'] = d.copy()['R']
+
+    # First, define which planets should have magma oceans
+    d['runaway_gh'] = d['S_abs'] > S_thresh              # Dorn & Lichtenberg 2021
+    d['has_magmaocean'] = d['runaway_gh'] & (np.random.uniform(0, 1, len(d)) < f_rgh)  # only a fraction of planets within the rgh regime have rgh climate
+
+    # Second, change properties of planets with magma oceans
+    if gh_increase:
+        # radius increase due to runaway greenhouse effect (Turbet+2020)
+        if simplified:
+            # increase all runaway GH planet radii by diff_frac
+            R = d['R']
+            mask = d['has_magmaocean']
+            R[mask] = R[mask] * (1 + diff_frac)
+            d['R'] = R
+        else:
+            # mass-radius relations for pure rock (Zeng et al. 2016) and w/ steam atmosphere (Turbet et al. 2020)
+            purerock = pd.read_csv(DATA_DIR + 'mass-radius_relationships_mgsio3_Zeng2016.txt')
+            purerock.loc[:, 'wrr'] = 0.
+            turbet2020 = pd.read_csv(DATA_DIR + 'mass-radius_relationships_STEAM_TURBET2020_FIG2b.dat', comment='#')
+            mass_radius = purerock.append(turbet2020, ignore_index=True)
+
+            mass_radius = mass_radius[mass_radius.wrr == wrr]
+
+            # for runaway GH planets from 0.1 Mearth to 2.0 Mearth, interpolate in Turbet+2020 mass-radius relationship,
+            # assign planets a new radius based on their mass
+            R = d['R']
+            mask = d['has_magmaocean'] & ((d['M'] > min(mass_radius.mass)) & (d['M'] < max(mass_radius.mass)))
+            R[mask] = interpolate_df(d['M'][mask], mass_radius, 'mass', 'radius')
+            d['R'] = R
+
+            # save radii with only steam atmosphere effect
+            d['R_steam'] = d.copy()['R']
+
+    # reduce the radius of the planets with magma oceans according to Dorn & Lichtenberg (2021)
+    if water_incorp:
+        if simplified:
+            # decrease all runaway GH planet radii by 10%.
+            R = d['R']
+            mask = d['has_magmaocean']
+            R[mask] = R[mask] * .90
+            d['R'] = R
+
+        else:
+            R = d['R']
+            mask = d['has_magmaocean']
+
+            # Read radius differences from DL21 Fig. 3b
+            delta_R = pd.read_csv(DATA_DIR + 'deltaR_DornLichtenberg21_Fig3b.csv')
+
+            # interpolate within planet masses for the given water mass fraction wrr
+            dr_wrr = delta_R.iloc[(delta_R['wrr'] - wrr).abs().argsort()[0], :][1:]
+            f_dr = interp1d(dr_wrr.index.to_numpy(dtype=float), dr_wrr.values, fill_value='extrapolate')
+
+            dr = f_dr(d['M'][mask])
+            R[mask] = R[mask] * (1 + dr)
+            d['R'] = R
+
+    # compute bulk density again, based on new radii
+    d['rho'] = CONST['rho_Earth']*d['M']/d['R']**3
+
+    # Label planets with smaller radius than the average
+    # d['is_small'] = d['R'] < np.mean(d['R_orig'])
 
     return d

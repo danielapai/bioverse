@@ -33,7 +33,7 @@ P, float, Orbital period (d)
 Ratio, float, Period ratio versus the next planet in
 R, float, Radius (Earth radius)
 a, float, Semi-major axis (AU)
-S, float, Insolation (Earth insolation)
+S, float, Instellation (Earth insolation)
 e, float, Eccentricity
 M0, float, Mean anomaly at reference time (deg)
 w_LAN, float, Longitude of ascending node (deg)
@@ -44,7 +44,7 @@ T_dur, float, Transit duration (d)
 M, float, Mass (Earth mass)
 rho, float, Density (g/cm3)
 g, float, Surface gravity (cm/s2)
-class1, str, Insolation-based classification
+class1, str, instellation-based classification
 class2, str, Size-based classification
 a0, float, Mean distance from star (AU)
 zone, str, Location in system
