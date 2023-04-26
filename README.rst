@@ -20,7 +20,7 @@ Papers making use of Bioverse should reference `Bixel & Apai (2021) <https://ui.
 
 Bioverse was developed with support from the following grants and collaborations:
 
-- `Alien Earths <http://eos-nexus.org/>`_ & Earths in Other Solar Systems
+- `Alien Earths <https://alienearths.space/>`_ and Earths in Other Solar Systems
 - NASA Earth and Space Science Fellowship Program (grant No. 80NSSC17K0470)
 - NASA's Nexus for Exoplanet System Science (NExSS) 
 
@@ -31,7 +31,7 @@ Bioverse can be cloned from its GitHub repository:
 
 .. code-block:: bash
 
-    git clone https://www.github.com/abixel/bioverse/
+    git clone https://github.com/danielapai/bioverse/
 
 To install Bioverse, navigate to the directory containing ``setup.py`` and run:
 
