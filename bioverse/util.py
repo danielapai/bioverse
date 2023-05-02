@@ -14,7 +14,7 @@ from .import truncnorm_hack
 # Load the Gaia stellar target catalog into memory for fast access
 try:
     CATALOG = np.genfromtxt(CATALOG_FILE, delimiter=',', names=True)
-except FileNotFoundError:
+except (OSError,IOError):
     warn("could not load {:s} - try running util.update_stellar_catalog")
 
 # Progress bar if tqdm is installed, else a dummy function
