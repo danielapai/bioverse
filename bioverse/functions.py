@@ -1250,7 +1250,7 @@ def magma_ocean(d, wrr=0.005, S_thresh=280., simplified=False, diff_frac=0.54, f
             mask = d['has_magmaocean']
 
             # Read radius differences from DL21 Fig. 3b
-            delta_R = pd.read_csv(DATA_DIR + 'deltaR_DornLichtenberg21_Fig3b.csv')
+            delta_R = pd.read_csv(DATA_DIR + 'deltaR_DornLichtenberg21_Fig3b.csv', comment='#')
 
             # interpolate within planet masses for the given water mass fraction wrr
             dr_wrr = delta_R.iloc[(delta_R['wrr'] - wrr).abs().argsort()[0], :][1:]

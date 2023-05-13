@@ -1,5 +1,7 @@
 include bioverse/*.dat
 include bioverse/*.csv
 include bioverse/*.txt
+include bioverse/Data/*
+include bioverse/Data/luminosity_tracks/*
 recursive-include bioverse/Objects *
 recursive-include bioverse/UI *
