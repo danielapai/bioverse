@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name = "bioverse",
-    version = "1.1.0",
+    version = "1.1.1",
     author = "Alex Bixel",
     author_email = "d.alex.bixel@gmail.com",
     description = ("A simulation framework to assess the statistical power of future biosignature surveys"),
