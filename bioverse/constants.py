@@ -20,7 +20,7 @@ CATALOG_FILE = DATA_DIR+'Gaia.csv'
 FUNCTIONS_DIR = ROOT_DIR+'/functions/'
 
 # Program version
-VERSION = "1.0"
+VERSION = "1.1.1"
 
 # Physical constants (in cgs where applicable)
 CONST = {}
