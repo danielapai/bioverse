@@ -97,13 +97,13 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
 
     # Read the catalog with column names
     path = filename if os.path.exists(filename) else DATA_DIR + '/' + filename
-    cat = pd.read_csv(path,sep=' ',header=0,dtype={'star_name':str, 'd':np.float,
-                                                     'ra':np.float, 'dec':np.float,
-                                                     'M_G':np.float, 'M_st':np.float,
-                                                     'R_st':np.float, 'L_st':np.float,
-                                                     'T_eff_st':np.int, 'SpT':str,
+    cat = pd.read_csv(path,sep=' ',header=0,dtype={'star_name':str, 'd':float,
+                                                     'ra':float, 'dec':float,
+                                                     'M_G':float, 'M_st':float,
+                                                     'R_st':float, 'L_st':float,
+                                                     'T_eff_st':int, 'SpT':str,
                                                      'subSpT':str, 'binary':bool,
-                                                     'RV':np.float})
+                                                     'RV':float})
     catalog = cat.to_records(index=False)
     # catalog = np.genfromtxt(path, unpack=False, names=True, dtype=None, encoding=None)
     for name in catalog.dtype.names:
@@ -1222,7 +1222,7 @@ def magma_ocean(d, wrr=0.005, S_thresh=280., simplified=False, diff_frac=0.54, f
             purerock = pd.read_csv(DATA_DIR + 'mass-radius_relationships_mgsio3_Zeng2016.txt')
             purerock.loc[:, 'wrr'] = 0.
             turbet2020 = pd.read_csv(DATA_DIR + 'mass-radius_relationships_STEAM_TURBET2020_FIG2b.dat', comment='#')
-            mass_radius = purerock.append(turbet2020, ignore_index=True)
+            mass_radius = pd.concat([purerock, turbet2020], ignore_index=True)
 
             mass_radius = mass_radius[mass_radius.wrr == wrr]
 
