@@ -67,8 +67,8 @@ If ``True``, then only planets that transit their stars are simulated.
 
 .. _adding-steps:
 
-Adding new functions
-********************
+Adding custom functions
+***********************
 
 You can extend a generator by writing your own functions to simulate new planetary properties. Each function must accept a :class:`~bioverse.classes.Table` as its first and only required argument, can accept any number of keyword arguments, and must return a Table as its only return value.
 
@@ -86,19 +86,33 @@ For example, the following function will assign a random ocean covering fraction
 
         return table
 
-Save this function in ``custom.py`` and insert it into the Generator as follows:
+Either of the following works:
 
-.. code-block:: python
-    
-    generator.insert_step('make_oceans')
+    a) Save this function in ``custom.py`` and insert it into the Generator as follows:
 
-You can then simulate a sample of planets with oceans for arbitrary values of ``f_ocean_min`` and ``f_ocean_max``:
+    .. code-block:: python
+
+        generator.insert_step('make_oceans')
+
+    b) Insert the function itself:
+
+    .. code-block:: python
+
+        generator.insert_step(make_oceans)
+
+    c) Provide function name and path to the file containing the function:
+
+    .. code-block:: python
+
+        generator.insert_step('make_oceans', filename='rel/or/abs/path/to/file/myfunctions.py')
+
+With the custom function loaded, we can simulate a sample of planets with oceans for arbitrary values of ``f_ocean_min`` and ``f_ocean_max``:
 
 .. code-block:: python
 
     sample = generator.generate(f_ocean_min=0.3, f_ocean_max=0.7)
 
-You might also want to replace an existing step in the Generator with your own alternative. For example, suppose we want to replace the function that assigns planet masses (step 4: :func:`~bioverse.functions.assign_mass`) with one that implements the mass-radius relationship of `Weiss & Marcy (2014) <https://ui.adsabs.harvard.edu/abs/2014ApJ...783L...6W/abstract>`_. First, define a function :func:`Weiss_Marcy_2014` in ``custom.py`` that implements this relationship using the format above. Next, we can replace step 4 with the new function:
+You might also want to replace an existing step in the Generator with your own alternative. For example, suppose we want to replace the function that assigns planet masses (step 4: :func:`~bioverse.functions.assign_mass`) with one that implements the mass-radius relationship of `Weiss & Marcy (2014) <https://ui.adsabs.harvard.edu/abs/2014ApJ...783L...6W/abstract>`_. All we need to do is to define a custom function :func:`Weiss_Marcy_2014` that implements this relationship and load it using one of the three ways described above. For example, let's add it to ``custom.py``.  Now we can replace step 4 with the new function:
 
 .. code-block:: python
 

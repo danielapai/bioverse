@@ -281,7 +281,11 @@ class Step():
         # Determine which file contains the function
         if self.function is None:
             self.filename = self.find_filename()
-            func = util.import_function_from_file(self.function_name, ROOT_DIR+'/'+self.filename)
+            try:
+                func = util.import_function_from_file(self.function_name, ROOT_DIR+'/'+self.filename)
+            except FileNotFoundError:
+                # try absolute path
+                func = util.import_function_from_file(self.function_name, self.filename)
         else:
             func = self.function
 
