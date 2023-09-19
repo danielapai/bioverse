@@ -39,7 +39,7 @@ CONST['S_Earth'] = 238.         # global-averaged, top-of-atmosphere insolation 
 # Data types
 ARRAY_TYPES = (np.ndarray,list,tuple)
 LIST_TYPES = ARRAY_TYPES
-FLOAT_TYPES = (float,np.float,np.float_,np.float64)
+FLOAT_TYPES = (float,np.double,np.float_,np.float64)
 INT_TYPES = (int,np.int_,np.int64,np.integer,np.int8)
 STR_TYPES = (str,np.str_)
 BOOL_TYPES = (bool,np.bool_)
