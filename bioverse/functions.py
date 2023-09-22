@@ -53,7 +53,7 @@ def luminosity_evolution(d):
 
 
 def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, M_st_max=2.0, R_st_min=0.095,
-                    R_st_max=2.15, T_min=0., T_max=10., inc_binary=0, SpT=None, seed=42, M_G_max=None,
+                    R_st_max=2.15, T_min=1e-2, T_max=10., inc_binary=0, SpT=None, seed=42, M_G_max=None,
                     lum_evo=True):  # , mult=0):
     """ Reads a list of stellar properties from the Gaia nearby stars catalog.
 
@@ -170,7 +170,8 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
 
     return d
 
-def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_max=10., T_eff_split=4500., seed=42):
+def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=1e-2,
+                      T_max=10., T_eff_split=4500., seed=42):
     """ Reads temperatures and coordinates for high-mass stars from Gaia DR2. Simulates low-mass stars from the
     Chabrier+2003 PDMF.  Ages are drawn from a uniform distribution, by default from 0 - 10 Gyr. All other
     stellar properties are calculated using the scaling relations of Pecaut+2013.
@@ -278,7 +279,8 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
 
     return d
 
-def read_stellar_catalog(d, filename='LUVOIR_targets.dat', d_max=30., T_min=0., T_max=10., mult=1, seed=42):
+def read_stellar_catalog(d, filename='LUVOIR_targets.dat', d_max=30.,
+                         T_min=1e-2, T_max=10., mult=1, seed=42):
     """ Reads a list of stellar properties from the LUVOIR target catalog and fills in missing values.
 
     Parameters
@@ -868,9 +870,10 @@ def compute_habitable_zone_boundaries(d):
     
     # Parameters for each planet mass and boundary (Table 1)
     M_ref = np.array([0.1,1.,5.])
-    S_eff_sol = np.array([[1.776,0.99,0.356,0.32],
-                          [1.776,1.107,0.356,0.32],
-                          [1.776,1.188,0.356,0.32]])
+    S_eff_sol = np.array(   # four values for Recent Venus, Runaway Greenhouse, Maximum Greenhouse, Early Mars
+        [[1.776, 0.99, 0.356, 0.32],
+         [1.776, 1.107, 0.356, 0.32],
+         [1.776, 1.188, 0.356, 0.32]])
     a = np.array([[2.136e-4,1.209e-4,6.171e-5,5.547e-5],
                   [2.136e-4,1.332e-4,6.171e-5,5.547e-5],
                   [2.136e-4,1.433e-4,6.171e-5,5.547e-5]])
@@ -900,7 +903,7 @@ def compute_habitable_zone_boundaries(d):
     dist = (L/S_eff)**0.5
     dist[:,~Tm] = np.inf
 
-    # Inner, outer HZ bounds for each planet
+    # Inner, outer HZ bounds for each planet (we are interested in Runaway Greenhouse and Maximum Greenhouse)
     d_in,d_out = dist[1],dist[2]
     d['a_inner'],d['a_outer'] = d_in,d_out
     d['S_inner'],d['S_outer'] = S_eff[1],S_eff[2]
