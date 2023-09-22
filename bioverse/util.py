@@ -629,6 +629,7 @@ def find_distance4samplesize(N_target, g_args, tolerance=2, max_iterations=10, h
         i += 1
     return N, d0
 
+
 def interpolate_luminosity():
     """interpolate luminosity for a given age and stellar mass using
     Clough Tocher interpolation. Based on stellar luminosity tracks
@@ -663,3 +664,19 @@ def interpolate_luminosity():
     M, A = np.meshgrid(M, A)
     interp_lum = CloughTocher2DInterpolator(list(zip(m, a)), lum)
     return interp_lum
+def interpolate_nuv():
+    # read past UV fluxes (Richey-Yowell et al. 2023 Table 1)
+    nuv = pd.read_csv(DATA_DIR + 'past-UV.csv', comment='#')
+    spt = nuv.SpT.unique()
+
+    # interpolate in time for each spectral type
+    def log_interp1d(xx, yy, kind='linear'):
+        logx = np.log10(xx)
+        logy = np.log10(yy)
+        lin_interp = interp1d(logx, logy, kind=kind, fill_value='extrapolate', bounds_error=False)
+        log_interp = lambda zz: np.power(10.0, lin_interp(np.log10(zz)))
+        return log_interp
+
+    # save interpolant in dict, keyed by spectral type
+    interp_nuv = {s : log_interp1d(nuv['age'].unique(), nuv[nuv.SpT == s]['NUV_flux']) for s in spt}
+    return interp_nuv
