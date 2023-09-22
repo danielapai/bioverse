@@ -10,6 +10,7 @@ import time
 from .constants import DATA_DIR, OBJECTS_DIR
 from .constants import STR_TYPES, INT_TYPES
 from .constants import CONST
+from .util import interpolate_luminosity, interpolate_nuv, hz_evolution
 
 # Imports pandas.DataFrame if installed
 try:
@@ -52,10 +53,10 @@ class Object():
                 raise ValueError("no label specified")
         else:
             self.label = label
-            
+
         filename = self.get_filename_from_label(label)
         pickle.dump(self,open(filename,'wb'))
-    
+
     def get_filename_from_label(self, label):
         clas = type(self).__name__
         return OBJECTS_DIR+'/{:s}s/{:s}.pkl'.format(clas, label)
@@ -67,7 +68,7 @@ class Table(dict):
 
         # Uncertainties
         self.error = None
-    
+
     def __repr__(self):
         try:
             return self.pdshow()
@@ -93,12 +94,12 @@ class Table(dict):
         """
         # If `key` is a string then return the column it refers to
         if isinstance(key, STR_TYPES):
-            # If a semi-colon is used, retrieve the column from a sub-table, e.g. Planets:Atmosphere:O2
+            # If a semicolon is used, retrieve the column from a sub-table, e.g. Planets:Atmosphere:O2
             if ':' in key:
                 key1, key2 = self.split_key(key)
                 return self[key1][key2]
             return super().__getitem__(key)
-        
+
         # If `key` is an int, int array, bool array, or slice then return the corresponding row(s)
         if isinstance(key, (np.ndarray, slice)) or isinstance(key, INT_TYPES):
             out = type(self)()
@@ -125,7 +126,7 @@ class Table(dict):
             else:
                 raise ValueError("size of new column does not match other columns")
 
-        # If a semi-colon is used, set the value inside a nested dict, e.g. Planets:Atmosphere:O2
+        # If a semicolon is used, set the value inside a nested dict, e.g. Planets:Atmosphere:O2
         if ':' in key:
             key1,key2 = self.split_key(key)
             self[key1].__setitem__(key2, value)
@@ -155,7 +156,7 @@ class Table(dict):
         key : str
             Name of the column by which to sort the table.
         inplace : bool, optional
-            If True, sort the table in-place. Otherwise return a new sorted Table.
+            If True, sort the table in-place. Otherwise, return a new sorted Table.
         ascending : bool, optional
             If True, sort from least to greatest.
 
@@ -169,7 +170,7 @@ class Table(dict):
         for key in self.keys():
             sortd[key] = self[key][order]
         return None if inplace else sortd
-     
+
     def get_stars(self):
         """ Returns just the first entry for each star in the Table. """
         idxes = np.array([np.where(self['starID']==idx)[0][0] for idx in np.unique(self['starID'])])
@@ -196,7 +197,7 @@ class Table(dict):
             if key.strip() in leg.keys():
                 print("WARNING: Duplicate entries found in the legend for parameter {:s}!".format(key))
             leg[key.strip()] = [dtype.strip(), description.strip()]
-        
+
         # Loop through each key and print the data type and description (if available)
         if keys is None:
             keys = self.keys()
@@ -214,7 +215,7 @@ class Table(dict):
         """ Returns a deep copy of the Table instead of a shallow copy (as in dict.copy). This way, if a column
         is filled by objects (such as Atmosphere objects), a copy of those is returned instead of a reference. """
         return deepcopy(self)
-        
+
     def append(self, table, inplace=True):
         """ Appends another table onto this table in-place. The second table must have the same
         columns, unless this table is empty, in which case the columns are copied over.
@@ -235,7 +236,7 @@ class Table(dict):
         # If this table has no columns, then just copy over the columns from `table`
         if len(self.keys()) == 0:
             super().__init__(table)
-        
+
         # Otherwise ensure the columns match then append the rows to the end
         elif np.array_equal(np.sort(self.keys()), np.sort(table.keys())):
             for key in self.keys():
@@ -310,7 +311,76 @@ class Table(dict):
 
         else:
             raise ValueError("no formula defined for {:s}".format(key))
-    
+
+    def evolve(self, eec_only=True, **kwargs):
+        """ Add time evolution of habitable zones and NUV flux for each planet.
+
+        This adds a new attribute `evolution` to the Table. `Table.evolution`
+        is a dictionary with the planet IDs as keys. Each entry is a dictionary
+        with the following keys:
+            - 'time' : time grid in Gyr
+            - 'lum' : luminosity evolution in L_sun
+            - 'nuv' : NUV flux evolution in erg/s/cm^2
+            - 'in_hz' : boolean array indicating whether the planet is in the HZ at each time step
+
+        Parameters
+        ----------
+        eec_only : bool, optional
+            If True, consider only planets that are "exo-Earth candidates" at observation time.
+            Otherwise, consider all planets.
+
+        Returns
+        -------
+        None
+
+        Example
+        -------
+        >>> g = Generator()
+        >>> planets = g.generate()
+        >>> planets.evolve()
+        >>> plt.plot(planets.evolution[1]['time'], planets.evolution[1]['lum'])
+        """
+        self.evolution = {}
+
+        if eec_only:
+            planets = self[self['EEC'] == True]
+        else:
+            planets = self
+
+        # Load the luminosity and nuv interpolation functions
+        interp_lum, extrap_nn = interpolate_luminosity()
+        interp_nuv = interpolate_nuv()
+
+        dd = planets.to_pandas()
+        # updated_series = my_series.where(my_series > 30, 0)
+        dd.loc[dd.subSpT.str.contains('K.*'), 'nuv_class'] = 'K'
+        dd.loc[dd.subSpT.str.contains('M[1-3].*'), 'nuv_class'] = 'earlyM'
+        dd.loc[dd.subSpT.str.contains('M[4-9].*'), 'nuv_class'] = 'lateM'
+
+        # for earlier spectral types, use spectral class K. TODO: implement for more massive stars
+        dd.loc[dd.nuv_class.isnull(), 'nuv_class'] = 'K'
+
+        for index, planet in dd.iterrows():
+            # a time grid in Gyr, sample ~every 0.01 Gyr
+            # T = np.geomspace(1e-3, planet['age'], num=round(100*planet['age']))
+            T = np.arange(1e-3, planet['age'], step= 0.01)
+
+            # Compute the time evolution of the habitable zone
+            lum_evo = interp_lum(planet['M_st'], T)
+
+            # outside the bounds of the CT interpolator, extrapolate using a nearest neighbor approach
+            if np.isnan(lum_evo).any():
+                lum_evo = extrap_nn(planet['M_st'], T)
+
+            a_inner, a_outer = hz_evolution(planet, lum_evo)
+            in_hz = (planet['a'] >= a_inner) & (planet['a'] <= a_outer)
+
+            # Compute the time evolution of the NUV flux
+            nuv_evo = interp_nuv[planet['nuv_class']](T)
+
+            self.evolution[planet['planetID']] = {'time': T, 'lum': lum_evo, 'nuv': nuv_evo, 'in_hz': in_hz}
+
+
     def shuffle(self, inplace=True):
         """ Re-orders rows in the Table. If `inplace` is False, return a new re-ordered Table instead. """
         if not inplace:
@@ -323,7 +393,7 @@ class Table(dict):
             self[key] = val[order]
 
     def pdshow(self):
-        """ If pandas is installed, show the Table represented as a DataFrame. Otherwise return an error. """
+        """ If pandas is installed, show the Table represented as a DataFrame. Otherwise, return an error. """
         if DataFrame is None:
             raise ModuleNotFoundError("Package `pandas` is required to display the Table")
         else:
@@ -335,7 +405,7 @@ class Table(dict):
         """export Table into a pandas DataFrame"""
         df = DataFrame(self)
         return df
-    
+
     def observed(self, key):
         """ Returns the subset of rows for which self[key] is not nan. """
         if key not in self:
@@ -370,4 +440,3 @@ class Stopwatch():
             print("({:3d}) {:30s}\t{:20.8f}\t{:20.8f}".format(i, self.flags[i], self.t[i]-(self.t[i-1] if i>0 else 0.), self.t[i]))
         idx = np.argmax(np.array(self.t[1:])-np.array(self.t[:-1]))
         print("\nLongest step: ({0}) {1}".format(idx, self.flags[idx]))
-        
