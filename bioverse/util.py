@@ -664,6 +664,8 @@ def interpolate_luminosity():
     M, A = np.meshgrid(M, A)
     interp_lum = CloughTocher2DInterpolator(list(zip(m, a)), lum)
     return interp_lum
+
+
 def interpolate_nuv():
     # read past UV fluxes (Richey-Yowell et al. 2023 Table 1)
     nuv = pd.read_csv(DATA_DIR + 'past-UV.csv', comment='#')
@@ -680,3 +682,57 @@ def interpolate_nuv():
     # save interpolant in dict, keyed by spectral type
     interp_nuv = {s : log_interp1d(nuv['age'].unique(), nuv[nuv.SpT == s]['NUV_flux']) for s in spt}
     return interp_nuv
+
+
+def hz_evolution(d, L=None):
+    """ Calculate the inner and outer HZ boundaries for a given stellar luminosity and effective temperature."""
+
+    if L is None:
+        L = d['L_st']
+        T_eff = d['T_eff_st']
+        M_pl = d['M']
+    else:
+        T_eff = np.full(len(L), d['T_eff_st'])
+        M_pl = np.full(len(L), d['M'])
+
+    # Parameters for each planet mass and boundary (Table 1)
+    M_ref = np.array([0.1, 1., 5.])
+    S_eff_sol = np.array(  # four values for Recent Venus, Runaway Greenhouse, Maximum Greenhouse, Early Mars
+        [[1.776, 0.99, 0.356, 0.32],
+         [1.776, 1.107, 0.356, 0.32],
+         [1.776, 1.188, 0.356, 0.32]])
+    a = np.array([[2.136e-4, 1.209e-4, 6.171e-5, 5.547e-5],
+                  [2.136e-4, 1.332e-4, 6.171e-5, 5.547e-5],
+                  [2.136e-4, 1.433e-4, 6.171e-5, 5.547e-5]])
+    b = np.array([[2.533e-5, 1.404e-8, 1.698e-9, 1.526e-9],
+                  [2.533e-5, 1.58e-8, 1.698e-9, 1.526e-9],
+                  [2.533e-5, 1.707e-8, 1.698e-9, 1.526e-9]])
+    c = np.array([[-1.332e-11, -7.418e-12, -3.198e-12, -2.874e-12],
+                  [-1.332e-11, -8.308e-12, -3.198e-12, -2.874e-12],
+                  [-1.332e-11, -8.968e-12, -3.198e-12, -2.874e-12]])
+    d2 = np.array([[-3.097e-15, -1.713e-15, -5.575e-16, -5.011e-16],
+                   [-3.097e-15, -1.931e-15, -5.575e-16, -5.011e-16],
+                   [-3.097e-15, -2.084e-15, -5.575e-16, -5.011e-16]])
+
+    # Interpolate in mass to estimate the constant values for each planet
+    S_eff_sol0 = np.array([np.interp(M_pl, M_ref, S_eff_sol[:, i]) for i in range(len(S_eff_sol[0]))])
+    a = np.array([np.interp(M_pl, M_ref, a[:, i]) for i in range(len(a[0]))])
+    b = np.array([np.interp(M_pl, M_ref, b[:, i]) for i in range(len(b[0]))])
+    c = np.array([np.interp(M_pl, M_ref, c[:, i]) for i in range(len(c[0]))])
+    d2 = np.array([np.interp(M_pl, M_ref, d2[:, i]) for i in range(len(d2[0]))])
+
+    # Calculate the effective stellar flux at each boundary (Equation 4)
+    T_st = T_eff - 5780.
+    S_eff = S_eff_sol0 + a * T_st + b * T_st ** 2 + c * T_st ** 3 + d2 * T_st ** 4
+
+    # The corresponding distances in AU (stars with T_eff > 7200 K are not habitable so d = inf)
+    Tm = T_eff < 7200
+    dist = (L / S_eff) ** 0.5
+    dist[:, ~Tm] = np.inf
+
+    # Inner, outer HZ bounds for each planet (we are interested in Runaway Greenhouse and Maximum Greenhouse)
+    d_in, d_out = dist[1], dist[2]
+    # d['a_inner'], d['a_outer'] = d_in, d_out
+    # d['S_inner'], d['S_outer'] = S_eff[1], S_eff[2]
+    return d_in, d_out
+
