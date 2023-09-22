@@ -2,14 +2,18 @@
 import os
 from matplotlib import pyplot as plt
 # Python imports
+import glob
+from matplotlib import pyplot as plt
+from scipy.interpolate import interp1d
 from scipy.stats import binned_statistic
 import importlib.util
 import numpy as np
+import pandas as pd
 from warnings import warn
 from astropy.visualization import hist as astropyhist
 
 # Bioverse modules and constants
-from .constants import LIST_TYPES, CATALOG_FILE, INT_TYPES, FLOAT_TYPES, CONST
+from .constants import LIST_TYPES, CATALOG_FILE, INT_TYPES, FLOAT_TYPES, CONST, DATA_DIR
 from .import truncnorm_hack
 
 # Load the Gaia stellar target catalog into memory for fast access
@@ -624,3 +628,38 @@ def find_distance4samplesize(N_target, g_args, tolerance=2, max_iterations=10, h
         d1 = d2
         i += 1
     return N, d0
+
+def interpolate_luminosity():
+    """interpolate luminosity for a given age and stellar mass using
+    Clough Tocher interpolation. Based on stellar luminosity tracks
+    from Baraffe+1998.
+
+    Returns
+    -------
+    interp_lum : scipy.interpolate.CloughTocher2DInterpolator
+        interpolator function that takes two inputs in scalar or
+        array-like form: stellar mass (M_sol) and age (Gyr)
+    """
+    from scipy.interpolate import CloughTocher2DInterpolator
+
+    lum_tracks = glob.glob(DATA_DIR + 'luminosity_tracks/' + "Lum_m*.txt")
+    lum_tracks.sort()
+    star_masses = [float(filename[-7:-4]) for filename in lum_tracks]
+    tracks = {}
+    for star_mass, lum_track in zip(star_masses, lum_tracks):
+        arr = np.genfromtxt(lum_track, delimiter=',')
+        tracks[star_mass] = np.append(arr, np.full((len(arr), 1), star_mass), axis=1)
+    tracks = np.concatenate([v for k, v in tracks.items()], 0)
+
+    # remove nans
+    tracks = tracks[~np.isnan(tracks).any(axis=1)]
+
+    m = tracks[:,2]
+    a = tracks[:,0]
+    lum = tracks[:,1]
+
+    M = np.linspace(min(m), max(m), num=200)
+    A = np.geomspace(min(a), max(a), num=200)
+    M, A = np.meshgrid(M, A)
+    interp_lum = CloughTocher2DInterpolator(list(zip(m, a)), lum)
+    return interp_lum
