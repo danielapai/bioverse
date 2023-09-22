@@ -656,19 +656,40 @@ def interpolate_luminosity():
     tracks = tracks[~np.isnan(tracks).any(axis=1)]
 
     m = tracks[:,2]
-    a = tracks[:,0]
+    T = tracks[:,0]
     lum = tracks[:,1]
+    interp_lum = CloughTocher2DInterpolator(list(zip(m, T)), lum)
 
-    M = np.linspace(min(m), max(m), num=200)
-    A = np.geomspace(min(a), max(a), num=200)
-    M, A = np.meshgrid(M, A)
-    interp_lum = CloughTocher2DInterpolator(list(zip(m, a)), lum)
-    return interp_lum
+    def extrap_nn(mm, tt):
+        # provide an interpolant to do nearest neighbor outside the bounds of the CT interpolator
+        L = interp_lum(mm, tt)
+        nans = np.isnan(L)
+        if nans.any():
+            inds = np.argmin(
+                (m[:, None] - mm)**2 +
+                (T[:, None] - tt[nans])**2
+                , axis=0)
+            L[nans] = lum[inds]
+        return L
+
+    return interp_lum, extrap_nn
 
 
 def interpolate_nuv():
-    # read past UV fluxes (Richey-Yowell et al. 2023 Table 1)
+    """ Interpolate NUV flux evolution for a given spectral type.
+
+    NUV flux data is from Richey-Yowell et al. (2023) Fig. 11/Table 1.
+    Time is in Gyr, fluxes are HZ median fluxes in erg/s/cm^2.
+
+    Returns
+    -------
+    interp_nuv : dict
+        dictionary of interpolators, keyed by spectral type
+    """
+
+    # read past UV fluxes (Richey-Yowell et al. 2023 Table 1). Transform time from Myr to Gyr.
     nuv = pd.read_csv(DATA_DIR + 'past-UV.csv', comment='#')
+    nuv['age'] /= 1000
     spt = nuv.SpT.unique()
 
     # interpolate in time for each spectral type
