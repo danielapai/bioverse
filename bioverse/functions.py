@@ -1260,3 +1260,52 @@ def magma_ocean(d, wrr=0.005, S_thresh=280., simplified=False, diff_frac=0.54, f
     # d['is_small'] = d['R'] < np.mean(d['R_orig'])
 
     return d
+
+
+def past_hz_uv(d, deltaT_min=100., NUV_thresh=100., eec_only=True):
+    """ Determine which planets were both in the HZ and had NUV fluxes above a
+    threshold value for more than `deltaT_min` Myr.
+
+    Past NUV flux evolution is computed according to Richey-Yowell et al. (2023)
+    Fig. 11/Table 1. Assumes a regular time grid (not logarithmic).
+
+    Parameters:
+    -----------
+    d : Table
+        Table containing the sample of simulated planets.
+    deltaT_min : float, optional
+        Minimum time interval (in Myr) for which the NUV flux was above the
+        threshold value and the planet was in the HZ.
+    NUV_thresh : float, optional
+        Threshold NUV flux (in erg/s/cm2)
+
+    Returns:
+    --------
+    d : Table
+        Table containing the sample of simulated planets with a new column
+        'hz_and_uv' indicating overlap of HZ residence and NUV flux above
+        `NUV_thresh` for more than `deltaT_min` Myr.
+    """
+    if not hasattr(d, 'evolution'):
+        d.evolve(eec_only=eec_only)
+
+    df = d.to_pandas()
+    df['hz_and_uv'] = np.full(len(d), False, dtype=bool)
+    # hzuv = np.full(len(d), False, dtype=bool)
+
+    for id, planet in d.evolution.items():
+        dt = (max(planet['time']) - min(planet['time'])) / len(planet['time'])
+        t = planet['time']
+        in_hz = planet['in_hz']
+        nuv = planet['nuv']
+
+        # check if planet ever was in the HZ and had NUV fluxes above the threshold value
+        hz_and_uv = in_hz & (nuv > NUV_thresh)
+
+        t_consec_overlaps = np.diff(np.where(np.concatenate(([hz_and_uv[0]],
+                                                             hz_and_uv[:-1] != hz_and_uv[1:],
+                                                             [True])))[0])[::2] * dt
+        df.loc[df['planetID'] == id, 'hz_and_uv'] = (t_consec_overlaps > deltaT_min / 1000.).any()
+    d['hz_and_uv'] = df['hz_and_uv']
+
+    return d
