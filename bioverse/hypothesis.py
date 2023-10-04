@@ -339,18 +339,19 @@ def f_age_oxygen(theta, X):
     f_life, t_half = theta
     return f_life * (1 - 0.5**(X/t_half))
 
-# params_age_oxygen = ('f_life', 't_half')
-# features_age_oxygen = ('age',)
-# labels_age_oxygen = ('has_O2',)
-# bounds_age_oxygen = np.array([[0.01, 1], [0.1, 100]])
-#
-# # Null hypothesis: log-uniform from 0.001 to 1
-# bounds_age_oxygen_null = np.array([[0.001, 1.0]])
-# h_age_oxygen_null = Hypothesis(f_null, bounds_age_oxygen_null, log=(True,))
-#
-# h_age_oxygen = Hypothesis(f_age_oxygen, bounds_age_oxygen, params=params_age_oxygen, features=features_age_oxygen,
-#                           labels=labels_age_oxygen, log=(True, True), h_null=h_age_oxygen_null)
-#
+
+params_age_oxygen = ('f_life', 't_half')
+features_age_oxygen = ('age',)
+labels_age_oxygen = ('has_O2',)
+bounds_age_oxygen = np.array([[0.01, 1], [0.1, 100]])
+
+# Null hypothesis: log-uniform from 0.001 to 1
+bounds_age_oxygen_null = np.array([[0.001, 1.0]])
+h_age_oxygen_null = Hypothesis(f_null, bounds_age_oxygen_null, log=(True,))
+
+h_age_oxygen = Hypothesis(f_age_oxygen, bounds_age_oxygen, params=params_age_oxygen, features=features_age_oxygen,
+                          labels=labels_age_oxygen, log=(True, True), h_null=h_age_oxygen_null)
+
 
 def magma_ocean_hypo_exp(theta, X):
     """ Define a hypothesis for a magma ocean-adapted radius-sma distribution that follows an exponential decay.
