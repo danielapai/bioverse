@@ -340,6 +340,7 @@ def f_age_oxygen(theta, X):
     return f_life * (1 - 0.5**(X/t_half))
 
 
+# needed for Example notebook:
 params_age_oxygen = ('f_life', 't_half')
 features_age_oxygen = ('age',)
 labels_age_oxygen = ('has_O2',)
