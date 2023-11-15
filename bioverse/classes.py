@@ -10,7 +10,7 @@ import time
 from .constants import DATA_DIR, OBJECTS_DIR
 from .constants import STR_TYPES, INT_TYPES
 from .constants import CONST
-from .util import interpolate_luminosity, interpolate_nuv, hz_evolution
+from .util import interpolate_luminosity, interpolate_nuv, hz_evolution, normal
 
 # Imports pandas.DataFrame if installed
 try:
@@ -309,10 +309,21 @@ class Table(dict):
             if self.error:
                 self.error['h_eff'] = self['h_eff'] * np.sqrt((self.error['S']/self['S'])**2 + (self.error['R']/self['R'])**2)
 
+        elif key == 'max_nuv':
+            self.compute('a')
+            if not hasattr(self, 'evolution'):
+                self.evolve(errors=True)
+            self['max_nuv'] = [max(self.evolution[i]['nuv']) for i, p in self.evolution.items()]
+            if self.error:
+                # approximate error using square root of sum of squares
+                self.error['max_nuv'] = self['max_nuv'] * np.sqrt((self.error['age'] / self['age']) ** 2 +
+                                                                  (self.error['M_st'] / self['M_st']) ** 2 + (
+                                                                              self.error['a'] / self['a']) ** 2)
+
         else:
             raise ValueError("no formula defined for {:s}".format(key))
 
-    def evolve(self, eec_only=True, **kwargs):
+    def evolve(self, eec_only=True, sigma_nuv_dex=0.1, errors=False, seed=42, **kwargs):
         """ Add time evolution of habitable zones and NUV flux for each planet.
 
         This adds a new attribute `evolution` to the Table. `Table.evolution`
@@ -328,6 +339,12 @@ class Table(dict):
         eec_only : bool, optional
             If True, consider only planets that are "exo-Earth candidates" at observation time.
             Otherwise, consider all planets.
+        sigma_nuv_dex : float, optional
+            The intrinsic, typical error of the NUV data in Richey-Yowell et al. (2023), in dex.
+        errors : bool, optional
+            If True, treat as observed survey data and consider measurement errors.
+        seed : int, optional
+            Seed for random number generators.
 
         Returns
         -------
@@ -340,10 +357,13 @@ class Table(dict):
         >>> planets.evolve()
         >>> plt.plot(planets.evolution[1]['time'], planets.evolution[1]['lum'])
         """
+
+        np.random.seed(seed)
         self.evolution = {}
 
         if eec_only:
             planets = self[self['EEC'] == True]
+            planets.error = self.error[self['EEC'] == True] if self.error is not None else None
         else:
             planets = self
 
@@ -352,33 +372,63 @@ class Table(dict):
         interp_nuv = interpolate_nuv()
 
         dd = planets.to_pandas()
-        # updated_series = my_series.where(my_series > 30, 0)
-        dd.loc[dd.subSpT.str.contains('K.*'), 'nuv_class'] = 'K'
-        dd.loc[dd.subSpT.str.contains('M[1-3].*'), 'nuv_class'] = 'earlyM'
-        dd.loc[dd.subSpT.str.contains('M[4-9].*'), 'nuv_class'] = 'lateM'
+        # # updated_series = my_series.where(my_series > 30, 0)
+        # dd.loc[dd.subSpT.str.contains('K.*'), 'nuv_class'] = 'K'
+        # dd.loc[dd.subSpT.str.contains('M[1-3].*'), 'nuv_class'] = 'earlyM'
+        # dd.loc[dd.subSpT.str.contains('M[4-9].*'), 'nuv_class'] = 'lateM'
+        #
+        # # for earlier spectral types, use spectral class K. TODO: implement for more massive stars
+        # dd.loc[dd.nuv_class.isnull(), 'nuv_class'] = 'K'
 
-        # for earlier spectral types, use spectral class K. TODO: implement for more massive stars
-        dd.loc[dd.nuv_class.isnull(), 'nuv_class'] = 'K'
+        if (errors or planets.error is not None):
+            # this seems to be observed survey data. Consider measurement errors.
+            errors = planets.error.to_pandas()
+            for (index, planet), (erridx, error) in zip(dd.iterrows(), errors.iterrows()):
 
-        for index, planet in dd.iterrows():
-            # a time grid in Gyr, sample ~every 0.01 Gyr
-            # T = np.geomspace(1e-3, planet['age'], num=round(100*planet['age']))
-            T = np.arange(1e-3, planet['age'], step= 0.01)
+                # a time grid in Gyr, sample ~every 0.01 Gyr
+                T = np.arange(1e-3, normal(planet['age'], error['age'], xmin=1e-6), step=0.01)
 
-            # Compute the time evolution of the habitable zone
-            lum_evo = interp_lum(planet['M_st'], T)
+                # Compute the time evolution of the habitable zone
+                lum_evo = interp_lum(normal(planet['M_st'], error['M_st'], xmin=0.08), T)
 
-            # outside the bounds of the CT interpolator, extrapolate using a nearest neighbor approach
-            if np.isnan(lum_evo).any():
-                lum_evo = extrap_nn(planet['M_st'], T)
+                # outside the bounds of the CT interpolator, extrapolate using a nearest neighbor approach
+                if np.isnan(lum_evo).any():
+                    lum_evo = extrap_nn(normal(planet['M_st'], error['M_st'], xmin=0.08), T)
 
-            a_inner, a_outer = hz_evolution(planet, lum_evo)
-            in_hz = (planet['a'] >= a_inner) & (planet['a'] <= a_outer)
+                a_inner, a_outer = hz_evolution(planet, lum_evo)
+                a = normal(planet['a'], error['a'], xmin=1e-6)
+                in_hz = (a >= a_inner) & (a <= a_outer)
 
-            # Compute the time evolution of the NUV flux
-            nuv_evo = interp_nuv[planet['nuv_class']](T)
+                # interpolate in NUV table, varying the mass within the error
+                nuv_evo = interp_nuv(normal(planet['M_st'], error['M_st'], xmin=0.08), T)
 
-            self.evolution[planet['planetID']] = {'time': T, 'lum': lum_evo, 'nuv': nuv_evo, 'in_hz': in_hz}
+                # add the instrinsic, typical error of the NUV data in Richey-Yowell et al. (2023)
+                nuv_evo = 10 ** (np.random.normal(np.log10(nuv_evo), sigma_nuv_dex))
+
+                self.evolution[planet['planetID']] = {'time': T, 'lum': lum_evo, 'nuv': nuv_evo, 'in_hz': in_hz}
+
+        else:
+            for index, planet in dd.iterrows():
+                # use face values without measurement errors
+                # a time grid in Gyr, sample ~every 0.01 Gyr
+                # T = np.geomspace(1e-3, planet['age'], num=round(100*planet['age']))
+                T = np.arange(1e-3, planet['age'], step=0.01)
+
+                # Compute the time evolution of the habitable zone
+                lum_evo = interp_lum(planet['M_st'], T)
+
+                # outside the bounds of the CT interpolator, extrapolate using a nearest neighbor approach
+                if np.isnan(lum_evo).any():
+                    lum_evo = extrap_nn(planet['M_st'], T)
+
+                a_inner, a_outer = hz_evolution(planet, lum_evo)
+                in_hz = (planet['a'] >= a_inner) & (planet['a'] <= a_outer)
+
+                # Compute the time evolution of the NUV flux
+                # nuv_evo = interp_nuv[planet['nuv_class']](T)
+                nuv_evo = interp_nuv(planet['M_st'], T)
+
+                self.evolution[planet['planetID']] = {'time': T, 'lum': lum_evo, 'nuv': nuv_evo, 'in_hz': in_hz}
 
 
     def shuffle(self, inplace=True):
