@@ -897,25 +897,6 @@ def compute_habitable_zone_boundaries(d):
     d['a_inner'],d['a_outer'] = d_in,d_out
     d['S_inner'],d['S_outer'] = S_eff[1],S_eff[2]
 
-    # Compute semi-major axis, eccentricity, mean anomaly, longitude of ascending node, and longitude of periapsis
-    semi = []
-    for i in range(len(d_in)):
-        if (d_in[i]==np.inf) or (d_out[i]==np.inf):
-            semi.append(np.inf)
-        else:
-            semi.append(np.exp(np.random.uniform(np.log(d_in[i]),np.log(d_out[i]),1)[0]))
-
-    d['a'] = semi
-    d['e'] = np.random.beta(0.867,3.03,size=len(d))
-    d['e'][d['e']>0.8] = np.random.uniform(0,0.8,(d['e']>0.8).sum())
-    d['M0'],d['w_LAN'],d['w_AP'] = np.random.uniform(0,2*np.pi,(3,len(d)))
-
-    # Compute geometric transit probability, period, and transit duration, assuming a planet in the middle of the habitable zone.
-    midhab = d['a']*const.au.value
-    d['GeoTrProb'] = 100*((d['R_st']*const.R_sun.value+d['R']*const.R_earth.value)/midhab)*((1+d['e']*np.sin(d['w_AP']))/(1-d['e']**2))
-    d['P'] = np.sqrt((4*np.pi**2*midhab**3)/(const.G.value*(d['M_st']*const.M_sun.value+d['M']*const.M_earth.value)))/86400
-    d['T_dur'] = (d['P']*24/np.pi)*np.arcsin(d['GeoTrProb']/100)
-
     # Compute the mean semi-major axis
     d['a0'] = d['a']/(1-d['e']**2)**0.5
 
