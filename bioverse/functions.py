@@ -270,7 +270,7 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
 
     return d
 
-def read_stellar_catalog(d, filename=DATA_DIR+'LUVOIR_targets.dat', d_max=30., T_min=0., T_max=10., mult=1, seed=42):
+def read_stellar_catalog(d, filename='LUVOIR_targets.dat', d_max=30., T_min=0., T_max=10., mult=1, seed=42):
     """ Reads a list of stellar properties from the LUVOIR target catalog and fills in missing values.
 
     Parameters
@@ -299,7 +299,7 @@ def read_stellar_catalog(d, filename=DATA_DIR+'LUVOIR_targets.dat', d_max=30., T
     np.random.seed(seed)
 
     # Read the catalog with column names
-    path = filename if os.path.exists(filename) else ROOT_DIR+'/'+filename
+    path = filename if os.path.exists(filename) else DATA_DIR + '/' + filename
     catalog = np.genfromtxt(path,unpack=False,names=True,dtype=None,encoding=None)
     for name in catalog.dtype.names:
         d[name.strip()] = list(catalog[name])*int(mult)
