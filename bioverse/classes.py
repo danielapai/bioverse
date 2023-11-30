@@ -380,13 +380,18 @@ class Table(dict):
         # # for earlier spectral types, use spectral class K. TODO: implement for more massive stars
         # dd.loc[dd.nuv_class.isnull(), 'nuv_class'] = 'K'
 
-        if (errors or planets.error is not None):
+        t0 = 16.5e-3  # t0 in Richey-Yowell et al. 2023
+        dt = 0.01  # time step in Gyr
+
+        if (errors and planets.error is not None):
             # this seems to be observed survey data. Consider measurement errors.
             errors = planets.error.to_pandas()
             for (index, planet), (erridx, error) in zip(dd.iterrows(), errors.iterrows()):
 
-                # a time grid in Gyr, sample ~every 0.01 Gyr
-                T = np.arange(1e-3, normal(planet['age'], error['age'], xmin=1e-6), step=0.01)
+                # grid in Gyr, sample ~every 0.01 Gyr from 16.5 Myr to the age of the system.
+                age = normal(planet['age'], error['age'], xmin=1e-6)
+                T = np.arange(t0, age, step=dt) if age > t0 + dt else np.linspace(t0, age,
+                                                                                  num=3)  # avoid single-element arrays in too young systems.
 
                 # Compute the time evolution of the habitable zone
                 lum_evo = interp_lum(normal(planet['M_st'], error['M_st'], xmin=0.08), T)
@@ -410,9 +415,10 @@ class Table(dict):
         else:
             for index, planet in dd.iterrows():
                 # use face values without measurement errors
+
                 # a time grid in Gyr, sample ~every 0.01 Gyr
-                # T = np.geomspace(1e-3, planet['age'], num=round(100*planet['age']))
-                T = np.arange(1e-3, planet['age'], step=0.01)
+                T = np.arange(t0, planet['age'], step=dt) if planet['age'] > t0 + dt else np.linspace(t0, planet['age'],
+                                                                                                      num=3)  # avoid single-element arrays in too young systems.
 
                 # Compute the time evolution of the habitable zone
                 lum_evo = interp_lum(planet['M_st'], T)
