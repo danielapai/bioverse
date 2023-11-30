@@ -321,17 +321,17 @@ def f_HZ(theta, X):
     in_HZ = (X > a_inner) & (X < (a_inner + delta_a))
     return in_HZ * f_HZ + (~in_HZ) * f_HZ*df_notHZ
 
-# params_HZ = ('a_inner', 'delta_a', 'f_HZ', 'df_notHZ')
-# features_HZ = ('a_eff',)
-# labels_HZ = ('has_H2O',)
-# bounds_HZ = np.array([[0.1, 2], [0.01, 10], [0.001, 1.0], [0.001, 1.0]])
-#
-# # Null hypothesis: log-uniform from 0.001 to 1
-# bounds_HZ_null = np.array([[0.001, 1.0]])
-# h_HZ_null = Hypothesis(f_null, bounds_HZ_null, log=(True,))
-#
-# h_HZ = Hypothesis(f_HZ, bounds_HZ, params=params_HZ, features=features_HZ, labels=labels_HZ,
-#                   log=(True, True, True, True), h_null=h_HZ_null)
+params_HZ = ('a_inner', 'delta_a', 'f_HZ', 'df_notHZ')
+features_HZ = ('a_eff',)
+labels_HZ = ('has_H2O',)
+bounds_HZ = np.array([[0.1, 2], [0.01, 10], [0.001, 1.0], [0.001, 1.0]])
+
+# Null hypothesis: log-uniform from 0.001 to 1
+bounds_HZ_null = np.array([[0.001, 1.0]])
+h_HZ_null = Hypothesis(f_null, bounds_HZ_null, log=(True,))
+
+h_HZ = Hypothesis(f_HZ, bounds_HZ, params=params_HZ, features=features_HZ, labels=labels_HZ,
+                  log=(True, True, True, True), h_null=h_HZ_null)
 
 # AGE-OXYGEN CORRELATION HYPOTHESIS (2-parameter)
 def f_age_oxygen(theta, X): 
