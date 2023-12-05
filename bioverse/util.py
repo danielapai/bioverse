@@ -913,7 +913,8 @@ def hz_evolution(d, L=None):
 
     # The corresponding distances in AU (stars with T_eff > 7200 K are not habitable so d = inf)
     Tm = T_eff < 7200
-    dist = (L / S_eff) ** 0.5
+    dist = (L.reshape((len(L),)) / S_eff) ** 0.5  # reshape to catch a rare bug
+
     dist[:, ~Tm] = np.inf
 
     # Inner, outer HZ bounds for each planet (we are interested in Runaway Greenhouse and Maximum Greenhouse)
