@@ -54,3 +54,7 @@ Bioverse is compatible with Python 3.7+. It has the following dependencies, all 
 - ``tqdm`` (optional: provides a progress bar for long processes)
 - ``pandas`` (optional: used for data visualization)
 - ``PyQt5`` (optional: enables configuration GUI)
+
+Feedback & Development
+**********************
+Bioverse is open source and in active development. We welcome all feedback, bug reports, or feature requests. Feel free to open a pull request if you'd like to contribute! If you think you found a bug, please raise an `issue <https://github.com/danielapai/bioverse/issues/>`_.
