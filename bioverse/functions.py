@@ -1262,7 +1262,7 @@ def magma_ocean(d, wrr=0.005, S_thresh=280., simplified=False, diff_frac=0.54, f
     return d
 
 
-def past_hz_uv(d, deltaT_min=100., NUV_thresh=100., eec_only=True):
+def past_hz_uv(d, deltaT_min=1., NUV_thresh=350., eec_only=True):
     """ Determine which planets were both in the HZ and had NUV fluxes above a
     threshold value for more than `deltaT_min` Myr.
 
@@ -1298,7 +1298,6 @@ def past_hz_uv(d, deltaT_min=100., NUV_thresh=100., eec_only=True):
         t = planet['time']
         in_hz = planet['in_hz']
         nuv = planet['nuv']
-        max_nuv = max(nuv)
 
         # check if planet ever was in the HZ and had NUV fluxes above the threshold value
         hz_and_uv = in_hz & (nuv > NUV_thresh)
@@ -1307,8 +1306,6 @@ def past_hz_uv(d, deltaT_min=100., NUV_thresh=100., eec_only=True):
                                                              hz_and_uv[:-1] != hz_and_uv[1:],
                                                              [True])))[0])[::2] * dt
         df.loc[df['planetID'] == id, 'hz_and_uv'] = (t_consec_overlaps > deltaT_min / 1000.).any()
-        df.loc[df['planetID'] == id, 'max_nuv'] = max_nuv
     d['hz_and_uv'] = df['hz_and_uv']
-    d['max_nuv'] = df['max_nuv']
 
     return d
