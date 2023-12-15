@@ -310,15 +310,58 @@ class Table(dict):
                 self.error['h_eff'] = self['h_eff'] * np.sqrt((self.error['S']/self['S'])**2 + (self.error['R']/self['R'])**2)
 
         elif key == 'max_nuv':
-            self.compute('a')
+
+            # self.compute('a')
             if not hasattr(self, 'evolution'):
                 self.evolve(errors=True)
-            self['max_nuv'] = [max(self.evolution[i]['nuv']) for i, p in self.evolution.items()]
+
+            # find maximum NUV flux occurring after 50 Myr
+            self['max_nuv'] = np.full(len(self), np.nan)
+            for i, p in self.evolution.items():
+                try:
+                    max_nuv = np.max(p['nuv'][p['time'] > 50e-3])
+                    self['max_nuv'][self['planetID'] == i] = max_nuv
+                except ValueError:
+                    # planet is too young. Set max_nuv to maximum NUV flux at any time
+                    self['max_nuv'][self['planetID'] == i] = np.max(p['nuv'])
+
+
             if self.error:
                 # approximate error using square root of sum of squares
                 self.error['max_nuv'] = self['max_nuv'] * np.sqrt((self.error['age'] / self['age']) ** 2 +
                                                                   (self.error['M_st'] / self['M_st']) ** 2 + (
                                                                               self.error['a'] / self['a']) ** 2)
+
+                # approximate error according to Richey-Yowell et al. 2023 Table 1 (~0.1 dex)
+                self.error['max_nuv'] = self['max_nuv'] * 0.1
+
+
+
+        # elif key == 'hz_and_uv':
+        #
+        #
+        #     if not hasattr(self, 'evolution'):
+        #         # evolve planets with errors
+        #         self.evolve(errors=True)
+        #
+        #     df = self.to_pandas()
+        #     df['hz_and_uv'] = np.full(len(self), False, dtype=bool)
+        #
+        #     for id, planet in self.evolution.items():
+        #         dt = (max(planet['time']) - min(planet['time'])) / len(planet['time'])
+        #         t = planet['time']
+        #         in_hz = planet['in_hz']
+        #         nuv = planet['nuv']
+        #
+        #         # check if planet ever was in the HZ and had NUV fluxes above the threshold value
+        #         hz_and_uv = in_hz & (nuv > NUV_thresh)
+        #
+        #         t_consec_overlaps = np.diff(np.where(np.concatenate(([hz_and_uv[0]],
+        #                                                              hz_and_uv[:-1] != hz_and_uv[1:],
+        #                                                              [True])))[0])[::2] * dt
+        #         df.loc[df['planetID'] == id, 'hz_and_uv'] = (t_consec_overlaps > deltaT_min / 1000.).any()
+        #     self['hz_and_uv'] = df['hz_and_uv']
+
 
         else:
             raise ValueError("no formula defined for {:s}".format(key))

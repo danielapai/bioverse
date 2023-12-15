@@ -102,8 +102,8 @@ def import_function_from_file(function_name, file_path):
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
 
-    # Return the function
-    return mod.__dict__[function_name]
+        # Return the function
+        return mod.__dict__[function_name]
 
 
 # Returns the "colors" of a planet based on its class and orbit
