@@ -10,24 +10,14 @@ Bioverse is a Python package for simulating the results of a statistical survey 
 
 The :doc:`Overview<overview>` section describes the code's structure and primary classes and should be reviewed first. Following that, the :doc:`Examples<Notebooks/Tutorial1>` section offers step-by-step examples for producing some of the results published in the paper, as well as ways to modify and expand upon the code. Most of these examples are also available as interactive Jupyter notebooks in the ``Notebooks`` directory of the GitHub repository.
 
-References & Acknowledgements
-*****************************
-Papers making use of Bioverse should reference `Bixel & Apai (2021) <https://ui.adsabs.harvard.edu/abs/2021AJ....161..228B/abstract>`_. You should also include references to the `emcee <https://github.com/dfm/emcee>`_ and `dynesty <https://github.com/joshspeagle/dynesty>`_ packages, which are used for hypothesis testing and parameter fitting.
-
-Bioverse was developed with support from the following grants and collaborations:
-
-- `Alien Earths <http://eos-nexus.org/>`_ & Earths in Other Solar Systems
-- NASA Earth and Space Science Fellowship Program (grant No. 80NSSC17K0470)
-- NASA's Nexus for Exoplanet System Science (NExSS) 
-
 Installation
 ************
 
-Bioverse can be cloned from its `GitHub repository <https://www.github.com/abixel/bioverse/>`_:
+Bioverse can be cloned from its `GitHub repository <https://github.com/danielapai/bioverse/>`_:
 
 .. code-block:: bash
 
-    git clone https://www.github.com/abixel/bioverse/
+    git clone https://www.github.com/danielapai/bioverse/
 
 To install Bioverse, navigate to the directory containing ``setup.py`` and run: [#f1]_
 
@@ -92,3 +82,17 @@ Bioverse is compatible with Python 3.7+. It has the following dependencies, all 
 .. rubric:: Footnotes
 
 .. [#f1] Bioverse will be added to PyPI in a future update.
+
+Feedback & Development
+**********************
+Bioverse is open source and in active development. We welcome all feedback, bug reports, or feature requests. Feel free to open a pull request if you'd like to contribute! If you think you found a bug, please raise an `issue <https://github.com/danielapai/bioverse/issues>`_.
+
+References & Acknowledgements
+*****************************
+Papers making use of Bioverse should reference `Bixel & Apai (2021) <https://ui.adsabs.harvard.edu/abs/2021AJ....161..228B/abstract>`_. You should also include references to the `emcee <https://github.com/dfm/emcee>`_ and `dynesty <https://github.com/joshspeagle/dynesty>`_ packages, which are used for hypothesis testing and parameter fitting.
+
+Bioverse was developed with support from the following grants and collaborations:
+
+- `Alien Earths <http://eos-nexus.org/>`_ & Earths in Other Solar Systems
+- NASA Earth and Space Science Fellowship Program (grant No. 80NSSC17K0470)
+- NASA's Nexus for Exoplanet System Science (NExSS)
