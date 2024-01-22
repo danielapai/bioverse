@@ -80,19 +80,16 @@ def as_tuple(x):
         return tuple(x)
 
 # Imports a function given the filename and the name of the function
-def import_function_from_file(function_name,filename):
-        # Get package and module names
-        module_folder, module_file = os.path.split(filename)
-        package_name = os.path.basename(module_folder)
+def import_function_from_file(function_name, file_path):
+        # split the file path into the folder path and the file name
+        module_folder_path, module_file = os.path.split(file_path)
+        # extract the package name from the folder path
+        package_name = os.path.basename(module_folder_path)
+        # extract the module name from the file name (stripping the .py extension)
         module_name = os.path.splitext(module_file)[0]
 
-        # print(filename)
-        # print(module_folder)
-        # print(package_name)
-        # print(module_name)
-
         # Import the module
-        spec = importlib.util.spec_from_file_location(package_name+'.'+module_name, filename)
+        spec = importlib.util.spec_from_file_location(package_name +'.' + module_name, file_path)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
 
