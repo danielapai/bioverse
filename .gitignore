@@ -8,5 +8,5 @@ docs/_build/
 .vscode/
 docs/.vscode/*
 old/*
-.idea/*
-bioverse.egg-info/*
+.idea/
+bioverse.egg-info/
