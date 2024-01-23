@@ -1,7 +1,6 @@
 sphinx
 nbsphinx
 ipykernel
-
 astroquery
 dynesty
 emcee
