@@ -1,4 +1,5 @@
 """ Miscellanous functions used elsewhere in the code. """
+import os
 from matplotlib import pyplot as plt
 # Python imports
 from scipy.stats import binned_statistic
@@ -79,13 +80,16 @@ def as_tuple(x):
         return tuple(x)
 
 # Imports a function given the filename and the name of the function
-def import_function_from_file(function_name,filename):
-        # Get package and module names
-        package_name = filename.strip('/').split('/')[-2] # should be "bioverse"
-        module_name = '.'.join(filename.strip('/').split('/')[-1].split('.')[:-1])
+def import_function_from_file(function_name, file_path):
+        # split the file path into the folder path and the file name
+        module_folder_path, module_file = os.path.split(file_path)
+        # extract the package name from the folder path
+        package_name = os.path.basename(module_folder_path)
+        # extract the module name from the file name (stripping the .py extension)
+        module_name = os.path.splitext(module_file)[0]
 
         # Import the module
-        spec = importlib.util.spec_from_file_location(package_name+'.'+module_name, filename)
+        spec = importlib.util.spec_from_file_location(package_name +'.' + module_name, file_path)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
 
