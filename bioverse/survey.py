@@ -200,12 +200,9 @@ class ImagingSurvey(Survey):
         yield : Table
             Copy of the input Table containing only planets which were detected by the survey.
         """
-        
-        if 'ang_sep_mas' in d:
-            separation= d['ang_sep_mas']
-        else:
-            # Compute the angular separation at quadrature (milli-arcseconds)
-            separation = d['a'] / d['d'] * 1000
+
+        # Compute the angular separation at quadrature (milli-arcseconds)
+        separation = d['a'] / d['d'] * 1000
 
         # If no albedo is given, assume one
         if 'A_g' not in d:
