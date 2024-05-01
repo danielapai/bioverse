@@ -396,6 +396,110 @@ def compute_t_ref(filenames, t_exp, wl_min, wl_max, threshold=5, usecols=(0, 1, 
     return t_ref
 
 
+def contrast_to_dmag(contrast):
+    '''
+    converts a value of planet-star contrast to delta magnitudes
+
+    Parameters
+    ----------
+    contrast : float
+        Planet-star contrast
+
+    Returns
+    -------
+    dmag : float
+        Delta magnitude
+    '''
+    dmag= -2.5 * np.log10(contrast)
+    return dmag
+
+def simple_exposure_time_calculator(contrast,sep_mas,D,mag_star,lambda_ref=550.,
+                                    F_0=10375.7, SNR=7, IWA=3.5, OWA=64.0):
+    """
+    Simple exposure time calculator based on that of Stark+ 2014
+    Assumes simple tophat function in throughput, step function in contrast
+    between IWA and OWA, as opposed to more sophisticated coronagraph model.
+    Tested at V band.
+
+    Parameters
+    ----------
+    contrast : float
+        planet-star contrast
+    sep_mas : float
+        planet-star angular separation in milliarcseconds
+    D : float
+        Telescope diameter in m
+    mag_star : float
+        magnitude of star in specified bandpass
+    lambda_ref : float, optional
+        Wavelength of specified bandpass in nm. The default is 550. nm for V band
+    F_0 : float, optional
+        Flux zero point for filter in terms of photons cm^-2 nm^-1 s^-1  
+        The default is 10375.7 photons cm^-2 nm^-1 s^-1 for V band.
+    SNR : float, optional
+        Required signal to noise. The default value is 7 for planet detection.
+    IWA : float, optional
+        Coronagraph inner working angle. Units of lambda/D
+    OWA : float, optional
+        Coronagraph outer working angle. Units of lambda/D
+
+    Returns
+    -------
+    t_exp: float
+        required exposure time in seconds
+
+    """
+    X=0.7
+    CONTRAST_0= 1e-10
+    T=0.3
+    z=23.0 #mag/arcsec^2
+    x=22.0 #mag/arcsec^2
+    n=3 #number of exozodi per star
+    
+    dlambda= lambda_ref*0.2 # nm,  20% band width
+    l_D= (lambda_ref*1e-9)/D #lambda over D in radians
+    sep_lD= (sep_mas*4.84814e-9)/l_D
+    
+    #assume a tophat function for upsilon
+    if (sep_lD >= IWA) and (sep_lD <= OWA):
+        upsilon=0.4
+    else:
+        upsilon=0.0
+    
+    dmag= contrast_to_dmag(contrast)
+    
+    #planet count rate
+    CR_p = F_0*(10**(-0.4*(mag_star+dmag)))*np.pi*((D*100.)**2)*upsilon*T*dlambda/4.0
+    #we convert D to cm to have comparable units to F_0
+    
+    if CR_p==0:
+        return np.inf
+    
+    #set a noise floor at 26.5 mag separation
+    if dmag > 26.5:
+        return np.inf
+    
+    solid_angle=np.pi*(X*l_D)**2 #in sr
+    solid_angle_as= solid_angle*4.255e10 #to arcsec^2
+    area= np.pi*pow(D*100,2)/4 #cm^2
+    PSF_peak=np.pi* pow(D,2)/pow(lambda_ref*1e-9,2)/4
+    
+    #leaked stellar count rate
+    CR_s=F_0* (10**(-0.4*mag_star))*CONTRAST_0*PSF_peak*solid_angle*area*T*dlambda
+    
+    #zodiacal light count rate
+    CR_zodi= F_0 *(10**(-0.4*z))*solid_angle_as*area*T*dlambda
+    
+    #exozodi count rate
+    CR_exozodi= F_0*n* (10**(-0.4*x))*solid_angle_as*area*T*dlambda
+    
+    CR_b= CR_s + CR_zodi +CR_exozodi
+    
+    t_exp= pow(SNR,2)*(CR_p+2*CR_b)/pow(CR_p,2) #in seconds
+    return t_exp
+
+
+
 def compute_logbins(binWidth_dex, Range):
     """ Compute the bin edges for a logarithmic grid.
 
@@ -624,3 +728,4 @@ def find_distance4samplesize(N_target, g_args, tolerance=2, max_iterations=10, h
         d1 = d2
         i += 1
     return N, d0
+
