@@ -414,7 +414,7 @@ def contrast_to_dmag(contrast):
     return dmag
 
 def simple_exposure_time_calculator(contrast,sep_mas,D,mag_star,lambda_ref=550.,
-                                    F_0=10375.7, SNR=7, IWA=3.5, OWA=64.0):
+                                    F_0=10375.7, SNR=7, IWA=3.5, OWA=64.0,logcontrast_limit=-10.6):
     """
     Simple exposure time calculator based on that of Stark+ 2014
     Assumes simple tophat function in throughput, step function in contrast
@@ -467,6 +467,10 @@ def simple_exposure_time_calculator(contrast,sep_mas,D,mag_star,lambda_ref=550.,
         upsilon=0.0
     
     dmag= contrast_to_dmag(contrast)
+    noisefloor= contrast_to_dmag(10**logcontrast_limit)
+    #set a noise floor at 26.5 mag separation
+    if dmag > noisefloor:
+        return np.inf
     
     #planet count rate
     CR_p = F_0*(10**(-0.4*(mag_star+dmag)))*np.pi*((D*100.)**2)*upsilon*T*dlambda/4.0
@@ -475,9 +479,7 @@ def simple_exposure_time_calculator(contrast,sep_mas,D,mag_star,lambda_ref=550.,
     if CR_p==0:
         return np.inf
     
-    #set a noise floor at 26.5 mag separation
-    if dmag > 26.5:
-        return np.inf
+   
     
     solid_angle=np.pi*(X*l_D)**2 #in sr
     solid_angle_as= solid_angle*4.255e10 #to arcsec^2
