@@ -337,7 +337,7 @@ def read_stellar_catalog(d, filename='LUVOIR_targets.dat', d_max=30., T_min=0., 
     return d
 
 def read_HPIC(d,filename='full_HPIC.txt', m_V_max=None, dist_max=None,
-              required_props=['sy_dist','st_lum','sy_vmag']):
+              required_props=['d','logL','Vmag']):
     """ Generates stars from the HPIC the HWO Preliminary input catalog of Tuchow+, 2024
     
     Parameters
@@ -349,11 +349,10 @@ def read_HPIC(d,filename='full_HPIC.txt', m_V_max=None, dist_max=None,
     m_V_max : float, optional
         Max V magnitude for simulated stars
     dist_max : float, optional
-        Max distance for simulated stars. Note the HPIC was constructed with a max dist of 50 pc
+        Max distance in pc for simulated stars. Note the HPIC was constructed with a max dist of 50 pc
     required_props : list of str, optional
         Required stellar properties for generated stars. Stars without these properties will be omitted from the target list.
-        Use names from the HPIC not usual bioverse names of properties.
-        The default is ['sy_dist','st_lum','sy_vmag'].
+        Use names from bioverse not standard HPIC names of properties.
 
     Returns
     -------
