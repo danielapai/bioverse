@@ -225,10 +225,9 @@ class HWOSurvey(Survey):
         # Return the output table
         return d[mask1 & mask2]
     
+    #needs to be tested
     def call_exposure_time_calculator(self,d,SNR=7,func=util.simple_exposure_time_calculator,
                                       band='Vmag',**kwargs):
-        nd= len(d)
-        #SNR_arr= np.full(nd,SNR)
         
         def texp_func(contrast, sep, mag):
             texp= func(contrast,sep,self.diameter,mag, SNR=SNR,IWA=self.inner_working_angle,
