@@ -234,8 +234,14 @@ class HWOSurvey(Survey):
                  OWA=self.outer_working_angle,logcontrast_limit=self.contrast_limit,
                  **kwargs)
             return texp
+        texp_map=map(texp_func,d['contrast'],d['ang_sep_mas'],d[band])
         
-        d['t_exp']=map(texp_func,d['contrast'],d['ang_sep_mas'],d[band])
+        d['t_exp']= list(texp_map)
+        return d
+
+    # 2week max exp time
+    def add_exposure_time_cutoff(self,d, max_texp=1.21e6):
+        d= d[d['t_exp']<max_texp]
         return d
 
     def compute_scaling_factor(self, d):
