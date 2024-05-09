@@ -673,9 +673,9 @@ def assign_orbital_elements(d, transit_mode=False, seed=42):
 
 def solve_kep(d,t=0,M=None,n_it=3):
     '''
-    Solves Kepler equation for generated planets, calculating true planet star 
-    separations, phase angles, and angular separations in milliarcsec. Adapted 
-    from the get_xyz function in util.py.
+    Solves Kepler equation for generated planets, calculating true anomalies,
+    true planet star separations, phase angles, and angular separations in milliarcsecs. 
+    Adapted from the get_xyz function in util.py.
     If computing contrast with at_quatrature=False, add this step beforehand
 
     Parameters
@@ -1104,7 +1104,7 @@ def compute_contrast(d,at_quadrature=True,phasefunc=lambertian_phase):
             #contrast at given phase, requires knowledge of phase angle, true_sep
             d['contrast']= d['A_g'] * pow((4.258756e-5 * d['R'] / d['true_sep']),2)*phasefunc(d['phase_angle'])
         except KeyError:
-            pass
+            raise KeyError("Missing keys for 'true_sep','phase_angle'")
 
     return d
 
