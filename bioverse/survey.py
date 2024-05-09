@@ -176,6 +176,79 @@ class Survey(dict, Object):
 
         return data
 
+
+@dataclass(repr=False)
+class HWOSurvey(Survey):
+    inner_working_angle: float = 2.
+    outer_working_angle: float = 30.
+    contrast_limit: float = -10.6
+    mode: str = 'HWO'
+
+    def compute_yield(self, d, wl_eff=0.5, A_g=0.3):
+        """ Computes a simple estimate of the number of detectable planets for an imaging survey. Compares the contrast ratio and projected separation of each planet to the contrast limit and inner/outer working angles of the survey. Planets that satisfy these criteria are considered to be detectable. Not all these planets will actually be observed by a mission.
+        
+        Parameters
+        ----------
+        d : Table
+            Table of all simulated planets which the survey could attempt to observe.
+        wl_eff : float, optional
+            Effective wavelength of observation in microns (used for calculating the IWA/OWA).
+        A_g : float, optional
+            Geometric albedo of each planet, ignored if 'A_g' is already assigned.
+
+        Returns
+        -------
+        yield : Table
+            Copy of the input Table containing only planets which were detected by the survey.
+        """
+
+        if 'ang_sep_mas' in d:
+            separation= d['ang_sep_mas']
+        else:
+            # Compute the angular separation at quadrature (milli-arcseconds)
+            separation = d['a'] / d['d'] * 1000
+
+        # If no albedo is given, assume one
+        if 'A_g' not in d:
+            d['A_g'] = np.full(len(d), A_g)
+
+        # Determine which planets are brighter than the contrast limit
+        if 'contrast' not in d:
+            d['contrast'] = d['A_g'] * (4.258756e-5*d['R']/d['a'])**2 / np.pi
+        mask1 = d['contrast'] > 10**self.contrast_limit
+
+        # Determine which planets are within the field of view
+        iwa = self.inner_working_angle * (1e-6*wl_eff) / self.diameter*206265*1000
+        owa = self.outer_working_angle * (1e-6*wl_eff) / self.diameter*206265*1000
+        mask2 = (separation > iwa) & (separation < owa)
+
+        # Return the output table
+        return d[mask1 & mask2]
+    
+    #needs to be tested
+    def call_exposure_time_calculator(self,d,SNR=7,func=util.simple_exposure_time_calculator,
+                                      band='Vmag',**kwargs):
+        
+        def texp_func(contrast, sep, mag):
+            texp= func(contrast,sep,self.diameter,mag, SNR=SNR,IWA=self.inner_working_angle,
+                 OWA=self.outer_working_angle,logcontrast_limit=self.contrast_limit,
+                 **kwargs)
+            return texp
+        texp_map=map(texp_func,d['contrast'],d['ang_sep_mas'],d[band])
+        
+        d['t_exp']= list(texp_map)
+        return d
+
+    # 2week max exp time
+    def add_exposure_time_cutoff(self,d, max_texp=1.21e6):
+        d= d[d['t_exp']<max_texp]
+        return d
+
+    def compute_scaling_factor(self, d):
+        """ Computes the scaling factor for the reference exposure time in imaging mode for all planets in `d`. """
+        return (d['contrast']/1e-10)**-1
+
+
 @dataclass(repr=False)
 class ImagingSurvey(Survey):
     inner_working_angle: float = 3.5
@@ -201,8 +274,11 @@ class ImagingSurvey(Survey):
             Copy of the input Table containing only planets which were detected by the survey.
         """
 
-        # Compute the angular separation at quadrature (milli-arcseconds)
-        separation = d['a'] / d['d'] * 1000
+        if 'ang_sep_mas' in d:
+            separation= d['ang_sep_mas']
+        else:
+            # Compute the angular separation at quadrature (milli-arcseconds)
+            separation = d['a'] / d['d'] * 1000
 
         # If no albedo is given, assume one
         if 'A_g' not in d:
