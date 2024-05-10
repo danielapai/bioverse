@@ -308,7 +308,7 @@ def reset_imaging_generator():
     """ Re-creates the default Generator for imaging surveys. """
     g_imaging = Generator(label=None)
     g_imaging.insert_step('read_stellar_catalog')
-    g_imaging.insert_step('create_planets_bergsten')
+    g_imaging.insert_step('create_planets_SAG13')
     g_imaging.insert_step('assign_orbital_elements')
     g_imaging.insert_step('impact_parameter')
     g_imaging.insert_step('assign_mass')
