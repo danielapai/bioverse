@@ -336,7 +336,7 @@ def read_stellar_catalog(d, filename='LUVOIR_targets.dat', d_max=30., T_min=0., 
 
     return d
 
-def read_HPIC(d,filename='full_HPIC.txt', m_V_max=None, dist_max=None,
+def read_HPIC(d,filename='HPIC.txt', m_V_max=None, dist_max=None,
               required_props=['d','logL','Vmag']):
     """ Generates stars from the HPIC the HWO Preliminary input catalog of Tuchow+, 2024
     
