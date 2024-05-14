@@ -328,7 +328,7 @@ def read_stellar_catalog(d, filename='LUVOIR_targets.dat', d_max=30., T_min=0., 
 
     return d
 
-def read_HPIC(d,filename='full_HPIC.txt', m_V_max=None, dist_max=None,
+def read_HPIC(d,filename='HPIC.txt', m_V_max=None, dist_max=None,
               required_props=['d','logL','Vmag']):
     """ Generates stars from the HPIC the HWO Preliminary input catalog of Tuchow+, 2024
     
@@ -352,17 +352,11 @@ def read_HPIC(d,filename='full_HPIC.txt', m_V_max=None, dist_max=None,
         Table object with generated stars
 
     """
-    selected_cols= ['star_name','sy_dist','st_mass','st_rad','st_lum','st_teff',
-                'st_spectype','st_age','known_binary_fl','sy_gaiamag','sy_tmag','sy_jmag','sy_vmag']
-    corr_names= ['star_name','d','M_st','R_st','logL','T_eff_st','SpT','age','binary','Gmag','Tmag','Jmag','Vmag']
-    
-    name_dict= dict(zip(selected_cols,corr_names))
-    
+    #col_names=['star_name','d','M_st','R_st','logL','T_eff_st','SpT','age','binary','Gmag','Tmag','Jmag','Vmag']
     hpic_dir= filename if os.path.exists(filename) else DATA_DIR + '/' + filename
     
     
-    HPIC_df= pd.read_csv(hpic_dir,sep='|',na_values='null',usecols=selected_cols)
-    HPIC_df=HPIC_df.rename(columns=name_dict)
+    HPIC_df= pd.read_csv(hpic_dir,sep='|',na_values='null')
     
     if m_V_max!=None:
         HPIC_df= HPIC_df.loc[HPIC_df['Vmag']<m_V_max]
