@@ -11,17 +11,27 @@ import logging
 # Bioverse modules and constants
 from . import util
 
-logger = logging.getLogger(__name__)
-
-logger.setLevel(logging.DEBUG)
-
 # Prevents a crash due to matplotlib when multiprocessing
 mp.set_start_method('spawn', force=True)
 
 def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, bins=15, return_chains=False,
-                         mw_alternative='greater', method='dynesty', nlive=100, **kwargs):
+                         mw_alternative='greater', method='dynesty', nlive=100, error_dump_filename: str = None,
+                         **kwargs):
     """ Runs simulated surveys over a grid of survey and astrophysical parameters. Each time, uses the simulated
     data set to fit the hypothesis parameters and computes the model evidence versus the null hypothesis. """
+
+    # set up logging
+    logger = logging.getLogger(__name__)
+
+    # logger.setLevel(logging.DEBUG)
+
+    if error_dump_filename:
+        handler = logging.FileHandler(error_dump_filename, mode="w")
+
+        # handler.setLevel(logging.DEBUG)
+        logger.addHandler(handler)
+    else:
+        handler = None
 
     # Split `kwargs` into `grid` (list values + N) and `fixed` (scalar values) keyword arguments
     grid = {key:np.array(val) for key, val in kwargs.items() if np.ndim(val) == 1}
@@ -44,17 +54,17 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
         iter_kwargs.update({key:val[idxes[i]] for i, (key, val) in enumerate(grid.items()) if key != 'N'})
 
         # Start each iteration as a separate process
-        args = (h, generator, survey, bins, return_chains, 
+        args = (h, generator, survey, bins, return_chains,
                 mw_alternative, method, seeds[idx], nlive, iter_kwargs, idx)
         proc = pool.apply_async(test_hypothesis_grid_iter,args)
         procs.append(proc)
-        
+
     # Collect the results from each process into the appropriate grid cell
     results = {}
     try:
         for idx in util.bar(range(N_iter), do_bar):
             try:
-                res = procs[idx].get()
+                res, log_entries = procs[idx].get()
             except KeyboardInterrupt:
                 raise
             except Exception:
@@ -62,7 +72,9 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
 
                 continue
 
-            # logger.info(res)
+            # print out the logs from this iteration
+            for line in log_entries:
+                logger.error(line)
 
             for key in res:
                 val = res[key]
@@ -81,7 +93,7 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
                         pad = np.full((N_iter, -diff, *val.shape[1:]), np.nan)
                         results[key] = np.concatenate([results[key], pad], axis=1)
                 results[key][idx] = val
-    except KeyboardInterrupt:
+    except:
         traceback.print_exc()
         print("\nInterrupted, terminating remaining processes")
         pool.terminate()
@@ -100,11 +112,17 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
     results['h'], results['generator'], results['survey'], results['grid'], results['fixed'] =\
         h, generator, survey, grid, fixed
 
+    if handler:
+        handler.close()
+
     return results
 
 def test_hypothesis_grid_iter(h, generator, survey, bins, return_chains,
                               mw_alternative, method, seed, nlive, kwargs, iter_num: int):
     """ Runs a single iteration for test_hypothesis_grid (separated for multiprocessing). """
+
+    log_entries: list[str] = []
+
     # Prevents duplicate results when multiprocessing
     if seed is not None:
         np.random.seed(seed)
@@ -134,7 +152,8 @@ def test_hypothesis_grid_iter(h, generator, survey, bins, return_chains,
         except KeyboardInterrupt:
             raise
         except Exception:
-            logger.error(f"Error on iteration {iter_num}, attempt {num_attempts} (seed {seed})", exc_info=True)
+            log_entries.append(f"Fitting error on iteration {iter_num}, attempt {num_attempts} (seed {seed})")
+            log_entries.append(traceback.format_exc())
 
             # increment num_attempts and seed
             num_attempts += 1
@@ -166,7 +185,7 @@ def test_hypothesis_grid_iter(h, generator, survey, bins, return_chains,
     results['bins'], results['values'], results['errors'] = bins, values, errors
     results['t_sim'], results['t_fit'] = t_sim, t_fit
     
-    return results
+    return results, log_entries
 
 def compute_statistical_power(results, threshold=None, method='dlnZ'):
     """ Computes the statistical power of a hypothesis test, i.e. the fraction of simulated tests which
