@@ -51,14 +51,17 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
     procs, seeds = [], np.random.randint(0, 1e9, N_iter)
 
     bar = util.bar(range(N_iter), do_bar)
+    bar_lock = mp.Lock()
 
     def callback(raw_result: tuple[dict, list[str], int]):
         if isinstance(bar, tqdm.tqdm):
-            bar.update()
+            with bar_lock:
+                bar.update()
 
     def error_callback(error: Exception):
         if isinstance(bar, tqdm.tqdm):
-            bar.update()
+            with bar_lock:
+                bar.update()
 
     for idx in range(N_iter):
         # Determine the grid values (+ fixed arguments) for this iteration, excepting 'N'
@@ -81,7 +84,7 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
             except KeyboardInterrupt:
                 raise
             except Exception:
-                logger.error("", exc_info=True)
+                logger.error(f"Error in iteration {idx}", exc_info=True)
 
                 continue
 
