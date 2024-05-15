@@ -45,7 +45,7 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
 
         # Start each iteration as a separate process
         args = (h, generator, survey, bins, return_chains, 
-                mw_alternative, method, seeds[idx], nlive, iter_kwargs)
+                mw_alternative, method, seeds[idx], nlive, iter_kwargs, idx)
         proc = pool.apply_async(test_hypothesis_grid_iter,args)
         procs.append(proc)
         
@@ -55,6 +55,8 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
         for idx in util.bar(range(N_iter), do_bar):
             try:
                 res = procs[idx].get()
+            except KeyboardInterrupt:
+                raise
             except Exception:
                 logger.error("", exc_info=True)
 
@@ -101,7 +103,7 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
     return results
 
 def test_hypothesis_grid_iter(h, generator, survey, bins, return_chains,
-                              mw_alternative, method, seed, nlive, kwargs):
+                              mw_alternative, method, seed, nlive, kwargs, iter_num: int):
     """ Runs a single iteration for test_hypothesis_grid (separated for multiprocessing). """
     # Prevents duplicate results when multiprocessing
     if seed is not None:
@@ -117,9 +119,29 @@ def test_hypothesis_grid_iter(h, generator, survey, bins, return_chains,
     # Simulate a data set and fit the hypothesis with it
     # Also time each step for future reference
     t_start= time.time()
-    sample, detected, data = survey.quickrun(generator, seed=seed, **kwargs)
-    t_sim = time.time() - t_start
-    results = h.fit(data, return_chains=return_chains, method=method, nlive=nlive, mw_alternative=mw_alternative)
+
+    # count how many iterations were needed before a successful run was had
+    num_attempts = 0
+
+    # keep retrying
+    while True:
+        sample, detected, data = survey.quickrun(generator, seed=seed, **kwargs)
+        t_sim = time.time() - t_start
+
+        try:
+            results = h.fit(data, return_chains=return_chains, method=method, nlive=nlive,
+                            mw_alternative=mw_alternative)
+        except KeyboardInterrupt:
+            raise
+        except Exception:
+            logger.error(f"Error on iteration {iter_num}, attempt {num_attempts} (seed {seed})", exc_info=True)
+
+            # increment num_attempts and seed
+            num_attempts += 1
+            seed += 1
+        else:
+            break
+
     t_fit = time.time() - t_start - t_sim
 
     # Count the number of hot/warm/cold planets and EECs which were characterized
