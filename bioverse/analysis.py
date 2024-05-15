@@ -18,7 +18,7 @@ mp.set_start_method('spawn', force=True)
 
 def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, bins=15, return_chains=False,
                          mw_alternative='greater', method='dynesty', nlive=100, error_dump_filename: str = None,
-                         **kwargs):
+                         seed: int = None, **kwargs):
     """ Runs simulated surveys over a grid of survey and astrophysical parameters. Each time, uses the simulated
     data set to fit the hypothesis parameters and computes the model evidence versus the null hypothesis. """
 
@@ -34,6 +34,13 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
         logger.addHandler(handler)
     else:
         handler = None
+
+    if not seed:
+        seed = int(time.time())
+
+    np.random.seed(seed=seed)
+
+    logger.error(f"Seed: {seed}")
 
     # Split `kwargs` into `grid` (list values + N) and `fixed` (scalar values) keyword arguments
     grid = {key:np.array(val) for key, val in kwargs.items() if np.ndim(val) == 1}
