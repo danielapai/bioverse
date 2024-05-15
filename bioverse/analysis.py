@@ -6,9 +6,14 @@ import numpy as np
 import signal
 import time
 import traceback
+import logging
 
 # Bioverse modules and constants
 from . import util
+
+logger = logging.getLogger(__name__)
+
+logger.setLevel(logging.DEBUG)
 
 # Prevents a crash due to matplotlib when multiprocessing
 mp.set_start_method('spawn', force=True)
@@ -48,7 +53,15 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
     results = {}
     try:
         for idx in util.bar(range(N_iter), do_bar):
-            res = procs[idx].get()
+            try:
+                res = procs[idx].get()
+            except Exception:
+                logger.error("", exc_info=True)
+
+                continue
+
+            # logger.info(res)
+
             for key in res:
                 val = res[key]
                 if val is None:
@@ -66,7 +79,7 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
                         pad = np.full((N_iter, -diff, *val.shape[1:]), np.nan)
                         results[key] = np.concatenate([results[key], pad], axis=1)
                 results[key][idx] = val
-    except:
+    except KeyboardInterrupt:
         traceback.print_exc()
         print("\nInterrupted, terminating remaining processes")
         pool.terminate()
