@@ -8,6 +8,8 @@ import time
 import traceback
 import logging
 
+import tqdm
+
 # Bioverse modules and constants
 from . import util
 
@@ -47,6 +49,17 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
     grid_shape = tuple(np.size(v) for v in grid.values())
     N_iter = int(np.prod(grid_shape))
     procs, seeds = [], np.random.randint(0, 1e9, N_iter)
+
+    bar = util.bar(range(N_iter), do_bar)
+
+    def callback(raw_result: tuple[dict, list[str], int]):
+        if isinstance(bar, tqdm.tqdm):
+            bar.update()
+
+    def error_callback(error: Exception):
+        if isinstance(bar, tqdm.tqdm):
+            bar.update()
+
     for idx in range(N_iter):
         # Determine the grid values (+ fixed arguments) for this iteration, excepting 'N'
         idxes = np.unravel_index(idx, grid_shape)
@@ -56,15 +69,15 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
         # Start each iteration as a separate process
         args = (h, generator, survey, bins, return_chains,
                 mw_alternative, method, seeds[idx], nlive, iter_kwargs, idx)
-        proc = pool.apply_async(test_hypothesis_grid_iter,args)
+        proc = pool.apply_async(test_hypothesis_grid_iter, args, callback=callback, error_callback=error_callback)
         procs.append(proc)
 
     # Collect the results from each process into the appropriate grid cell
     results = {}
     try:
-        for idx in util.bar(range(N_iter), do_bar):
+        for idx in range(N_iter):
             try:
-                res, log_entries = procs[idx].get()
+                res, log_entries, idx_return = procs[idx].get()
             except KeyboardInterrupt:
                 raise
             except Exception:
@@ -185,7 +198,7 @@ def test_hypothesis_grid_iter(h, generator, survey, bins, return_chains,
     results['bins'], results['values'], results['errors'] = bins, values, errors
     results['t_sim'], results['t_fit'] = t_sim, t_fit
     
-    return results, log_entries
+    return results, log_entries, iter_num
 
 def compute_statistical_power(results, threshold=None, method='dlnZ'):
     """ Computes the statistical power of a hypothesis test, i.e. the fraction of simulated tests which
