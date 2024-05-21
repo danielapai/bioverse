@@ -328,7 +328,7 @@ def read_stellar_catalog(d, filename='LUVOIR_targets.dat', d_max=30., T_min=0., 
 
     return d
 
-def read_HPIC(d,filename='HPIC.txt', m_V_max=None, dist_max=None,
+def read_HPIC(d,filename='HPIC.txt', Vmag_max=None, d_max=None,
               required_props=['d','logL','Vmag']):
     """ Generates stars from the HPIC the HWO Preliminary input catalog of Tuchow+, 2024
     
@@ -338,9 +338,9 @@ def read_HPIC(d,filename='HPIC.txt', m_V_max=None, dist_max=None,
         Empty table object
     filename : str, optional
         Name of the file containing the HPIC
-    m_V_max : float, optional
+    Vmag_max : float, optional
         Max V magnitude for simulated stars
-    dist_max : float, optional
+    d_max : float, optional
         Max distance in pc for simulated stars. Note the HPIC was constructed with a max dist of 50 pc
     required_props : list of str, optional
         Required stellar properties for generated stars. Stars without these properties will be omitted from the target list.
@@ -352,19 +352,18 @@ def read_HPIC(d,filename='HPIC.txt', m_V_max=None, dist_max=None,
         Table object with generated stars
 
     """
-    #col_names=['star_name','d','M_st','R_st','logL','T_eff_st','SpT','age','binary','Gmag','Tmag','Jmag','Vmag']
     hpic_dir= filename if os.path.exists(filename) else DATA_DIR + '/' + filename
-    
     
     HPIC_df= pd.read_csv(hpic_dir,sep='|',na_values='null')
     
-    if m_V_max!=None:
-        HPIC_df= HPIC_df.loc[HPIC_df['Vmag']<m_V_max]
+    #apply user specified magnitude and distance cuts
+    if Vmag_max!=None:
+        HPIC_df= HPIC_df.loc[HPIC_df['Vmag']<Vmag_max]
         
-    if dist_max!=None:
-        HPIC_df=HPIC_df.loc[HPIC_df['d']<=dist_max]
+    if d_max!=None:
+        HPIC_df=HPIC_df.loc[HPIC_df['d']<=d_max]
     
-    
+    #omit objects without required properties
     if len(required_props)>0:
         for i in range(len(required_props)):
             if i==0:
