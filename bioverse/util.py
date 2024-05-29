@@ -10,7 +10,6 @@ from astropy.visualization import hist as astropyhist
 
 # Bioverse modules and constants
 from .constants import LIST_TYPES, CATALOG_FILE, INT_TYPES, FLOAT_TYPES, CONST
-from .import truncnorm_hack
 
 # Load the Gaia stellar target catalog into memory for fast access
 try:
