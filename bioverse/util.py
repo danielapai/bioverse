@@ -287,9 +287,30 @@ def get_xyz(pl,t=0,M=None,n=3):
     
     return x,y,z
 
-# Draws N samples from a normal PDF with mean value a and standard deviation b
-# (optional) bounded to xmin < x < xmax
+
 def normal(a,b,xmin=None,xmax=None,size=1):
+    """
+    Generates samples from a normal distribution with mean `a` and standard deviation `b`,
+    optionally bounded between `xmin` and `xmax`.
+
+    Parameters
+    ----------
+    a : float or array-like
+        Mean(s) of the normal distribution(s).
+    b : float or array-like
+        Standard deviation(s) of the normal distribution(s).
+    xmin : float or array-like, optional
+        Lower bound(s) for the normal distribution(s). If None, no lower bound is applied.
+    xmax : float or array-like, optional
+        Upper bound(s) for the normal distribution(s). If None, no upper bound is applied.
+    size : int, optional
+        Number of samples to generate. Default is 1.
+
+    Returns
+    -------
+    numpy.ndarray
+        Array of samples from the specified normal distribution(s).
+    """
     result = np.empty_like(a, dtype=float)
     result.fill(np.nan)
 
