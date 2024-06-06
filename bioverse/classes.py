@@ -315,11 +315,12 @@ class Table(dict):
             if not hasattr(self, 'evolution'):
                 self.evolve(errors=True)
 
-            # find maximum NUV flux occurring after 50 Myr
+            # find maximum NUV flux occurring after 1 Myr
             self['max_nuv'] = np.full(len(self), np.nan)
             for i, p in self.evolution.items():
                 try:
-                    max_nuv = np.max(p['nuv'][p['time'] > 50e-3])
+                    # max_nuv = np.max(p['nuv'][p['time'] > 50e-3])
+                    max_nuv = np.max(p['nuv'][p['time'] > 1e-3])
                     self['max_nuv'][self['planetID'] == i] = max_nuv
                 except ValueError:
                     # planet is too young. Set max_nuv to maximum NUV flux at any time
@@ -383,7 +384,7 @@ class Table(dict):
             If True, consider only planets that are "exo-Earth candidates" at observation time.
             Otherwise, consider all planets.
         sigma_nuv_dex : float, optional
-            The intrinsic, typical error of the NUV data in Richey-Yowell et al. (2023), in dex.
+            The intrinsic, typical standard deviation of the NUV data in Richey-Yowell et al. (2023), in dex.
         errors : bool, optional
             If True, treat as observed survey data and consider measurement errors.
         seed : int, optional
@@ -450,8 +451,9 @@ class Table(dict):
                 # interpolate in NUV table, varying the mass within the error
                 nuv_evo = interp_nuv(normal(planet['M_st'], error['M_st'], xmin=0.08), T)
 
-                # add the instrinsic, typical error of the NUV data in Richey-Yowell et al. (2023)
-                nuv_evo = 10 ** (np.random.normal(np.log10(nuv_evo), sigma_nuv_dex))
+                # add the instrinsic, typical error of the NUV data in Richey-Yowell et al. (2023) by applying a random bias
+                bias = 10 ** np.random.normal(0, sigma_nuv_dex)
+                nuv_evo = nuv_evo * bias
 
                 self.evolution[planet['planetID']] = {'time': T, 'lum': lum_evo, 'nuv': nuv_evo, 'in_hz': in_hz}
 
