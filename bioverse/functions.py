@@ -1166,8 +1166,9 @@ def compute_contrast(d,at_quadrature=True,phasefunc=lambertian_phase):
         d['contrast'] = d['A_g'] * (4.258756e-5 * d['R'] / d['a'])**2 / np.pi
     else:
         try:
-            #contrast at given phase, requires knowledge of phase angle, true_sep
-            d['contrast']= d['A_g'] * pow((4.258756e-5 * d['R'] / d['true_sep']),2)*phasefunc(d['phase_angle'])
+            #contrast at given phase, requires knowledge of phase angle
+            #changed from true sep to a to be consistent with S values
+            d['contrast']= d['A_g'] * pow((4.258756e-5 * d['R'] / d['a']),2)*phasefunc(d['phase_angle'])
         except KeyError:
             raise KeyError("Missing keys for 'true_sep','phase_angle'")
 
