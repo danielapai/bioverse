@@ -2,7 +2,7 @@
 import os
 from matplotlib import pyplot as plt
 # Python imports
-from scipy.stats import binned_statistic
+from scipy.stats import binned_statistic, truncnorm
 import importlib.util
 import numpy as np
 from warnings import warn
@@ -10,7 +10,6 @@ from astropy.visualization import hist as astropyhist
 
 # Bioverse modules and constants
 from .constants import LIST_TYPES, CATALOG_FILE, INT_TYPES, FLOAT_TYPES, CONST
-from .import truncnorm_hack
 
 # Load the Gaia stellar target catalog into memory for fast access
 try:
@@ -299,12 +298,8 @@ def normal(a,b,xmin=None,xmax=None,size=1):
             aa[np.isnan(aa)] = -np.inf
         if xmax is not None and np.size(bb)>1:
             bb[np.isnan(bb)] = np.inf
-        
-        # truncnorm.rvs is extremely slow in newer SciPy versions; this line can be uncommented once that issue is fixed
-        #return scipy.stats.truncnorm.rvs(a=aa,b=bb,loc=a,scale=b,size=size)
-        
-        # This module reproduces truncnorm as of SciPy v1.3.3
-        return truncnorm_hack.truncnorm.rvs(a=aa,b=bb,loc=a,scale=b,size=size)
+        return truncnorm.rvs(a=aa, b=bb, loc=a, scale=b, size=size)
+
 
 def binned_average(x, y, bins=10, match_counts=True):
     """ Computes the average value of a variable in bins of another variable.
