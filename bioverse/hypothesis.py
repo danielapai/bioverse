@@ -570,7 +570,7 @@ def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=F
     a_eff_thresh = 1 / (np.sqrt(S_thresh / CONST['S_Earth']))
 
     # # baseline case without steam atmosphere or water incorporation
-    # exp_val = avg
+    exp_val = avg
 
     if (gh_increase==False and water_incorp==False):
         return np.full_like(a_eff, exp_val)
