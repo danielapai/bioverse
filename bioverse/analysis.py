@@ -18,7 +18,7 @@ mp.set_start_method('spawn', force=True)
 
 def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, bins=15, return_chains=False,
                          mw_alternative='greater', method='dynesty', nlive=100, error_dump_filename: str = None,
-                         seed: int = None, **kwargs):
+                         seed=42, **kwargs):
     """ Runs simulated surveys over a grid of survey and astrophysical parameters. Each time, uses the simulated
     data set to fit the hypothesis parameters and computes the model evidence versus the null hypothesis. """
 
@@ -35,13 +35,6 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
     else:
         handler = None
 
-    if not seed:
-        seed = int(time.time())
-
-    np.random.seed(seed=seed)
-
-    logger.error(f"Seed: {seed}")
-
     # Split `kwargs` into `grid` (list values + N) and `fixed` (scalar values) keyword arguments
     grid = {key:np.array(val) for key, val in kwargs.items() if np.ndim(val) == 1}
     grid['N'] = N if np.ndim(N) == 1 else np.arange(N)
@@ -55,6 +48,7 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
     # Run each grid cell as a separate process with a random RNG seed
     grid_shape = tuple(np.size(v) for v in grid.values())
     N_iter = int(np.prod(grid_shape))
+    np.random.seed(seed=seed)  # maintain reproducibility
     procs, seeds = [], np.random.randint(0, 1e9, N_iter)
 
     bar = util.bar(range(N_iter), do_bar)
