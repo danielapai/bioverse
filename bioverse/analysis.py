@@ -255,7 +255,7 @@ def random_simulation(results, generator, survey, bins=15, mw_test=False, mw_alt
     # Add fixed arguments and run the simulation
     args = (results['h'], generator, survey, bins, return_chains, mw_test, 
             mw_alternative, method, None, nlive, iter_kwargs)
-    results_out = test_hypothesis_grid_iter(*args)
+    results_out, log_entries_, iter_num_ = test_hypothesis_grid_iter(*args)
     results_out['h'] = results['h']
     results_out['fixed'] = iter_kwargs
     return results_out
