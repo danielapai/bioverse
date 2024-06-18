@@ -776,7 +776,8 @@ def plot_power_grid(results, axes=('f_water_habitable', 'f_water_nonhabitable'),
 
     elif ndim == 2:
         fig, ax = image_contour_plot(x, y, z, labels=(*labels, 'Statistical power (%)'), fmt=' %.0f %% ', levels=levels,
-                                     log=log, vmin=0, vmax=100, fig=fig, ax=ax, cmap=cmap, zoom_factor=zoom_factor, smooth_sigma=smooth_sigma)
+                                     log=log, vmin=0, vmax=100, fig=fig, ax=ax, cmap=cmap, cbar=cbar,
+                                     zoom_factor=zoom_factor, smooth_sigma=smooth_sigma)
 
     if show:
         plt.show()
@@ -1004,14 +1005,16 @@ def plot_Example2_constraints(results, fig=None, ax=None, show=True, c='black', 
     else:
         return fig, ax
 
-def image_contour_plot(x, y, z, colorbar=True, labels=None, levels=None, fmt=' %.0f ', ticks=4, vmin=None, vmax=None,
-                       linecolor='black', log=None, fig=None, ax=None, return_ctr=False, zoom_factor=None, cmap='Greens',
+
+def image_contour_plot(x, y, z, colormap=True, labels=None, levels=None, fmt=' %.0f ', ticks=4, vmin=None, vmax=None,
+                       linecolor='black', log=None, fig=None, ax=None, return_ctr=False, zoom_factor=None,
+                       cmap='Greens', cbar=True,
                        plus=False, smooth_sigma=0):
     """ Plots z(x, y) with a colorbar and contours. """
 
     if fig is None:
-        fig, ax = plt.subplots(figsize=(8+2*colorbar, 8))
-    #plt.locator_params(nbins=ticks)
+        fig, ax = plt.subplots(figsize=(8 + 2 * colormap, 8))
+    # plt.locator_params(nbins=ticks)
 
     if log is None:
         log = (False, False)
@@ -1039,18 +1042,20 @@ def image_contour_plot(x, y, z, colorbar=True, labels=None, levels=None, fmt=' %
         z = gaussian_filter(z, smooth_sigma)
 
     # Color plot
-    if colorbar:
-        im = ax.pcolormesh(x, y, z, vmin=vmin, vmax=vmax, cmap=cmap, lw=0, rasterized=True, shading='auto', edgecolors='k', linewidths=4)
+    if colormap:
+        im = ax.pcolormesh(x, y, z, vmin=vmin, vmax=vmax, cmap=cmap, lw=0, rasterized=True, shading='auto',
+                           edgecolors='k', linewidths=4)
         cmap = copy.copy(im.cmap)
         cmap.set_bad(color='white', alpha=0.5)
         im.set_cmap(cmap)
-        cbar = fig.colorbar(im)
+        if cbar:
+            colorbar = fig.colorbar(im)
         if plus:
-            cticks = cbar.get_ticks()
+            cticks = colorbar.get_ticks()
             cl = ['{:.0f}'.format(tick) for tick in cticks]
             cl[-1] = '>' + cl[-1]
-            cbar.set_ticks(cticks)
-            cbar.set_ticklabels(cl)
+            colorbar.set_ticks(cticks)
+            colorbar.set_ticklabels(cl)
 
     # Contour plot
     if levels is not None:
@@ -1061,8 +1066,8 @@ def image_contour_plot(x, y, z, colorbar=True, labels=None, levels=None, fmt=' %
     if labels is not None:
         ax.set_xlabel(labels[0], fontsize=labelfontsize)
         ax.set_ylabel(labels[1], fontsize=labelfontsize)
-        if colorbar:
-            cbar.set_label(labels[2], rotation=270, labelpad=25, fontsize=labelfontsize)
+        if colormap and cbar:
+            colorbar.set_label(labels[2], rotation=270, labelpad=25, fontsize=labelfontsize)
 
     # Log-scale?
     if log[0]:
