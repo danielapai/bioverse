@@ -10,3 +10,4 @@ docs/.vscode/*
 old/*
 .idea/
 bioverse.egg-info/
+testing/
