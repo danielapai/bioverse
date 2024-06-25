@@ -52,7 +52,9 @@ def luminosity_evolution(d):
     return d
 
 
-def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, M_st_max=2.0, R_st_min=0.095, R_st_max=2.15, T_min=0., T_max=10., inc_binary=0, seed=42, M_G_max=None, lum_evo=True):  # , mult=0):
+def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, M_st_max=2.0, R_st_min=0.095,
+                    R_st_max=2.15, T_min=0., T_max=10., inc_binary=0, SpT=None, seed=42, M_G_max=None,
+                    lum_evo=True):  # , mult=0):
     """ Reads a list of stellar properties from the Gaia nearby stars catalog.
 
     Parameters
@@ -77,6 +79,8 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
         Maximum stellar age, in Gyr.
     inc_binary : bool, optional
         Include binary stars? Default = False.
+    SpT : list of str, optional
+        List of spectral types to include in the sample. Example: SpT=['F', 'G', 'K', 'M'].
     seed : int, optional
         seed for the random number generators.
     mult : float, optional
@@ -140,6 +144,10 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
     if inc_binary == 0:
         d = d[(d['binary'] == False)]
         # d.reset_index(inplace=True,drop=True)
+
+    # Include only specific spectral types
+    if SpT:
+        d = d[np.isin(d['SpT'], SpT)]
 
     # Assign stellar IDs and names
     d['starID'] = np.arange(len(d), dtype=int)
