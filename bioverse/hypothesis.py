@@ -315,7 +315,8 @@ class Hypothesis():
                 null_means, null_stds, null_medians = np.mean(null_chains, axis=0), np.std(null_chains, axis=0), np.median(null_chains, axis=0)
                 null_LCIs, null_UCIs = np.abs(np.percentile(null_chains, [(100-conf)/2, 100-(100-conf/2)], axis=0) - null_medians)
                 results.update({'null_means':null_means,'null_stds':null_stds,'null_medians':null_medians,
-                                'null_LCIs':null_LCIs,'null_UCIs':null_UCIs})
+                                'null_LCIs':null_LCIs,'null_UCIs':null_UCIs, 
+                                'theta_opt':theta_opt, 'null_theta_opt':theta_opt_null})
 
             # Return the results in a dict
             results.update({'means':means, 'stds':stds, 'medians':medians, 'LCIs':LCIs, 'UCIs':UCIs, 'CIs':UCIs+LCIs,
