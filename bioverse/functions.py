@@ -339,6 +339,7 @@ def read_stellar_catalog(d, filename='LUVOIR_targets.dat', d_max=30., T_min=0., 
 
 def create_planets_bergsten(d, R_min=1.0, R_max=3.5, P_min=2, P_max=100., transit_mode=False, f_eta=1., seed=42):
     """ Generates planets with periods and radii according to Bergsten+2022 occurrence rate estimates.
+    Planets are only assigned to stars with masses between 0.01 and 1.629 solar masses.
 
     Parameters
     ----------
