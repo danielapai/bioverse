@@ -402,7 +402,7 @@ def create_planets_bergsten(d, R_min=1.0, R_max=3.5, P_min=2, P_max=100., transi
     Cn = [0.10728, 0.04381, 0.05183, 0.06002, 0.05155, 0.05177]
 
     # Some empty arrays to temporarily store planet parameters from different stellar mass bins
-    num_planets = np.empty(len(d))
+    num_planets = np.zeros(len(d))
     master_P, master_R = [], []
 
     # Set up probability grid in R and P
