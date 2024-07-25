@@ -336,6 +336,62 @@ def read_stellar_catalog(d, filename='LUVOIR_targets.dat', d_max=30., T_min=0., 
 
     return d
 
+def read_HPIC(d,filename='HPIC.txt', Vmag_max=None, d_max=None,
+              required_props=['d','logL','Vmag']):
+    """ Generates stars from the HPIC the HWO Preliminary input catalog of Tuchow+, 2024
+    
+    Parameters
+    ----------
+    d : Table
+        Empty table object
+    filename : str, optional
+        Name of the file containing the HPIC
+    Vmag_max : float, optional
+        Max V magnitude for simulated stars
+    d_max : float, optional
+        Max distance in pc for simulated stars. Note the HPIC was constructed with a max dist of 50 pc
+    required_props : list of str, optional
+        Required stellar properties for generated stars. Stars without these properties will be omitted from the target list.
+        Use names from bioverse not standard HPIC names of properties.
+
+    Returns
+    -------
+    d : Table
+        Table object with generated stars
+
+    """
+    hpic_dir= filename if os.path.exists(filename) else DATA_DIR + '/' + filename
+    
+    HPIC_df= pd.read_csv(hpic_dir,sep='|',na_values='null')
+    
+    #apply user specified magnitude and distance cuts
+    if Vmag_max!=None:
+        HPIC_df= HPIC_df.loc[HPIC_df['Vmag']<Vmag_max]
+        
+    if d_max!=None:
+        HPIC_df=HPIC_df.loc[HPIC_df['d']<=d_max]
+    
+    #omit objects without required properties
+    if len(required_props)>0:
+        for i in range(len(required_props)):
+            if i==0:
+                cond= pd.notnull(HPIC_df[required_props[i]])
+                continue
+            cond= np.logical_and(cond,pd.notnull(HPIC_df[required_props[i]]))
+        HPIC_df=HPIC_df.loc[cond]
+    
+    # set columns in data table to be the same as HPIC entries
+    for name in HPIC_df.columns:
+        d[name]= HPIC_df[name].values
+    
+    #add additional columns derived from HPIC
+    d['L_st'] = (10**HPIC_df.logL).values
+    
+    d['starID'] = np.arange(len(d), dtype=int)
+    d['simulated']= np.zeros(len(d), dtype=bool)
+        
+    return d
+
 
 def create_planets_bergsten(d, R_min=1.0, R_max=3.5, P_min=2, P_max=100., transit_mode=False, f_eta=1., seed=42):
     """ Generates planets with periods and radii according to Bergsten+2022 occurrence rate estimates.
