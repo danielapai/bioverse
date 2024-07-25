@@ -287,24 +287,55 @@ def get_xyz(pl,t=0,M=None,n=3):
     
     return x,y,z
 
-# Draws N samples from a normal PDF with mean value a and standard deviation b
-# (optional) bounded to xmin < x < xmax
+
 def normal(a,b,xmin=None,xmax=None,size=1):
-    if b is None or np.sum(b) == 0: return np.full(size,a)    
+    """
+    Generates samples from a normal distribution with mean `a` and standard deviation `b`,
+    optionally bounded between `xmin` and `xmax`.
+
+    Parameters
+    ----------
+    a : float or array-like
+        Mean(s) of the normal distribution(s).
+    b : float or array-like
+        Standard deviation(s) of the normal distribution(s).
+    xmin : float or array-like, optional
+        Lower bound(s) for the normal distribution(s). If None, no lower bound is applied.
+    xmax : float or array-like, optional
+        Upper bound(s) for the normal distribution(s). If None, no upper bound is applied.
+    size : int, optional
+        Number of samples to generate. Default is 1.
+
+    Returns
+    -------
+    numpy.ndarray
+        Array of samples from the specified normal distribution(s).
+    """
+    result = np.empty_like(a, dtype=float)
+    result.fill(np.nan)
+
+    if b is None or np.sum(b) == 0:
+        return np.full(size, a)
     else:
         aa = -np.inf if xmin is None else (xmin-a)/b
         bb = np.inf if xmax is None else (xmax-a)/b
-        # Deal with nan values bug
-        if xmin is not None and np.size(aa)>1:
-            aa[np.isnan(aa)] = -np.inf
-        if xmax is not None and np.size(bb)>1:
-            bb[np.isnan(bb)] = np.inf
-        
-        # truncnorm.rvs is extremely slow in newer SciPy versions; this line can be uncommented once that issue is fixed
-        #return scipy.stats.truncnorm.rvs(a=aa,b=bb,loc=a,scale=b,size=size)
-        
-        # This module reproduces truncnorm as of SciPy v1.3.3
-        return truncnorm_hack.truncnorm.rvs(a=aa,b=bb,loc=a,scale=b,size=size)
+
+        # Check for nan values in a and b
+        nan_mask_a = np.isnan(a)
+        nan_mask_b = np.isnan(b)
+
+        # If there are any nan values in a or b, return nan at those indices
+        if np.any(nan_mask_a) or np.any(nan_mask_b):
+            result[nan_mask_a] = np.nan
+            result[nan_mask_b] = np.nan
+
+        # For non-nan values, calculate the truncated normal distribution
+        non_nan_mask = ~nan_mask_a & ~nan_mask_b
+        result[non_nan_mask] = scipy.stats.truncnorm.rvs(a=aa[non_nan_mask], b=bb[non_nan_mask], loc=a[non_nan_mask],
+                                                         scale=b[non_nan_mask], size=size)
+
+        return result
+
 
 def binned_average(x, y, bins=10, match_counts=True):
     """ Computes the average value of a variable in bins of another variable.
