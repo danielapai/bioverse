@@ -395,6 +395,7 @@ def read_HPIC(d,filename='HPIC.txt', Vmag_max=None, d_max=None,
 
 def create_planets_bergsten(d, R_min=1.0, R_max=3.5, P_min=2, P_max=100., transit_mode=False, f_eta=1., seed=42):
     """ Generates planets with periods and radii according to Bergsten+2022 occurrence rate estimates.
+    Planets are only assigned to stars with masses between 0.01 and 1.629 solar masses.
 
     Parameters
     ----------
@@ -458,7 +459,7 @@ def create_planets_bergsten(d, R_min=1.0, R_max=3.5, P_min=2, P_max=100., transi
     Cn = [0.10728, 0.04381, 0.05183, 0.06002, 0.05155, 0.05177]
 
     # Some empty arrays to temporarily store planet parameters from different stellar mass bins
-    num_planets = np.empty(len(d))
+    num_planets = np.zeros(len(d))
     master_P, master_R = [], []
 
     # Set up probability grid in R and P
