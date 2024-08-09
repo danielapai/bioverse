@@ -227,16 +227,17 @@ class HWOSurvey(Survey):
     
     #needs to be tested
     def call_exposure_time_calculator(self,d,SNR=7,func=util.simple_exposure_time_calculator,
-                                      band='Vmag',**kwargs):
+                                      band='Vmag',C_col='contrast',sep_col='ang_sep_mas',
+                                      texp_col='t_exp',**kwargs):
         
         def texp_func(contrast, sep, mag):
             texp= func(contrast,sep,self.diameter,mag, SNR=SNR,IWA=self.inner_working_angle,
                  OWA=self.outer_working_angle,logcontrast_limit=self.contrast_limit,
                  **kwargs)
             return texp
-        texp_map=map(texp_func,d['contrast'],d['ang_sep_mas'],d[band])
+        texp_map=map(texp_func,d[C_col],d[sep_col],d[band])
         
-        d['t_exp']= list(texp_map)
+        d[texp_col]= list(texp_map)
         return d
 
     # 2week max exp time
