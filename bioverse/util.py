@@ -414,7 +414,8 @@ def contrast_to_dmag(contrast):
     return dmag
 
 def simple_exposure_time_calculator(contrast,sep_mas,D,mag_star,lambda_ref=550.,
-                                    F_0=10375.7, SNR=7, IWA=3.5, OWA=64.0,logcontrast_limit=-10.6):
+                                    F_0=10375.7, SNR=7, IWA=3.5, OWA=64.0,logcontrast_limit=-10.6,
+                                    band_width=0.2):
     """
     Simple exposure time calculator based on that of Stark+ 2014
     Assumes simple tophat function in throughput, step function in contrast
@@ -442,6 +443,8 @@ def simple_exposure_time_calculator(contrast,sep_mas,D,mag_star,lambda_ref=550.,
         Coronagraph inner working angle. Units of lambda/D
     OWA : float, optional
         Coronagraph outer working angle. Units of lambda/D
+    band_width: float,optional
+        Width of the bandpass we are using. dlambda = band_width * lambda, or band_width= 1/R
 
     Returns
     -------
@@ -456,7 +459,7 @@ def simple_exposure_time_calculator(contrast,sep_mas,D,mag_star,lambda_ref=550.,
     x=22.0 #mag/arcsec^2
     n=3 #number of exozodi per star
     
-    dlambda= lambda_ref*0.2 # nm,  20% band width
+    dlambda= lambda_ref*band_width # nm,  20% band width
     l_D= (lambda_ref*1e-9)/D #lambda over D in radians
     sep_lD= (sep_mas*4.84814e-9)/l_D
     
