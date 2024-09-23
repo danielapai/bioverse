@@ -4,7 +4,7 @@ import os
 from setuptools import setup
 
 
-def requirements_list() -> list[str]:
+def requirements_list():
     reqs_list = []
 
     with open("requirements.txt", mode="r") as reqs_file:
