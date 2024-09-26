@@ -221,7 +221,7 @@ class Hypothesis():
         method : str, optional
             Which sampling method to use. Options: dynesty (default), emcee, mannwhitney,
         mw_alternative : str, {'two-sided', 'less', 'greater'}, optional
-            Defines the alternative hypothesis. Default is 'two-sided'.
+            Defines the alternative hypothesis. Default is 'greater'.
             Let *F(u)* and *G(u)* be the cumulative distribution functions of the
             distributions underlying `x` and `y`, respectively. Then the following
             alternative hypotheses are available:
