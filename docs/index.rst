@@ -13,17 +13,20 @@ The :doc:`Overview<overview>` section describes the code's structure and primary
 Installation
 ************
 
-Bioverse can be cloned from its `GitHub repository <https://github.com/danielapai/bioverse/>`_:
+Bioverse can now be installed directly from PyPI. To install Bioverse, use the following command:
+
+.. code-block:: bash
+
+    pip install bioverse
+
+Alternatively, Bioverse can be cloned from its `GitHub repository <https://github.com/danielapai/bioverse/>`_:
 
 .. code-block:: bash
 
     git clone https://www.github.com/danielapai/bioverse/
+    cd bioverse
+    pip install .
 
-To install Bioverse, navigate to the directory containing ``setup.py`` and run: [#f1]_
-
-.. code-block:: bash
-
-   pip install .
 
 Dependencies
 ************
