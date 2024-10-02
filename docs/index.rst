@@ -13,7 +13,7 @@ The :doc:`Overview<overview>` section describes the code's structure and primary
 Installation
 ************
 
-Bioverse can now be installed directly from PyPI. To install Bioverse, use the following command:
+The recommended way to install the latest stable version of Bioverse is via pip:
 
 .. code-block:: bash
 
@@ -82,9 +82,6 @@ Bioverse is compatible with Python 3.7+. It has the following dependencies, all 
    apidoc/bioverse.survey
    apidoc/bioverse.util
 
-.. rubric:: Footnotes
-
-.. [#f1] Bioverse will be added to PyPI in a future update.
 
 Feedback & Development
 **********************
