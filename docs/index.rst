@@ -82,8 +82,6 @@ Bioverse is compatible with Python 3.7+. It has the following dependencies, all 
 
 .. rubric:: Footnotes
 
-.. [#f1] Bioverse will be added to PyPI in a future update.
-
 Feedback & Development
 **********************
 Bioverse is open source and in active development. We welcome all feedback, bug reports, or feature requests. Feel free to open a pull request if you'd like to contribute! If you think you found a bug, please raise an `issue <https://github.com/danielapai/bioverse/issues>`_.
