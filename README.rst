@@ -98,7 +98,7 @@ Bioverse can now be installed directly from PyPI. To install Bioverse, use the f
 
 .. code-block:: bash
 
-pip install bioverse
+    pip install bioverse
 
 Alternatively, Bioverse can be cloned from its GitHub repository:
 
