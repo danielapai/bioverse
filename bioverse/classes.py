@@ -328,13 +328,12 @@ class Table(dict):
             self['max_nuv'] = np.full(len(self), np.nan)
             for i, p in self.evolution.items():
                 try:
-                    # max_nuv = np.max(p['nuv'][p['time'] > 50e-3])
-                    max_nuv = np.max(p['nuv'][p['time'] > 1e-3])
-                    self['max_nuv'][self['planetID'] == i] = max_nuv
-                except ValueError:
-                    # planet is too young. Set max_nuv to maximum NUV flux at any time
-                    self['max_nuv'][self['planetID'] == i] = np.max(p['nuv'])
-
+                    # get maximum 'nuv' for times > 1e-3 and only where 'in_hz' is True
+                    max_nuv = np.max(p["nuv"][(p["time"] > 1e-3) & p["in_hz"]])
+                    self["max_nuv"][self["planetID"] == i] = max_nuv
+                except (ValueError, IndexError) as e:
+                    # planet is either too young or estimated to never be in the HZ. Set max_nuv to NUV flux of final time step
+                    self["max_nuv"][self["planetID"] == i] = p["nuv"][-1]
 
             if self.error:
                 # approximate error using square root of sum of squares
