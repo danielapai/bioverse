@@ -463,31 +463,56 @@ class Table(dict):
                 bias = 10 ** np.random.normal(0, sigma_nuv_dex)
                 nuv_evo = nuv_evo * bias
 
-                self.evolution[planet['planetID']] = {'time': T, 'lum': lum_evo, 'nuv': nuv_evo, 'in_hz': in_hz}
+                self.evolution[planet["planetID"]] = {
+                    "time": T,
+                    "lum": lum_evo,
+                    "nuv": nuv_evo,
+                    "in_hz": in_hz,
+                }
 
         else:
             for index, planet in dd.iterrows():
                 # use face values without measurement errors
 
                 # a time grid in Gyr, sample ~every 0.01 Gyr
-                T = np.arange(t0, planet['age'], step=dt) if planet['age'] > t0 + dt else np.linspace(t0, planet['age'],
-                                                                                                      num=3)  # avoid single-element arrays in too young systems.
+                T = (
+                    np.arange(t0, planet["age"], step=dt)
+                    if planet["age"] > t0 + dt
+                    else np.linspace(t0, planet["age"], num=3)
+                )  # avoid single-element arrays in too young systems.
 
                 # Compute the time evolution of the habitable zone
-                lum_evo = interp_lum(planet['M_st'], T)
+                lum_evo = interp_lum(planet["M_st"], T)
 
                 # outside the bounds of the CT interpolator, extrapolate using a nearest neighbor approach
                 if np.isnan(lum_evo).any():
-                    lum_evo = extrap_nn(planet['M_st'], T)
+                    lum_evo = extrap_nn(planet["M_st"], T)
 
                 a_inner, a_outer = hz_evolution(planet, lum_evo)
-                in_hz = (planet['a'] >= a_inner) & (planet['a'] <= a_outer)
+                in_hz = (planet["a"] >= a_inner) & (planet["a"] <= a_outer)
 
                 # Compute the time evolution of the NUV flux
                 # nuv_evo = interp_nuv[planet['nuv_class']](T)
-                nuv_evo = interp_nuv(planet['M_st'], T)
+                nuv_evo = interp_nuv(planet["M_st"], T)
 
-                self.evolution[planet['planetID']] = {'time': T, 'lum': lum_evo, 'nuv': nuv_evo, 'in_hz': in_hz}
+                self.evolution[planet["planetID"]] = {
+                    "time": T,
+                    "lum": lum_evo,
+                    "nuv": nuv_evo,
+                    "in_hz": in_hz,
+                }
+
+        if eec_only:
+            # remove planets where in_hz is not really True in the final time step
+            for id, planet in self.evolution.copy().items():
+                if not planet["in_hz"][-1]:
+                    del self.evolution[id]
+
+                    if self.error is not None:
+                        self.error.update({key: np.delete(vals, np.where(self['planetID'] == id)) for key, vals in
+                                           self.error.items()})
+
+                    self.update({key: np.delete(vals, np.where(self['planetID'] == id)) for key, vals in self.items()})
 
 
     def shuffle(self, inplace=True):
