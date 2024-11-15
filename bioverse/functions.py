@@ -171,7 +171,7 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
     return d
 
 def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=1e-2,
-                      T_max=10., T_eff_split=4500., seed=42):
+                      T_max=10., T_eff_split=4500., SpT=None, seed=42):
     """ Reads temperatures and coordinates for high-mass stars from Gaia DR2. Simulates low-mass stars from the
     Chabrier+2003 PDMF.  Ages are drawn from a uniform distribution, by default from 0 - 10 Gyr. All other
     stellar properties are calculated using the scaling relations of Pecaut+2013.
@@ -192,6 +192,8 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=1e-2,
         Maximum stellar age, in Gyr.
     T_eff_split : float, optional
         Effective temperature (in Kelvin) below which to simulate stars from a PDMF instead of using Gaia data.
+    SpT : list of str, optional
+        List of spectral types to include in the sample. Example: SpT=['F', 'G', 'K', 'M'].
     seed : int or 1-d array_like, optional
         Seed for numpy's RandomState. Must be convertible to 32 bit unsigned integers.
 
@@ -270,6 +272,10 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=1e-2,
         mask = (d['T_eff_st'] >= cvt['T_eff_st'][i]) & (d['T_eff_st'] < cvt['T_eff_st'][i+1])
         d['SpT'][mask] = cvt['SpT'][i]
         d['subSpT'][mask] = cvt['subSpT'][i]
+
+    # Include only specific spectral types
+    if SpT:
+        d = d[np.isin(d['SpT'], SpT)]
 
     # Draw a random age for each system
     d['age'] = np.random.uniform(T_min, T_max, len(d))
