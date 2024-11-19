@@ -460,6 +460,7 @@ class Table(dict):
                 nuv_evo = interp_nuv(normal(planet['M_st'], error['M_st'], xmin=0.08), T)
 
                 # add the instrinsic, typical error of the NUV data in Richey-Yowell et al. (2023) by applying a random bias
+                np.random.seed(seed)
                 bias = 10 ** np.random.normal(0, sigma_nuv_dex)
                 nuv_evo = nuv_evo * bias
 
@@ -493,7 +494,12 @@ class Table(dict):
 
                 # Compute the time evolution of the NUV flux
                 # nuv_evo = interp_nuv[planet['nuv_class']](T)
-                nuv_evo = interp_nuv(planet["M_st"], T)
+
+                # add the instrinsic, typical error of the NUV data in Richey-Yowell et al. (2023) by applying a random bias
+                np.random.seed(seed)
+                bias = 10 ** np.random.normal(0, sigma_nuv_dex)
+                # nuv_evo = interp_nuv(planet["M_st"], T)
+                nuv_evo = interp_nuv(planet["M_st"], T) * bias
 
                 self.evolution[planet["planetID"]] = {
                     "time": T,
