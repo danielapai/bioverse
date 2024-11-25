@@ -2,20 +2,24 @@
 import os
 from matplotlib import pyplot as plt
 # Python imports
+import glob
+from matplotlib import pyplot as plt
+from scipy.interpolate import interp1d
 from scipy.stats import binned_statistic
 import importlib.util
 import numpy as np
+import pandas as pd
 from warnings import warn
 from astropy.visualization import hist as astropyhist
 
 # Bioverse modules and constants
-from .constants import LIST_TYPES, CATALOG_FILE, INT_TYPES, FLOAT_TYPES, CONST
-from .import truncnorm_hack
+from .constants import LIST_TYPES, CATALOG_FILE, INT_TYPES, FLOAT_TYPES, CONST, DATA_DIR
+from . import truncnorm_hack
 
 # Load the Gaia stellar target catalog into memory for fast access
 try:
     CATALOG = np.genfromtxt(CATALOG_FILE, delimiter=',', names=True)
-except (OSError,IOError):
+except (OSError, IOError):
     warn("could not load {:s} - try running util.update_stellar_catalog")
 
 # Progress bar if tqdm is installed, else a dummy function
@@ -23,7 +27,8 @@ try:
     from tqdm import tqdm
 except ImportError:
     tqdm = None
-    
+
+
 def bar(arg, do_bar=True):
     """ Given an iterable, returns a progress bar if tqdm is installed. Otherwise, returns the iterable.
     
@@ -45,6 +50,7 @@ def bar(arg, do_bar=True):
     else:
         return arg
 
+
 # Function to get the input value types (try: int, float, bool, str)
 def get_type(x):
     try:
@@ -55,10 +61,11 @@ def get_type(x):
             float(x)
             return float
         except ValueError:
-            if x.strip().upper() in ['TRUE','FALSE']:
+            if x.strip().upper() in ['TRUE', 'FALSE']:
                 return bool
             else:
                 return str
+
 
 # Determines whether `a` is a binary array (including float arrays e.g. [0., 1., 1., 0., ...]))
 def is_bool(a):
@@ -70,14 +77,16 @@ def is_bool(a):
     else:
         return False
 
+
 def as_tuple(x):
     """ Returns the parameter as a tuple. """
     if isinstance(x, tuple):
         return x
     elif np.ndim(x) == 0:
         return (x,)
-    elif np.ndim(x) ==1:
+    elif np.ndim(x) == 1:
         return tuple(x)
+
 
 # Imports a function given the filename and the name of the function
 def import_function_from_file(function_name, file_path):
@@ -96,14 +105,16 @@ def import_function_from_file(function_name, file_path):
         # Return the function
         return mod.__dict__[function_name]
 
+
 # Returns the "colors" of a planet based on its class and orbit
 def get_planet_colors(d):
     c_or = 'blue' if d['class1'] == 'cold' else 'green' if d['class1'] == 'warm' else 'red'
     c_pl = 'red' if d['class2'] == 'rocky' else 'green' if d['class2'] == 'super-Earth' else 'blue'
-    return c_pl,c_or
+    return c_pl, c_or
+
 
 # Cycles through the values in a list
-def cycle_index(vals,val,delta):
+def cycle_index(vals, val, delta):
     N = len(vals)
     idx = list(vals).index(val)
     idx_new = idx + delta
@@ -111,32 +122,37 @@ def cycle_index(vals,val,delta):
     if idx_new >= N: idx_new = idx_new - N
     return vals[idx_new]
 
+
 # Fills an array with the appropriate "nan" value for its type
-def nan_fill(a,dtype=None):
-    return np.full(a.shape,np.nan,dtype=a.dtype if dtype is None else dtype)
+def nan_fill(a, dtype=None):
+    return np.full(a.shape, np.nan, dtype=a.dtype if dtype is None else dtype)
+
 
 # Translates an array of object counts (e.g. [1,2,2,1,3]) into a longer list
 # of the individual objects' order of creation (e.g., [1,1,2,1,2,1,1,2,3])
 # Uses a numpy trick from: https://codereview.stackexchange.com/questions/83018/vectorized-numpy-version-of-arange-with-multiple-start-stop
 def get_order(N):
-    start = np.repeat(np.zeros(len(N)),N)
-    counter = np.arange(N.sum())-np.repeat(N.cumsum()-N,N)
-    return (start+counter).astype(int)
+    start = np.repeat(np.zeros(len(N)), N)
+    counter = np.arange(N.sum()) - np.repeat(N.cumsum() - N, N)
+    return (start + counter).astype(int)
+
 
 # Translates the 'subset' specified for a model into a mask
-def mask_from_model_subset(pl,subset):
+def mask_from_model_subset(pl, subset):
     mask = True
     for key in subset.keys():
         val = subset[key]
         if isinstance(val, LIST_TYPES):
-            mask = mask & ((pl[key]>val[0])&(pl[key]<val[1]))
+            mask = mask & ((pl[key] > val[0]) & (pl[key] < val[1]))
         else:
-            mask = mask & (pl[key]==val)
+            mask = mask & (pl[key] == val)
     return mask
+
 
 def compute_bin_centers(bins):
     """ Given a set of N bin edges, returns N-1 bin centers and half-widths. """
-    return (bins[...,1:]+bins[...,:-1])/2., (bins[...,1:]-bins[...,:-1])/2.
+    return (bins[..., 1:] + bins[..., :-1]) / 2., (bins[..., 1:] - bins[..., :-1]) / 2.
+
 
 def compute_eta_Earth(d, by_type=True):
     """ Computes the value of eta Earth for a simulated sample of planets. Note this could be inaccurate if
@@ -151,42 +167,42 @@ def compute_eta_Earth(d, by_type=True):
         If True, calculate eta Earth separately for each spectral type.
     """
     # Determine the fraction of stars with planets
-    f_pl = len(np.unique(d['starID']))/max(d['starID'])
+    f_pl = len(np.unique(d['starID'])) / max(d['starID'])
 
     # Calculate eta Earth for all stars
     N_st = max(d['starID'])
-    eta = d['EEC'].sum()/N_st
+    eta = d['EEC'].sum() / N_st
     print("eta Earth = {:.2f} per star".format(eta))
 
     # Calculate eta Earth for each spectral type
     if by_type:
-        for SpT in ['F','G','K','M']:
+        for SpT in ['F', 'G', 'K', 'M']:
             # Determine the number of stars for this spectral type, accounting for stars without planets
             mask = d['SpT'] == SpT
             if mask.sum() == 0:
                 continue
-            N_st = len(np.unique(d['starID'][mask]))/f_pl
-            eta = d['EEC'][mask].sum()/N_st
-            print("          = {:.3f} per {:s} star (+- {:.5f})".format(eta, SpT, d['EEC'][mask].sum()**0.5/N_st))
+            N_st = len(np.unique(d['starID'][mask])) / f_pl
+            eta = d['EEC'][mask].sum() / N_st
+            print("          = {:.3f} per {:s} star (+- {:.5f})".format(eta, SpT, d['EEC'][mask].sum() ** 0.5 / N_st))
 
         # Also calculate for M1-M6 and M7-L0 stars
         mask = (d['T_eff_st'] > 3050) & (d['T_eff_st'] <= 3900)
-        N_st = len(np.unique(d['starID'][mask]))/f_pl
-        eta = d['EEC'][mask].sum()/N_st
-        print("          = {:.3f} per M1-M4 star (+- {:.5f})".format(eta, d['EEC'][mask].sum()**0.5/N_st))
+        N_st = len(np.unique(d['starID'][mask])) / f_pl
+        eta = d['EEC'][mask].sum() / N_st
+        print("          = {:.3f} per M1-M4 star (+- {:.5f})".format(eta, d['EEC'][mask].sum() ** 0.5 / N_st))
 
         mask = (d['T_eff_st'] > 1950) & (d['T_eff_st'] <= 3050)
-        N_st = len(np.unique(d['starID'][mask]))/f_pl
-        eta = d['EEC'][mask].sum()/N_st
-        print("          = {:.3f} per M5-L2 star (+- {:.5f})".format(eta, d['EEC'][mask].sum()**0.5/N_st))
+        N_st = len(np.unique(d['starID'][mask])) / f_pl
+        eta = d['EEC'][mask].sum() / N_st
+        print("          = {:.3f} per M5-L2 star (+- {:.5f})".format(eta, d['EEC'][mask].sum() ** 0.5 / N_st))
+
 
 def compute_occurrence_multiplier(optimistic=False, optimistic_factor=3, N_pts=30):
     """ Determines the multiplier for occurrence rates and planet periods as a function of stellar mass. """
     # Scaling factors for spectral type (Mulders+2015, Table 1 and Figure 4)
     M_st_0 = [0.17, 0.69, 0.97, 1.43]
-    f_N = 1/np.array([0.35, 0.55, 0.75, 1.0])
-    f_a = 1/np.array([1.6, 1.4, 1.2, 1.0])
-
+    f_N = 1 / np.array([0.35, 0.55, 0.75, 1.0])
+    f_a = 1 / np.array([1.6, 1.4, 1.2, 1.0])
 
     # Edit the M star point to be 3.5x solar
     f_N[0] = 3.5 * f_N[2]
@@ -195,7 +211,7 @@ def compute_occurrence_multiplier(optimistic=False, optimistic_factor=3, N_pts=3
     if optimistic:
         # Add a 0.8 solar mass point with 10x as many planets as solar type stars
         M_st_0 = np.append([0.08], M_st_0)
-        f_N = np.append([optimistic_factor*f_N[0]], f_N)
+        f_N = np.append([optimistic_factor * f_N[0]], f_N)
         f_a = np.append([f_a[0]], f_a)
 
     # Fit a second-order polynomial to f_N and f_a
@@ -204,29 +220,30 @@ def compute_occurrence_multiplier(optimistic=False, optimistic_factor=3, N_pts=3
 
     # Evaluate over a grid of masses and convert semi-major axis to period
     x = np.logspace(np.log10(0.05), np.log10(2), N_pts)
-    #y_N = np.polyval(p_N, x)
-    #y_P = np.polyval(p_a, x)**1.5
+    # y_N = np.polyval(p_N, x)
+    # y_P = np.polyval(p_a, x)**1.5
     y_N = np.interp(x, M_st_0, f_N)
-    y_P = np.interp(x, M_st_0, f_a)**1.5
+    y_P = np.interp(x, M_st_0, f_a) ** 1.5
 
     # Normalize these factors so that y = 1 for the typical Kepler planet host
     # (M ~ 0.965 per Kopparapu+2018)
     M_st_typ = 0.965
-    #y_N /= np.polyval(p_N, M_st_typ)
-    #y_P /= np.polyval(p_a, M_st_typ)**1.5
+    # y_N /= np.polyval(p_N, M_st_typ)
+    # y_P /= np.polyval(p_a, M_st_typ)**1.5
     y_N /= np.interp(M_st_typ, M_st_0, f_N)
-    y_P /= np.interp(M_st_typ, M_st_0, f_a)**1.5
+    y_P /= np.interp(M_st_typ, M_st_0, f_a) ** 1.5
 
     return x, y_N, y_P
+
 
 def update_stellar_catalog(d_max=100, filename=CATALOG_FILE):
     """ Updates the catalog of nearby sources from Gaia DR2 and saves it to a file. Requires astroquery. """
     from astroquery.gaia import Gaia
-    
+
     Nmax = 100000
-    query = "SELECT TOP {:d} source_id, parallax, ra, dec, teff_val, phot_g_mean_mag".format(Nmax)+\
-            " FROM gaiadr2.gaia_source"+\
-            " WHERE (parallax>={:f}) AND (teff_val>=4000)".format(1000/d_max)+\
+    query = "SELECT TOP {:d} source_id, parallax, ra, dec, teff_val, phot_g_mean_mag".format(Nmax) + \
+            " FROM gaiadr2.gaia_source" + \
+            " WHERE (parallax>={:f}) AND (teff_val>=4000)".format(1000 / d_max) + \
             " ORDER BY parallax DESC"
 
     job = Gaia.launch_job(query)
@@ -237,74 +254,79 @@ def update_stellar_catalog(d_max=100, filename=CATALOG_FILE):
         print("Warning! Gaia query exceeds row limit!")
     print("Catalog updated. Don't forget to restart!")
 
-def get_xyz(pl,t=0,M=None,n=3):
+
+def get_xyz(pl, t=0, M=None, n=3):
     # Computes the x/y/z separation in AU at time(s) t, assuming the mean longitude at t=0 is M0 and the unit is days 
     # n determines the number of iterations of Newton's method for solving Kepler's equation
-    
+
     # Determine the mean longitude at time(s) t
     if M is None:
-        M = pl['M0']+(2*np.pi*t)/pl['P']
-    
+        M = pl['M0'] + (2 * np.pi * t) / pl['P']
+
     # Eccentric orbit
     if np.any(pl['e'] != 0):
         # Increment M by 2pi (so the solver doesn't break near M = 0)
         M += 2 * np.pi
-        
+
         # Eccentric anomaly (Kepler's equation solved w/ Newton's method with one iteration)
         E = M
         for i in range(n):
-            E = E - (E-pl['e']*np.sin(E)-M)/(1-pl['e']*np.cos(E))
-            
+            E = E - (E - pl['e'] * np.sin(E) - M) / (1 - pl['e'] * np.cos(E))
+
         # Check that the equation is properly solved
         sinE = np.sin(E)
-        if (np.abs(M-(E-pl['e']*sinE)) > (0.002*np.pi)).any():
+        if (np.abs(M - (E - pl['e'] * sinE)) > (0.002 * np.pi)).any():
             print("Kepler's equation failed to solve! (e = {:.5f})".format(pl['e']))
-        
+
         # Distance
         cosE = np.cos(E)
-        r = pl['a']*(1-pl['e']*cosE)
-        
+        r = pl['a'] * (1 - pl['e'] * cosE)
+
         # True anomaly
-        cos_nu = (cosE-pl['e'])/(1-pl['e']*cosE)
-        sin_nu = ((1-pl['e']**2)**0.5*sinE)/(1-pl['e']*cosE)
-        
+        cos_nu = (cosE - pl['e']) / (1 - pl['e'] * cosE)
+        sin_nu = ((1 - pl['e'] ** 2) ** 0.5 * sinE) / (1 - pl['e'] * cosE)
+
     # Circular orbit
     else:
         nu = M
         r = pl['a']
         sin_nu = np.sin(M)
         cos_nu = np.cos(M)
-    
+
     # Compute some intermediate terms
-    cos_w,sin_w = np.cos(pl['w_AP']),np.sin(pl['w_AP'])
-    cos_w_nu = cos_nu*cos_w-sin_nu*sin_w
-    sin_w_nu = sin_nu*cos_w+sin_w*cos_nu
-        
+    cos_w, sin_w = np.cos(pl['w_AP']), np.sin(pl['w_AP'])
+    cos_w_nu = cos_nu * cos_w - sin_nu * sin_w
+    sin_w_nu = sin_nu * cos_w + sin_w * cos_nu
+
     # Compute x,y,z. z is the direction towards/from the observer.
-    x = r*(np.cos(pl['w_LAN'])*cos_w_nu-np.sin(pl['w_LAN'])*sin_w_nu*pl['cos(i)'])
-    y = r*(np.sin(pl['w_LAN'])*cos_w_nu+np.cos(pl['w_LAN'])*sin_w_nu*pl['cos(i)'])
-    z = r*(np.sin(np.arccos(pl['cos(i)']))*sin_w_nu)
-    
-    return x,y,z
+    x = r * (np.cos(pl['w_LAN']) * cos_w_nu - np.sin(pl['w_LAN']) * sin_w_nu * pl['cos(i)'])
+    y = r * (np.sin(pl['w_LAN']) * cos_w_nu + np.cos(pl['w_LAN']) * sin_w_nu * pl['cos(i)'])
+    z = r * (np.sin(np.arccos(pl['cos(i)'])) * sin_w_nu)
+
+    return x, y, z
+
 
 # Draws N samples from a normal PDF with mean value a and standard deviation b
 # (optional) bounded to xmin < x < xmax
-def normal(a,b,xmin=None,xmax=None,size=1):
-    if b is None or np.sum(b) == 0: return np.full(size,a)    
+def normal(a, b, xmin=None, xmax=None, size=1):
+    if b is None or np.sum(b) == 0:
+        return np.full(size, a)
     else:
-        aa = -np.inf if xmin is None else (xmin-a)/b
-        bb = np.inf if xmax is None else (xmax-a)/b
+        aa = -np.inf if xmin is None else (xmin - a) / b
+        bb = np.inf if xmax is None else (xmax - a) / b
         # Deal with nan values bug
-        if xmin is not None and np.size(aa)>1:
+        if xmin is not None and np.size(aa) > 1:
             aa[np.isnan(aa)] = -np.inf
-        if xmax is not None and np.size(bb)>1:
+        if xmax is not None and np.size(bb) > 1:
             bb[np.isnan(bb)] = np.inf
-        
+
         # truncnorm.rvs is extremely slow in newer SciPy versions; this line can be uncommented once that issue is fixed
-        #return scipy.stats.truncnorm.rvs(a=aa,b=bb,loc=a,scale=b,size=size)
-        
+        # return scipy.stats.truncnorm.rvs(a=aa,b=bb,loc=a,scale=b,size=size)
+
         # This module reproduces truncnorm as of SciPy v1.3.3
-        return truncnorm_hack.truncnorm.rvs(a=aa,b=bb,loc=a,scale=b,size=size)
+        return truncnorm_hack.truncnorm.rvs(a=aa, b=bb, loc=a, scale=b,
+                                            size=size, random_state=42)
+
 
 def binned_average(x, y, bins=10, match_counts=True):
     """ Computes the average value of a variable in bins of another variable.
@@ -334,19 +356,20 @@ def binned_average(x, y, bins=10, match_counts=True):
     if isinstance(bins, (INT_TYPES, FLOAT_TYPES)):
         bins = int(bins)
         if match_counts:
-            bins = np.percentile(x,np.linspace(0,100,bins+1))
+            bins = np.percentile(x, np.linspace(0, 100, bins + 1))
         else:
-            binsize = np.ptp(x)/bins
-            bins = np.arange(np.amin(x),np.amax(x)+binsize,binsize)
-    
-    # Compute the average value of `y` in each bin
-    values, errors = np.full((2,len(bins)-1), np.nan)
-    for i in range(len(bins)-1):
-        inbin = (x>=bins[i])&(x<=bins[i+1])
-        if inbin.sum() > 0:
-            values[i], errors[i] = np.mean(y[inbin]), np.std(y[inbin])/(inbin.sum())**0.5
+            binsize = np.ptp(x) / bins
+            bins = np.arange(np.amin(x), np.amax(x) + binsize, binsize)
 
-    return bins,values,errors
+    # Compute the average value of `y` in each bin
+    values, errors = np.full((2, len(bins) - 1), np.nan)
+    for i in range(len(bins) - 1):
+        inbin = (x >= bins[i]) & (x <= bins[i + 1])
+        if inbin.sum() > 0:
+            values[i], errors[i] = np.mean(y[inbin]), np.std(y[inbin]) / (inbin.sum()) ** 0.5
+
+    return bins, values, errors
+
 
 def compute_t_ref(filenames, t_exp, wl_min, wl_max, threshold=5, usecols=(0, 1, 2)):
     """ Computes t_ref for the detection of a spectroscopic feature. User must first use PSG or
@@ -390,8 +413,8 @@ def compute_t_ref(filenames, t_exp, wl_min, wl_max, threshold=5, usecols=(0, 1, 
 
     # Calculate the detection SNR and determine the required exposure time for a detection
     terms = np.abs(y1[idx1] - y2[idx2]) / yerr[idx1]
-    snr = np.sqrt(np.sum(terms**2))
-    t_ref = t_exp * (threshold/snr)**2
+    snr = np.sqrt(np.sum(terms ** 2))
+    t_ref = t_exp * (threshold / snr) ** 2
 
     return t_ref
 
@@ -420,7 +443,8 @@ def compute_logbins(binWidth_dex, Range):
     """
     # add binWidth_dex to logrange to include last bin edge
     logRange = (np.log10(Range[0]), np.log10(Range[1]) + binWidth_dex)
-    return 10**np.arange(logRange[0], logRange[1], binWidth_dex)
+    return 10 ** np.arange(logRange[0], logRange[1], binWidth_dex)
+
 
 def interpolate_df(xvals, df, xcol, ycol):
     """
@@ -453,7 +477,7 @@ def S2a_eff(S):
 
 def a_eff2S(a_eff):
     """Convert solar-equivalent semi-major axis to instellation in W/m2."""
-    S = CONST['S_Earth'] * a_eff**-2
+    S = CONST['S_Earth'] * a_eff ** -2
     return S
 
 
@@ -477,10 +501,12 @@ def compute_moving_average(d, window=25):
     if not (('R' in d) & ('rho' in d) & ('S_abs' in d)):
         raise ValueError("observables 'R', 'rho', and 'S_abs' must be measured for population-level statistics")
     dd = d.to_pandas()
-    R_mean = dd.sort_values('S_abs')['R'].rolling(window, center=True,min_periods=1).mean()
-    R_sem = dd.sort_values('S_abs')['R'].rolling(window, center=True,min_periods=1).sem()  # rolling standard error of mean
-    rho_mean = dd.sort_values('S_abs')['rho'].rolling(window, center=True,min_periods=1).mean()
-    rho_sem = dd.sort_values('S_abs')['rho'].rolling(window, center=True,min_periods=1).sem()  # rolling standard error of mean
+    R_mean = dd.sort_values('S_abs')['R'].rolling(window, center=True, min_periods=1).mean()
+    R_sem = dd.sort_values('S_abs')['R'].rolling(window, center=True,
+                                                 min_periods=1).sem()  # rolling standard error of mean
+    rho_mean = dd.sort_values('S_abs')['rho'].rolling(window, center=True, min_periods=1).mean()
+    rho_sem = dd.sort_values('S_abs')['rho'].rolling(window, center=True,
+                                                     min_periods=1).sem()  # rolling standard error of mean
 
     d.sort_by('S_abs', inplace=True)
     d['R_mean'] = R_mean
@@ -494,27 +520,31 @@ def compute_moving_average(d, window=25):
     d.error['rho_mean'] *= 2.
     return d
 
+
 def get_ideal_bins(data, method='freedman'):
     """return optimal bins for a given 1D data set"""
     _n, bins, _patches = astropyhist(data, bins=method)
     plt.clf()
     return bins
 
+
 def binned_stats(df, x_param, y_param, bins=None, statistic='mean', scale='log'):
     """Compute a binned statistic of parameter y's mean with respect to bins in parameter x."""
     if bins is None:
         if scale == 'log':
             logged_bins = get_ideal_bins(np.log10(df[x_param]))
-            bins = 10**logged_bins
+            bins = 10 ** logged_bins
         else:
             bins = get_ideal_bins(df[x_param])
     elif type(bins) == int:
-        bins = compute_logbins((np.log10(max(df[x_param])) - np.log10(min(df[x_param])))/bins, (min(df[x_param]), max(df[x_param])))
+        bins = compute_logbins((np.log10(max(df[x_param])) - np.log10(min(df[x_param]))) / bins,
+                               (min(df[x_param]), max(df[x_param])))
     means, edges, n = binned_statistic(df[x_param], df[y_param], statistic=statistic, bins=bins)
     std = []
     for e_lo, e_hi in zip(edges[:-1], edges[1:]):
         std.append(np.std(df[(df[x_param] >= e_lo) & (df[x_param] <= e_hi)][y_param]))
     return means, edges, n, std
+
 
 def compute_binned_average(d, x_param='S_abs', y_params=['R', 'rho']):
     """Compute mean of radius and density and their uncertainties,
@@ -544,13 +574,14 @@ def compute_binned_average(d, x_param='S_abs', y_params=['R', 'rho']):
     for y in y_params:
         mean, edges, n, std = binned_stats(df, 'S_abs', y, bins=None)
         for i, (m, s) in enumerate(zip(mean, std)):
-            df.loc[(df[x_param] >= edges[i]) & (df[x_param] < edges[i+1]),'_mean'] = m
-            df.loc[(df[x_param] >= edges[i]) & (df[x_param] < edges[i+1]),'_std'] = s
+            df.loc[(df[x_param] >= edges[i]) & (df[x_param] < edges[i + 1]), '_mean'] = m
+            df.loc[(df[x_param] >= edges[i]) & (df[x_param] < edges[i + 1]), '_std'] = s
 
         d[y + '_mean_binned'] = df['_mean']
         d.error[y + '_mean_binned'] = df['_std'] + 1e-3  # add an 'epsilon' to avoid dividing by zero
 
     return d
+
 
 def generate_generator(g_args, stars_only=False, **kwargs):
     """Helper function to create a planet generator."""
@@ -565,11 +596,12 @@ def generate_generator(g_args, stars_only=False, **kwargs):
         g_transit.insert_step('impact_parameter')
         g_transit.insert_step('assign_mass')
         g_transit.insert_step('effective_values')
-        g_transit.insert_step('magma_ocean')     # here we inject the magma oceans
+        g_transit.insert_step('magma_ocean')  # here we inject the magma oceans
         g_transit.insert_step('compute_transit_params')
         g_transit.insert_step('apply_bias')
     [g_transit.set_arg(key, val) for key, val in g_args.items()]
     return g_transit
+
 
 def find_distance4samplesize(N_target, g_args, tolerance=2, max_iterations=10, h=5):
     """
@@ -597,6 +629,7 @@ def find_distance4samplesize(N_target, g_args, tolerance=2, max_iterations=10, h
     d0 : float
         distance at closest sample size
     """
+
     def get_delta(d1, N_target):
         sample = generate_generator(g_args, d_max=d1).generate()
         N = len(sample)
@@ -618,9 +651,274 @@ def find_distance4samplesize(N_target, g_args, tolerance=2, max_iterations=10, h
         delta1, N = get_delta(d1, N_target)
         print('sample size at iteration {}: N = {:.0f} at $d_{{max}}$ = {:.1f} pc.'.format(i, N, d1))
 
-        d2 = d0 - (d1 - d0)*delta0/(delta1 - delta0)
+        d2 = d0 - (d1 - d0) * delta0 / (delta1 - delta0)
 
         d0 = d1
         d1 = d2
         i += 1
     return N, d0
+
+
+def interpolate_luminosity():
+    """interpolate luminosity for a given age and stellar mass using
+    Clough Tocher interpolation. Based on stellar luminosity tracks
+    from Baraffe+1998.
+
+    Returns
+    -------
+    interp_lum : scipy.interpolate.CloughTocher2DInterpolator
+        interpolator function that takes two inputs in scalar or
+        array-like form: stellar mass (M_sol) and age (Gyr)
+    """
+    from scipy.interpolate import CloughTocher2DInterpolator
+
+    lum_tracks = glob.glob(DATA_DIR + 'luminosity_tracks/' + "Lum_m*.txt")
+    lum_tracks.sort()
+    star_masses = [float(filename[-7:-4]) for filename in lum_tracks]
+    tracks = {}
+    for star_mass, lum_track in zip(star_masses, lum_tracks):
+        arr = np.genfromtxt(lum_track, delimiter=',')
+        tracks[star_mass] = np.append(arr, np.full((len(arr), 1), star_mass), axis=1)
+    tracks = np.concatenate([v for k, v in tracks.items()], 0)
+
+    # remove nans
+    tracks = tracks[~np.isnan(tracks).any(axis=1)]
+
+    m = tracks[:, 2]
+    T = tracks[:, 0]
+    lum = tracks[:, 1]
+    interp_lum = CloughTocher2DInterpolator(list(zip(m, T)), lum)
+
+    def extrap_nn(mm, tt):
+        # provide an interpolant to do nearest neighbor outside the bounds of the CT interpolator
+        L = interp_lum(mm, tt)
+        nans = np.isnan(L)
+        if nans.any():
+            inds = np.argmin(
+                (m[:, None] - mm) ** 2 +
+                (T[:, None] - tt[nans]) ** 2
+                , axis=0)
+            L[nans] = lum[inds]
+        return L
+
+    return interp_lum, extrap_nn
+
+
+"""Code from Chris Tunnell for 2D linear extrapolation below
+"""
+
+from scipy.interpolate import LinearNDInterpolator as LNDI
+from scipy.interpolate import NearestNDInterpolator
+
+
+class Linear2DInterpolator(object):
+    """
+    An extension of *LinearNDInterpolator* in 2D that
+    extrapolates (linearly) outside of the convex hull.
+    Nearest simplex is used for that, which might not be
+    the best choice, but it's the simplest one.
+    Many bug fixes and modifications for 2D field:
+    https://gist.github.com/minzastro/af35e8e9b3a1626e1586f75f96439ebd
+    """
+
+    def __init__(self, points, values):
+        self.lndi = LNDI(points, values)
+        hull = self.lndi.tri.convex_hull.tolist()
+        # Build a mask showing if a simplex has a side that
+        # is in the convex hull.
+        self.is_convex_simplex = np.zeros(len(self.lndi.tri.simplices),
+                                          dtype=bool)
+        for irow, row in enumerate(self.lndi.tri.simplices):
+            rrow = row[[0, 1, 2, 0]]
+            for pos in range(3):
+                if rrow[pos:pos + 2].tolist() in hull or \
+                        rrow[[pos + 1, pos]].tolist() in hull:
+                    self.is_convex_simplex[irow] = True
+
+    def __call__(self, xi):
+        """
+        Predict values at points *xi*
+        """
+        result = self.lndi(xi)
+        mask = np.isnan(result.sum(axis=1))
+        if not np.any(mask):
+            # All points are within the convex hull - nothing to do more.
+            return result
+        simplices = []
+
+        # Build a list of neares simplices for points outside
+        # the convex hull
+        for i, drow in enumerate(self.lndi.tri.plane_distance(xi[mask])):
+
+            mi = np.max(drow[self.is_convex_simplex])  # Fixed if nearested isn't on hull
+            w = np.where(drow == mi)[0]
+
+            if len(w) == 1 and self.is_convex_simplex[w]:
+                simplices.append(w)
+            elif len(w) > 1:
+                ww = w[self.is_convex_simplex[w]][0]
+                simplices.append(ww)
+            else:
+                raise ValueError
+
+        simplices = np.array(simplices)
+        result_update = np.zeros((mask.sum(), 2))  # fixed
+        for simple in np.unique(simplices):
+            indices = np.where(simplices == simple)[0]
+            result_update[indices] = self._get_simplex_at_point(simple, xi[mask][indices])
+
+        result[mask] = result_update
+        return result
+
+    def _get_simplex_at_point(self, ind, point):
+        """
+        Calculate the value at a point (or points)
+        using the plane build on simplex with index *ind*.
+        """
+        point = np.atleast_2d(np.array(point))
+        simplex = self.lndi.tri.simplices[ind]
+
+        plane_points = self.lndi.tri.points[[simplex]]
+        values = self.lndi.values[[simplex]]
+
+        point = point - plane_points[0]
+
+        extrapolated_points = []
+
+        for i, value in enumerate(values[0]):
+            # These two vectors are in the plane
+            v1 = (plane_points[2][0] - plane_points[0][0],
+                  plane_points[2][1] - plane_points[0][1],
+                  values[2][i] - values[0][i])
+
+            v2 = (plane_points[1][0] - plane_points[0][0],
+                  plane_points[1][1] - plane_points[0][1],
+                  values[1][i] - values[0][i])
+
+            # the cross product is a vector normal to the plane
+            cp = np.cross(v1, v2)
+
+            # z corresponding to plane requires dot with norm = 0
+            # (Norm) dot (position with only z unknown) = 0, solve.
+            extrapolated_points.append(values[0][i] + (- cp[0] * point[:, 0] - cp[1] * point[:, 1]) / cp[2])
+
+        np.array(extrapolated_points).T
+
+        return np.array(extrapolated_points).T
+
+
+# Nearest neighbor outside of convex hull
+class LinearNDInterpolatorExt(object):
+    def __init__(self, points, values):
+        self.funcinterp = LNDI(points, values)
+        self.funcnearest = NearestNDInterpolator(points, values)
+
+    def __call__(self, *args):
+        t = self.funcinterp(*args)
+        u = self.funcnearest(*args)
+
+        t[np.isnan(t)] = u[np.isnan(t)]
+        return t
+
+
+def interpolate_nuv(interpolate_spT=True):
+    """ Interpolate NUV flux evolution for a given spectral type.
+
+    NUV flux data is from Richey-Yowell et al. (2023) Fig. 11/Table 1.
+    Time is in Gyr, fluxes are HZ median fluxes in erg/s/cm^2.
+
+    Parameters
+    ----------
+    interpolate_spT : bool, optional
+        If True, interpolate in spectral type (using stellar mass) as well as in time.
+
+    Returns
+    -------
+    interp_nuv : dict
+        if interpolate_spT is True, returns a CloughTocher2DInterpolator object.
+        if interpolate_spT is False, returns a dictionary of interpolators, keyed by spectral type.
+    """
+
+    # from scipy.interpolate import LinearNDInterpolator
+
+    # read past UV fluxes (Richey-Yowell et al. 2023 Table 1). Transform time from Myr to Gyr.
+    nuv = pd.read_csv(DATA_DIR + 'past-UV.csv', comment='#')
+    nuv['age'] /= 1000
+    spt = nuv.SpT.unique()
+
+    # interpolate in time for each spectral type
+    def log_interp1d(xx, yy, kind='linear'):
+        logx = np.log10(xx)
+        logy = np.log10(yy)
+        lin_interp = interp1d(logx, logy, kind=kind, fill_value='extrapolate', bounds_error=False)
+        log_interp = lambda zz: np.power(10.0, lin_interp(np.log10(zz)))
+        return log_interp
+
+    if interpolate_spT:
+        # translate spectral type to stellar mass using the mass midpoints in Richey-Yowell et al. (2023)
+        spT2mass = {'K': 0.75, 'earlyM': 0.475, 'lateM': 0.215}
+
+        # create a new column 'Mst' that maps spectral type to stellar mass
+        nuv['Mst'] = nuv['SpT'].map(spT2mass)
+
+        interp_nuv = LinearNDInterpolatorExt(list(zip(nuv.Mst, nuv.age)), nuv.NUV_flux)
+        return interp_nuv
+
+    else:
+        # save interpolant in dict, keyed by spectral type
+        interp_nuv = {s: log_interp1d(nuv['age'].unique(), nuv[nuv.SpT == s]['NUV_flux']) for s in spt}
+        return interp_nuv
+
+
+def hz_evolution(d, L=None):
+    """ Calculate the inner and outer HZ boundaries for a given stellar luminosity and effective temperature."""
+
+    if L is None:
+        L = d['L_st']
+        T_eff = d['T_eff_st']
+        M_pl = d['M']
+    else:
+        T_eff = np.full(len(L), d['T_eff_st'])
+        M_pl = np.full(len(L), d['M'])
+
+    # Parameters for each planet mass and boundary (Table 1)
+    M_ref = np.array([0.1, 1., 5.])
+    S_eff_sol = np.array(  # four values for Recent Venus, Runaway Greenhouse, Maximum Greenhouse, Early Mars
+        [[1.776, 0.99, 0.356, 0.32],
+         [1.776, 1.107, 0.356, 0.32],
+         [1.776, 1.188, 0.356, 0.32]])
+    a = np.array([[2.136e-4, 1.209e-4, 6.171e-5, 5.547e-5],
+                  [2.136e-4, 1.332e-4, 6.171e-5, 5.547e-5],
+                  [2.136e-4, 1.433e-4, 6.171e-5, 5.547e-5]])
+    b = np.array([[2.533e-5, 1.404e-8, 1.698e-9, 1.526e-9],
+                  [2.533e-5, 1.58e-8, 1.698e-9, 1.526e-9],
+                  [2.533e-5, 1.707e-8, 1.698e-9, 1.526e-9]])
+    c = np.array([[-1.332e-11, -7.418e-12, -3.198e-12, -2.874e-12],
+                  [-1.332e-11, -8.308e-12, -3.198e-12, -2.874e-12],
+                  [-1.332e-11, -8.968e-12, -3.198e-12, -2.874e-12]])
+    d2 = np.array([[-3.097e-15, -1.713e-15, -5.575e-16, -5.011e-16],
+                   [-3.097e-15, -1.931e-15, -5.575e-16, -5.011e-16],
+                   [-3.097e-15, -2.084e-15, -5.575e-16, -5.011e-16]])
+
+    # Interpolate in mass to estimate the constant values for each planet
+    S_eff_sol0 = np.array([np.interp(M_pl, M_ref, S_eff_sol[:, i]) for i in range(len(S_eff_sol[0]))])
+    a = np.array([np.interp(M_pl, M_ref, a[:, i]) for i in range(len(a[0]))])
+    b = np.array([np.interp(M_pl, M_ref, b[:, i]) for i in range(len(b[0]))])
+    c = np.array([np.interp(M_pl, M_ref, c[:, i]) for i in range(len(c[0]))])
+    d2 = np.array([np.interp(M_pl, M_ref, d2[:, i]) for i in range(len(d2[0]))])
+
+    # Calculate the effective stellar flux at each boundary (Equation 4)
+    T_st = T_eff - 5780.
+    S_eff = S_eff_sol0 + a * T_st + b * T_st ** 2 + c * T_st ** 3 + d2 * T_st ** 4
+
+    # The corresponding distances in AU (stars with T_eff > 7200 K are not habitable so d = inf)
+    Tm = T_eff < 7200
+    dist = (L.reshape((len(L),)) / S_eff) ** 0.5  # reshape to catch a rare bug
+
+    dist[:, ~Tm] = np.inf
+
+    # Inner, outer HZ bounds for each planet (we are interested in Runaway Greenhouse and Maximum Greenhouse)
+    d_in, d_out = dist[1], dist[2]
+    # d['a_inner'], d['a_outer'] = d_in, d_out
+    # d['S_inner'], d['S_outer'] = S_eff[1], S_eff[2]
+    return d_in, d_out

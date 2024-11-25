@@ -6,6 +6,9 @@ import numpy as np
 import signal
 import time
 import traceback
+import logging
+
+import tqdm
 
 # Bioverse modules and constants
 from . import util
@@ -14,9 +17,23 @@ from . import util
 mp.set_start_method('spawn', force=True)
 
 def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, bins=15, return_chains=False,
-                         mw_alternative='greater', method='dynesty', nlive=100, **kwargs):
+                         mw_alternative='greater', method='dynesty', nlive=100, error_dump_filename: str = None,
+                         seed=42, **kwargs):
     """ Runs simulated surveys over a grid of survey and astrophysical parameters. Each time, uses the simulated
     data set to fit the hypothesis parameters and computes the model evidence versus the null hypothesis. """
+
+    # set up logging
+    logger = logging.getLogger(__name__)
+
+    # logger.setLevel(logging.DEBUG)
+
+    if error_dump_filename:
+        handler = logging.FileHandler(error_dump_filename, mode="w")
+
+        # handler.setLevel(logging.DEBUG)
+        logger.addHandler(handler)
+    else:
+        handler = None
 
     # Split `kwargs` into `grid` (list values + N) and `fixed` (scalar values) keyword arguments
     grid = {key:np.array(val) for key, val in kwargs.items() if np.ndim(val) == 1}
@@ -31,7 +48,22 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
     # Run each grid cell as a separate process with a random RNG seed
     grid_shape = tuple(np.size(v) for v in grid.values())
     N_iter = int(np.prod(grid_shape))
+    np.random.seed(seed=seed)  # maintain reproducibility
     procs, seeds = [], np.random.randint(0, 1e9, N_iter)
+
+    bar = util.bar(range(N_iter), do_bar)
+    bar_lock = mp.Lock()
+
+    def callback(raw_result: tuple[dict, list[str], int]):
+        if isinstance(bar, tqdm.tqdm):
+            with bar_lock:
+                bar.update()
+
+    def error_callback(error: Exception):
+        if isinstance(bar, tqdm.tqdm):
+            with bar_lock:
+                bar.update()
+
     for idx in range(N_iter):
         # Determine the grid values (+ fixed arguments) for this iteration, excepting 'N'
         idxes = np.unravel_index(idx, grid_shape)
@@ -39,16 +71,28 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
         iter_kwargs.update({key:val[idxes[i]] for i, (key, val) in enumerate(grid.items()) if key != 'N'})
 
         # Start each iteration as a separate process
-        args = (h, generator, survey, bins, return_chains, 
-                mw_alternative, method, seeds[idx], nlive, iter_kwargs)
-        proc = pool.apply_async(test_hypothesis_grid_iter,args)
+        args = (h, generator, survey, bins, return_chains,
+                mw_alternative, method, seeds[idx], nlive, iter_kwargs, idx)
+        proc = pool.apply_async(test_hypothesis_grid_iter, args, callback=callback, error_callback=error_callback)
         procs.append(proc)
-        
+
     # Collect the results from each process into the appropriate grid cell
     results = {}
     try:
-        for idx in util.bar(range(N_iter), do_bar):
-            res = procs[idx].get()
+        for idx in range(N_iter):
+            try:
+                res, log_entries, idx_return = procs[idx].get()
+            except KeyboardInterrupt:
+                raise
+            except Exception:
+                logger.error(f"Error in iteration {idx}", exc_info=True)
+
+                continue
+
+            # print out the logs from this iteration
+            for line in log_entries:
+                logger.error(line)
+
             for key in res:
                 val = res[key]
                 if val is None:
@@ -85,11 +129,17 @@ def test_hypothesis_grid(h, generator, survey, N=10, processes=1, do_bar=True, b
     results['h'], results['generator'], results['survey'], results['grid'], results['fixed'] =\
         h, generator, survey, grid, fixed
 
+    if handler:
+        handler.close()
+
     return results
 
 def test_hypothesis_grid_iter(h, generator, survey, bins, return_chains,
-                              mw_alternative, method, seed, nlive, kwargs):
+                              mw_alternative, method, seed, nlive, kwargs, iter_num: int):
     """ Runs a single iteration for test_hypothesis_grid (separated for multiprocessing). """
+
+    log_entries: list[str] = []
+
     # Prevents duplicate results when multiprocessing
     if seed is not None:
         np.random.seed(seed)
@@ -104,22 +154,51 @@ def test_hypothesis_grid_iter(h, generator, survey, bins, return_chains,
     # Simulate a data set and fit the hypothesis with it
     # Also time each step for future reference
     t_start= time.time()
-    sample, detected, data = survey.quickrun(generator, seed=seed, **kwargs)
-    t_sim = time.time() - t_start
-    results = h.fit(data, return_chains=return_chains, method=method, nlive=nlive, mw_alternative=mw_alternative)
+
+    # count how many iterations were needed before a successful run was had
+    num_attempts = 0
+
+    # keep retrying
+    while True:
+        sample, detected, data = survey.quickrun(generator, seed=seed, **kwargs)
+        t_sim = time.time() - t_start
+
+        try:
+            results = h.fit(data, return_chains=return_chains, method=method, nlive=nlive,
+                            mw_alternative=mw_alternative)
+        except KeyboardInterrupt:
+            raise
+        except Exception:
+            log_entries.append(f"Fitting error on iteration {iter_num}, attempt {num_attempts} (seed {seed})")
+            log_entries.append(traceback.format_exc())
+
+            # increment num_attempts and seed
+            num_attempts += 1
+            seed += 1
+        else:
+            break
+
     t_fit = time.time() - t_start - t_sim
 
-    # Count the number of hot/warm/cold planets and EECs which were characterized
-    obs = detected[h.get_observed(data)]
     try:
-        N_hot, N_warm, N_cold = [int((obs['class1']==typ).sum()) for typ in ['hot', 'warm', 'cold']]
-        N_EEC, N_pl = int(obs['EEC'].sum()), len(obs)
-        results['N_hot'], results['N_warm'], results['N_cold'] = N_hot, N_warm, N_cold
-        results['N_EEC'], results['N_pl'] = N_EEC, N_pl
-    except KeyError:
-        results['N_pl'] = len(obs)
-    finally:
-        pass
+        # Count the number of hot/warm/cold planets and EECs which were characterized
+        obs = detected[h.get_observed(data)]
+
+        try:
+            N_hot, N_warm, N_cold = [int((obs['class1'] == typ).sum()) for typ in ['hot', 'warm', 'cold']]
+            N_EEC, N_pl = int(obs['EEC'].sum()), len(obs)
+            results['N_hot'], results['N_warm'], results['N_cold'] = N_hot, N_warm, N_cold
+            results['N_EEC'], results['N_pl'] = N_EEC, N_pl
+        except KeyError:
+            results['N_pl'] = len(obs)
+        finally:
+            pass
+
+    except IndexError:
+        log_entries.append(
+            f"Detected and data have different dimensions. This is likely due to planets removed by the Table.evolve method.")
+        log_entries.append(traceback.format_exc())
+        results['N_pl'] = len(data)
 
     # Compute the average value of labels versus features
     obs = data[h.get_observed(data)]
@@ -131,7 +210,7 @@ def test_hypothesis_grid_iter(h, generator, survey, bins, return_chains,
     results['bins'], results['values'], results['errors'] = bins, values, errors
     results['t_sim'], results['t_fit'] = t_sim, t_fit
     
-    return results
+    return results, log_entries, iter_num
 
 def compute_statistical_power(results, threshold=None, method='dlnZ'):
     """ Computes the statistical power of a hypothesis test, i.e. the fraction of simulated tests which
@@ -184,7 +263,7 @@ def random_simulation(results, generator, survey, bins=15, mw_test=False, mw_alt
     # Add fixed arguments and run the simulation
     args = (results['h'], generator, survey, bins, return_chains, mw_test, 
             mw_alternative, method, None, nlive, iter_kwargs)
-    results_out = test_hypothesis_grid_iter(*args)
+    results_out, log_entries_, iter_num_ = test_hypothesis_grid_iter(*args)
     results_out['h'] = results['h']
     results_out['fixed'] = iter_kwargs
     return results_out
