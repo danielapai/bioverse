@@ -180,17 +180,25 @@ def test_hypothesis_grid_iter(h, generator, survey, bins, return_chains,
 
     t_fit = time.time() - t_start - t_sim
 
-    # Count the number of hot/warm/cold planets and EECs which were characterized
-    obs = detected[h.get_observed(data)]
     try:
-        N_hot, N_warm, N_cold = [int((obs['class1']==typ).sum()) for typ in ['hot', 'warm', 'cold']]
-        N_EEC, N_pl = int(obs['EEC'].sum()), len(obs)
-        results['N_hot'], results['N_warm'], results['N_cold'] = N_hot, N_warm, N_cold
-        results['N_EEC'], results['N_pl'] = N_EEC, N_pl
-    except KeyError:
-        results['N_pl'] = len(obs)
-    finally:
-        pass
+        # Count the number of hot/warm/cold planets and EECs which were characterized
+        obs = detected[h.get_observed(data)]
+
+        try:
+            N_hot, N_warm, N_cold = [int((obs['class1'] == typ).sum()) for typ in ['hot', 'warm', 'cold']]
+            N_EEC, N_pl = int(obs['EEC'].sum()), len(obs)
+            results['N_hot'], results['N_warm'], results['N_cold'] = N_hot, N_warm, N_cold
+            results['N_EEC'], results['N_pl'] = N_EEC, N_pl
+        except KeyError:
+            results['N_pl'] = len(obs)
+        finally:
+            pass
+
+    except IndexError:
+        log_entries.append(
+            f"Detected and data have different dimensions. This is likely due to planets removed by the Table.evolve method.")
+        log_entries.append(traceback.format_exc())
+        results['N_pl'] = len(data)
 
     # Compute the average value of labels versus features
     obs = data[h.get_observed(data)]
