@@ -344,7 +344,7 @@ class Measurement():
         # Place this measurement into the measurements database
         if self.key not in data.keys():
             # Fill the arrays with np.nan, allowing non-numerical dtypes incl. str, bool
-            dtype = x.dtype if x.dtype != bool else np.float64
+            dtype = x.dtype
             data[self.key] = np.full(len(detected), np.nan, dtype=dtype)
             data.error[self.key] = np.full(len(detected), np.nan, dtype=dtype)
 
