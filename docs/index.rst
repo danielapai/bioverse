@@ -1,8 +1,3 @@
-.. Bioverse documentation master file, created by
-   sphinx-quickstart on Mon Jun 21 12:19:11 2021.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 Bioverse
 ========
 
@@ -68,6 +63,33 @@ Bioverse is compatible with Python 3.7+. It has the following dependencies, all 
    :hidden:
    :glob:   
 
+   apidoc/bioverse.analysis
+   apidoc/bioverse.classes
+   apidoc/bioverse.constants
+   apidoc/bioverse.custom
+   apidoc/bioverse.functions
+   apidoc/bioverse.generator
+   apidoc/bioverse.hypothesis
+   apidoc/bioverse.plots
+   apidoc/bioverse.survey
+   apidoc/bioverse.util
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
+
+   overview
+   table
+   module1
+   module2
+   module3
+   module4
+   gui
+   Notebooks/Tutorial1
+   Notebooks/Tutorial2
+   tutorial_tref
+   Notebooks/Example1
+   Notebooks/Example2
    apidoc/bioverse.analysis
    apidoc/bioverse.classes
    apidoc/bioverse.constants
@@ -147,19 +169,4 @@ Papers making use of Bioverse should cite `Bixel & Apai (2021) <https://ui.adsab
    doi = {10.3847/PSJ/acf57f},
    archivePrefix = {arXiv},
    eprint = {2309.04518},
-   primaryClass = {astro-ph.EP},
-   adsurl = {https://ui.adsabs.harvard.edu/abs/2024PSJ.....5....3S},
-   adsnote = {Provided by the SAO/NASA Astrophysics Data System}
- }
-
-
-
-If you make use of the integrated hypothesis testing and parameter fitting, you should also include references to the `emcee <https://github.com/dfm/emcee>`_ and `dynesty <https://github.com/joshspeagle/dynesty>`_ packages.
-
-
-
-Bioverse was developed with support from the following grants and collaborations:
-
-- `Alien Earths <http://eos-nexus.org/>`_ & Earths in Other Solar Systems
-- NASA Earth and Space Science Fellowship Program (grant No. 80NSSC17K0470)
-- NASA's Nexus for Exoplanet System Science (NExSS)
+   primaryClass = {
