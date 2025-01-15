@@ -57,15 +57,9 @@ html_theme = 'classic'
 #html_theme = 'sphinx_rtd_theme'
 
 html_theme_options = {
+    'rightsidebar': False,
     'stickysidebar': True,
-    'collapsiblesidebar': True,
-}
-
-html_sidebars = {
-    '**': [
-        'globaltoc.html',   # Global TOC (site-wide contents)
-        'searchbox.html',   # Search box
-    ]
+    'collapsiblesidebar': False,
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
