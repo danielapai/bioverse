@@ -35,6 +35,13 @@ extensions = ['sphinx.ext.napoleon',
               'sphinx.ext.autodoc',
               'sphinx.ext.autosectionlabel']
 
+html_sidebars = { '**': [ 'localtoc.html', # Local TOC (contents of the current page) 
+                         'globaltoc.html', # Global TOC (site-wide contents) 
+                         'relations.html', # Previous/next links 
+                         'sourcelink.html', # Link to source 
+                         'searchbox.html', # Search box 
+                        ]}
+
 # Ensuring section labels are unique across your project
 autosectionlabel_prefix_document = True
 
@@ -57,9 +64,8 @@ html_theme = 'classic'
 #html_theme = 'sphinx_rtd_theme'
 
 html_theme_options = {
-    'rightsidebar': False,
     'stickysidebar': True,
-    'collapsiblesidebar': False,
+    'collapsiblesidebar': True,
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,

@@ -77,6 +77,7 @@ Bioverse is compatible with Python 3.7+. It has the following dependencies, all 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
+   :hidden:
 
    overview
    table
