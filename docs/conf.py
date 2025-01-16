@@ -35,10 +35,7 @@ extensions = ['sphinx.ext.napoleon',
               'sphinx.ext.autodoc',
               'sphinx.ext.autosectionlabel']
 
-html_sidebars = { '**': [ 'localtoc.html', # Local TOC (contents of the current page) 
-                         'globaltoc.html', # Global TOC (site-wide contents) 
-                         'relations.html', # Previous/next links 
-                         'sourcelink.html', # Link to source 
+html_sidebars = { '**': [ 'globaltoc.html', # Global TOC (site-wide contents)
                          'searchbox.html', # Search box 
                         ]}
 
