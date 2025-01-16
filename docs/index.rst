@@ -13,17 +13,20 @@ The :doc:`Overview<overview>` section describes the code's structure and primary
 Installation
 ************
 
-Bioverse can be cloned from its `GitHub repository <https://github.com/danielapai/bioverse/>`_:
+The recommended way to install the latest stable version of Bioverse is via pip:
+
+.. code-block:: bash
+
+    pip install bioverse
+
+Alternatively, Bioverse can be cloned from its `GitHub repository <https://github.com/danielapai/bioverse/>`_:
 
 .. code-block:: bash
 
     git clone https://www.github.com/danielapai/bioverse/
+    cd bioverse
+    pip install .
 
-To install Bioverse, navigate to the directory containing ``setup.py`` and run: [#f1]_
-
-.. code-block:: bash
-
-   pip install .
 
 Dependencies
 ************
@@ -79,9 +82,6 @@ Bioverse is compatible with Python 3.7+. It has the following dependencies, all 
    apidoc/bioverse.survey
    apidoc/bioverse.util
 
-.. rubric:: Footnotes
-
-.. [#f1] Bioverse will be added to PyPI in a future update.
 
 Feedback & Development
 **********************
