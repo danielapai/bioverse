@@ -48,12 +48,21 @@
        {%- endblock %}
        
        {# Only include the necessary toctree elements here #}
+       {%- block sidebartoc %}
        {%- include "globaltoc.html" %}
+       {%- endblock %}
+       
+       {# Add the search box here #}
+       {%- block sidebarsearch %}
+       {%- include "searchbox.html" %}
+       {%- endblock %}
+       
        {%- block sidebarextra %}{%- endblock %}
      </div>
    </div>
    {%- endif %}
 {%- endmacro %}
+
 
 {%- macro script() %}
     {%- for js in script_files %}
