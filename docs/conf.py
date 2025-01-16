@@ -30,10 +30,14 @@ release = '1.1.1'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.napoleon', 
-              'nbsphinx',
-              'sphinx.ext.autodoc',
-              'sphinx.ext.autosectionlabel']
+extensions = [
+    'sphinx.ext.napoleon', 
+    'nbsphinx',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.autosectionlabel',
+    'sphinx.ext.search' 
+]
+
 
 # Ensuring section labels are unique across your project
 autosectionlabel_prefix_document = True
