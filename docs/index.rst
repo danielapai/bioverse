@@ -86,6 +86,8 @@ References & Acknowledgements
 *****************************
 Papers making use of Bioverse should cite `Bixel & Apai (2021) <https://ui.adsabs.harvard.edu/abs/2021AJ....161..228B/abstract>`_, `Hardegree-Ullman et al. (2023) <https://ui.adsabs.harvard.edu/abs/2023AJ....165..267H/abstract>`_, and `Schlecker et al. (2024) <https://ui.adsabs.harvard.edu/abs/2024PSJ.....5....3S/abstract>`_. ::
 
+:hidden:
+
  @ARTICLE{2021AJ....161..228B,
    author = {{Bixel}, Alex and {Apai}, D{\'a}niel},
    title = "{Bioverse: A Simulation Framework to Assess the Statistical Power of Future Biosignature Surveys}",
@@ -105,7 +107,7 @@ Papers making use of Bioverse should cite `Bixel & Apai (2021) <https://ui.adsab
    adsnote = {Provided by the SAO/NASA Astrophysics Data System}
  }
 
-::
+:hidden:
 
  @ARTICLE{2023AJ....165..267H,
    author = {{Hardegree-Ullman}, Kevin K. and {Apai}, D{\'a}niel and {Bergsten}, Galen J. and {Pascucci}, Ilaria and {L{\'o}pez-Morales}, Mercedes},
@@ -126,7 +128,7 @@ Papers making use of Bioverse should cite `Bixel & Apai (2021) <https://ui.adsab
    adsnote = {Provided by the SAO/NASA Astrophysics Data System}
  }
 
-::
+:hidden:
 
  @ARTICLE{2024PSJ.....5....3S,
    author = {{Schlecker}, Martin and {Apai}, D{\'a}niel and {Lichtenberg}, Tim and {Bergsten}, Galen and {Salvador}, Arnaud and {Hardegree-Ullman}, Kevin K.},
