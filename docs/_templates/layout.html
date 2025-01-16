@@ -47,14 +47,17 @@
        {%- endif %}
        {%- endblock %}
        
-       {# Only include the necessary toctree elements here #}
-       {%- include "localtoc.html" %}
+       {# Include the main toctree from index.rst #}
+       {%- block sidebartoc %}
+       {%- include "globaltoc.html" %}
+       {%- endblock %}
        
        {%- block sidebarextra %}{%- endblock %}
      </div>
    </div>
    {%- endif %}
 {%- endmacro %}
+
 
 {%- macro script() %}
     {%- for js in script_files %}
