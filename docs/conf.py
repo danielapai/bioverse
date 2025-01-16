@@ -35,10 +35,6 @@ extensions = ['sphinx.ext.napoleon',
               'sphinx.ext.autodoc',
               'sphinx.ext.autosectionlabel']
 
-html_sidebars = { '**': [ 'globaltoc.html', # Global TOC (site-wide contents)
-                         'searchbox.html', # Search box 
-                        ]}
-
 # Ensuring section labels are unique across your project
 autosectionlabel_prefix_document = True
 
