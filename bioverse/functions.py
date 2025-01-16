@@ -53,7 +53,7 @@ def luminosity_evolution(d):
 
 
 def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, M_st_max=2.0, R_st_min=0.095,
-                    R_st_max=2.15, T_min=0., T_max=10., inc_binary=0, SpT=None, seed=42, M_G_max=None,
+                    R_st_max=2.15, T_min=1e-2, T_max=10., inc_binary=0, SpT=None, seed=42, M_G_max=None,
                     lum_evo=True):  # , mult=0):
     """ Reads a list of stellar properties from the Gaia nearby stars catalog.
 
@@ -170,7 +170,8 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
 
     return d
 
-def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_max=10., T_eff_split=4500., seed=42):
+def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=1e-2,
+                      T_max=10., T_eff_split=4500., SpT=None, seed=42):
     """ Reads temperatures and coordinates for high-mass stars from Gaia DR2. Simulates low-mass stars from the
     Chabrier+2003 PDMF.  Ages are drawn from a uniform distribution, by default from 0 - 10 Gyr. All other
     stellar properties are calculated using the scaling relations of Pecaut+2013.
@@ -191,6 +192,8 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
         Maximum stellar age, in Gyr.
     T_eff_split : float, optional
         Effective temperature (in Kelvin) below which to simulate stars from a PDMF instead of using Gaia data.
+    SpT : list of str, optional
+        List of spectral types to include in the sample. Example: SpT=['F', 'G', 'K', 'M'].
     seed : int or 1-d array_like, optional
         Seed for numpy's RandomState. Must be convertible to 32 bit unsigned integers.
 
@@ -270,6 +273,10 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
         d['SpT'][mask] = cvt['SpT'][i]
         d['subSpT'][mask] = cvt['subSpT'][i]
 
+    # Include only specific spectral types
+    if SpT:
+        d = d[np.isin(d['SpT'], SpT)]
+
     # Draw a random age for each system
     d['age'] = np.random.uniform(T_min, T_max, len(d))
 
@@ -278,7 +285,8 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
 
     return d
 
-def read_stellar_catalog(d, filename='LUVOIR_targets.dat', d_max=30., T_min=0., T_max=10., mult=1, seed=42):
+def read_stellar_catalog(d, filename='LUVOIR_targets.dat', d_max=30.,
+                         T_min=1e-2, T_max=10., mult=1, seed=42):
     """ Reads a list of stellar properties from the LUVOIR target catalog and fills in missing values.
 
     Parameters
@@ -869,9 +877,10 @@ def compute_habitable_zone_boundaries(d):
     
     # Parameters for each planet mass and boundary (Table 1)
     M_ref = np.array([0.1,1.,5.])
-    S_eff_sol = np.array([[1.776,0.99,0.356,0.32],
-                          [1.776,1.107,0.356,0.32],
-                          [1.776,1.188,0.356,0.32]])
+    S_eff_sol = np.array(   # four values for Recent Venus, Runaway Greenhouse, Maximum Greenhouse, Early Mars
+        [[1.776, 0.99, 0.356, 0.32],
+         [1.776, 1.107, 0.356, 0.32],
+         [1.776, 1.188, 0.356, 0.32]])
     a = np.array([[2.136e-4,1.209e-4,6.171e-5,5.547e-5],
                   [2.136e-4,1.332e-4,6.171e-5,5.547e-5],
                   [2.136e-4,1.433e-4,6.171e-5,5.547e-5]])
@@ -901,7 +910,7 @@ def compute_habitable_zone_boundaries(d):
     dist = (L/S_eff)**0.5
     dist[:,~Tm] = np.inf
 
-    # Inner, outer HZ bounds for each planet
+    # Inner, outer HZ bounds for each planet (we are interested in Runaway Greenhouse and Maximum Greenhouse)
     d_in,d_out = dist[1],dist[2]
     d['a_inner'],d['a_outer'] = d_in,d_out
     d['S_inner'],d['S_outer'] = S_eff[1],S_eff[2]
@@ -1255,5 +1264,54 @@ def magma_ocean(d, wrr=0.005, S_thresh=280., simplified=False, diff_frac=0.54, f
 
     # Label planets with smaller radius than the average
     # d['is_small'] = d['R'] < np.mean(d['R_orig'])
+
+    return d
+
+
+def past_hz_uv(d, deltaT_min=1., NUV_thresh=350., eec_only=True):
+    """ Determine which planets were both in the HZ and had NUV fluxes above a
+    threshold value for more than `deltaT_min` Myr.
+
+    Past NUV flux evolution is computed according to Richey-Yowell et al. (2023)
+    Fig. 11/Table 1. Assumes a regular time grid (not logarithmic).
+
+    Parameters:
+    -----------
+    d : Table
+        Table containing the sample of simulated planets.
+    deltaT_min : float, optional
+        Minimum time interval (in Myr) for which the NUV flux was above the
+        threshold value and the planet was in the HZ.
+    NUV_thresh : float, optional
+        Threshold NUV flux (in erg/s/cm2)
+
+    Returns:
+    --------
+    d : Table
+        Table containing the sample of simulated planets with a new column
+        'hz_and_uv' indicating overlap of HZ residence and NUV flux above
+        `NUV_thresh` for more than `deltaT_min` Myr.
+    """
+    if not hasattr(d, 'evolution'):
+        d.evolve(eec_only=eec_only)
+
+    df = d.to_pandas()
+    df['hz_and_uv'] = np.full(len(d), False, dtype=bool)
+    # hzuv = np.full(len(d), False, dtype=bool)
+
+    for id, planet in d.evolution.items():
+        dt = (max(planet['time']) - min(planet['time'])) / len(planet['time'])
+        t = planet['time']
+        in_hz = planet['in_hz']
+        nuv = planet['nuv']
+
+        # check if planet ever was in the HZ and had NUV fluxes above the threshold value
+        hz_and_uv = in_hz & (nuv > NUV_thresh)
+
+        t_consec_overlaps = np.diff(np.where(np.concatenate(([hz_and_uv[0]],
+                                                             hz_and_uv[:-1] != hz_and_uv[1:],
+                                                             [True])))[0])[::2] * dt
+        df.loc[df['planetID'] == id, 'hz_and_uv'] = (t_consec_overlaps > deltaT_min / 1000.).any()
+    d['hz_and_uv'] = df['hz_and_uv']
 
     return d

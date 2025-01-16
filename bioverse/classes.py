@@ -10,6 +10,7 @@ import time
 from .constants import DATA_DIR, OBJECTS_DIR
 from .constants import STR_TYPES, INT_TYPES
 from .constants import CONST
+from .util import interpolate_luminosity, interpolate_nuv, hz_evolution, normal
 
 # Imports pandas.DataFrame if installed
 try:
@@ -52,10 +53,10 @@ class Object():
                 raise ValueError("no label specified")
         else:
             self.label = label
-            
+
         filename = self.get_filename_from_label(label)
         pickle.dump(self,open(filename,'wb'))
-    
+
     def get_filename_from_label(self, label):
         clas = type(self).__name__
         return OBJECTS_DIR+'/{:s}s/{:s}.pkl'.format(clas, label)
@@ -67,13 +68,22 @@ class Table(dict):
 
         # Uncertainties
         self.error = None
-    
+
     def __repr__(self):
-        try:
-            return self.pdshow()
-        except ModuleNotFoundError:
-            s1 = 'Table of {:d} objects with {:d} parameters'.format(len(self), len(self.keys()))
-            return s1
+        s1 = 'Table of {:d} objects with {:d} parameters'.format(len(self), len(self.keys()))
+        return s1
+
+    def __str__(self):
+        return self.pdshow()
+
+    def pdshow(self):
+        """ If pandas is installed, show the Table represented as a DataFrame. Otherwise, return an error. """
+        if DataFrame is None:
+            raise ModuleNotFoundError("Package `pandas` is required to display the Table")
+        else:
+            df_rep = DataFrame(self)
+            display(df_rep)
+            return ''
 
     def __len__(self):
         """ Returns the number of rows in the table rather than the number of keys (default dict behavior). """
@@ -93,12 +103,12 @@ class Table(dict):
         """
         # If `key` is a string then return the column it refers to
         if isinstance(key, STR_TYPES):
-            # If a semi-colon is used, retrieve the column from a sub-table, e.g. Planets:Atmosphere:O2
+            # If a semicolon is used, retrieve the column from a sub-table, e.g. Planets:Atmosphere:O2
             if ':' in key:
                 key1, key2 = self.split_key(key)
                 return self[key1][key2]
             return super().__getitem__(key)
-        
+
         # If `key` is an int, int array, bool array, or slice then return the corresponding row(s)
         if isinstance(key, (np.ndarray, slice)) or isinstance(key, INT_TYPES):
             out = type(self)()
@@ -125,7 +135,7 @@ class Table(dict):
             else:
                 raise ValueError("size of new column does not match other columns")
 
-        # If a semi-colon is used, set the value inside a nested dict, e.g. Planets:Atmosphere:O2
+        # If a semicolon is used, set the value inside a nested dict, e.g. Planets:Atmosphere:O2
         if ':' in key:
             key1,key2 = self.split_key(key)
             self[key1].__setitem__(key2, value)
@@ -155,7 +165,7 @@ class Table(dict):
         key : str
             Name of the column by which to sort the table.
         inplace : bool, optional
-            If True, sort the table in-place. Otherwise return a new sorted Table.
+            If True, sort the table in-place. Otherwise, return a new sorted Table.
         ascending : bool, optional
             If True, sort from least to greatest.
 
@@ -169,7 +179,7 @@ class Table(dict):
         for key in self.keys():
             sortd[key] = self[key][order]
         return None if inplace else sortd
-     
+
     def get_stars(self):
         """ Returns just the first entry for each star in the Table. """
         idxes = np.array([np.where(self['starID']==idx)[0][0] for idx in np.unique(self['starID'])])
@@ -196,7 +206,7 @@ class Table(dict):
             if key.strip() in leg.keys():
                 print("WARNING: Duplicate entries found in the legend for parameter {:s}!".format(key))
             leg[key.strip()] = [dtype.strip(), description.strip()]
-        
+
         # Loop through each key and print the data type and description (if available)
         if keys is None:
             keys = self.keys()
@@ -214,7 +224,7 @@ class Table(dict):
         """ Returns a deep copy of the Table instead of a shallow copy (as in dict.copy). This way, if a column
         is filled by objects (such as Atmosphere objects), a copy of those is returned instead of a reference. """
         return deepcopy(self)
-        
+
     def append(self, table, inplace=True):
         """ Appends another table onto this table in-place. The second table must have the same
         columns, unless this table is empty, in which case the columns are copied over.
@@ -235,7 +245,7 @@ class Table(dict):
         # If this table has no columns, then just copy over the columns from `table`
         if len(self.keys()) == 0:
             super().__init__(table)
-        
+
         # Otherwise ensure the columns match then append the rows to the end
         elif np.array_equal(np.sort(self.keys()), np.sort(table.keys())):
             for key in self.keys():
@@ -308,9 +318,209 @@ class Table(dict):
             if self.error:
                 self.error['h_eff'] = self['h_eff'] * np.sqrt((self.error['S']/self['S'])**2 + (self.error['R']/self['R'])**2)
 
+        elif key == 'max_nuv':
+
+            # self.compute('a')
+            if not hasattr(self, 'evolution'):
+                self.evolve(errors=True)
+
+            # find maximum NUV flux occurring after 1 Myr
+            self['max_nuv'] = np.full(len(self), np.nan)
+            for i, p in self.evolution.items():
+                try:
+                    # get maximum 'nuv' for times > 1e-3 and only where 'in_hz' is True
+                    max_nuv = np.max(p["nuv"][(p["time"] > 1e-3) & p["in_hz"]])
+                    self["max_nuv"][self["planetID"] == i] = max_nuv
+                except (ValueError, IndexError) as e:
+                    # planet is either too young or estimated to never be in the HZ. Set max_nuv to NUV flux of final time step
+                    self["max_nuv"][self["planetID"] == i] = p["nuv"][-1]
+
+            if self.error:
+                # approximate error using square root of sum of squares
+                self.error['max_nuv'] = self['max_nuv'] * np.sqrt((self.error['age'] / self['age']) ** 2 +
+                                                                  (self.error['M_st'] / self['M_st']) ** 2 + (
+                                                                              self.error['a'] / self['a']) ** 2)
+
+                # approximate error according to Richey-Yowell et al. 2023 Table 1 (~0.1 dex)
+                self.error['max_nuv'] = self['max_nuv'] * 0.1
+
+
+
+        # elif key == 'hz_and_uv':
+        #
+        #
+        #     if not hasattr(self, 'evolution'):
+        #         # evolve planets with errors
+        #         self.evolve(errors=True)
+        #
+        #     df = self.to_pandas()
+        #     df['hz_and_uv'] = np.full(len(self), False, dtype=bool)
+        #
+        #     for id, planet in self.evolution.items():
+        #         dt = (max(planet['time']) - min(planet['time'])) / len(planet['time'])
+        #         t = planet['time']
+        #         in_hz = planet['in_hz']
+        #         nuv = planet['nuv']
+        #
+        #         # check if planet ever was in the HZ and had NUV fluxes above the threshold value
+        #         hz_and_uv = in_hz & (nuv > NUV_thresh)
+        #
+        #         t_consec_overlaps = np.diff(np.where(np.concatenate(([hz_and_uv[0]],
+        #                                                              hz_and_uv[:-1] != hz_and_uv[1:],
+        #                                                              [True])))[0])[::2] * dt
+        #         df.loc[df['planetID'] == id, 'hz_and_uv'] = (t_consec_overlaps > deltaT_min / 1000.).any()
+        #     self['hz_and_uv'] = df['hz_and_uv']
+
+
         else:
             raise ValueError("no formula defined for {:s}".format(key))
-    
+
+    def evolve(self, eec_only=True, sigma_nuv_dex=0.1, errors=False, seed=42, **kwargs):
+        """ Add time evolution of habitable zones and NUV flux for each planet.
+
+        This adds a new attribute `evolution` to the Table. `Table.evolution`
+        is a dictionary with the planet IDs as keys. Each entry is a dictionary
+        with the following keys:
+            - 'time' : time grid in Gyr
+            - 'lum' : luminosity evolution in L_sun
+            - 'nuv' : NUV flux evolution in erg/s/cm^2
+            - 'in_hz' : boolean array indicating whether the planet is in the HZ at each time step
+
+        Parameters
+        ----------
+        eec_only : bool, optional
+            If True, consider only planets that are "exo-Earth candidates" at observation time.
+            Otherwise, consider all planets.
+        sigma_nuv_dex : float, optional
+            The intrinsic, typical standard deviation of the NUV data in Richey-Yowell et al. (2023), in dex.
+        errors : bool, optional
+            If True, treat as observed survey data and consider measurement errors.
+        seed : int, optional
+            Seed for random number generators.
+
+        Returns
+        -------
+        None
+
+        Example
+        -------
+        >>> g = Generator()
+        >>> planets = g.generate()
+        >>> planets.evolve()
+        >>> plt.plot(planets.evolution[1]['time'], planets.evolution[1]['lum'])
+        """
+
+        np.random.seed(seed)
+        self.evolution = {}
+
+        if eec_only:
+            planets = self[self['EEC'] == True]
+            planets.error = self.error[self['EEC'] == True] if self.error is not None else None
+        else:
+            planets = self
+
+        # Load the luminosity and nuv interpolation functions
+        interp_lum, extrap_nn = interpolate_luminosity()
+        interp_nuv = interpolate_nuv()
+
+        dd = planets.to_pandas()
+        # # updated_series = my_series.where(my_series > 30, 0)
+        # dd.loc[dd.subSpT.str.contains('K.*'), 'nuv_class'] = 'K'
+        # dd.loc[dd.subSpT.str.contains('M[1-3].*'), 'nuv_class'] = 'earlyM'
+        # dd.loc[dd.subSpT.str.contains('M[4-9].*'), 'nuv_class'] = 'lateM'
+        #
+        # # for earlier spectral types, use spectral class K. TODO: implement for more massive stars
+        # dd.loc[dd.nuv_class.isnull(), 'nuv_class'] = 'K'
+
+        t0 = 16.5e-3  # t0 in Richey-Yowell et al. 2023
+        dt = 0.01  # time step in Gyr
+
+        if (errors and planets.error is not None):
+            # this seems to be observed survey data. Consider measurement errors.
+            errors = planets.error.to_pandas()
+            for (index, planet), (erridx, error) in zip(dd.iterrows(), errors.iterrows()):
+
+                # grid in Gyr, sample ~every 0.01 Gyr from 16.5 Myr to the age of the system.
+                age = normal(planet['age'], error['age'], xmin=1e-6)
+                T = np.arange(t0, age, step=dt) if age > t0 + dt else np.linspace(t0, age,
+                                                                                  num=3)  # avoid single-element arrays in too young systems.
+
+                # Compute the time evolution of the habitable zone
+                lum_evo = interp_lum(normal(planet['M_st'], error['M_st'], xmin=0.08), T)
+
+                # outside the bounds of the CT interpolator, extrapolate using a nearest neighbor approach
+                if np.isnan(lum_evo).any():
+                    lum_evo = extrap_nn(normal(planet['M_st'], error['M_st'], xmin=0.08), T)
+
+                a_inner, a_outer = hz_evolution(planet, lum_evo)
+                a = normal(planet['a'], error['a'], xmin=1e-6)
+                in_hz = (a >= a_inner) & (a <= a_outer)
+
+                # interpolate in NUV table, varying the mass within the error
+                nuv_evo = interp_nuv(normal(planet['M_st'], error['M_st'], xmin=0.08), T)
+
+                # add the instrinsic, typical error of the NUV data in Richey-Yowell et al. (2023) by applying a random bias
+                np.random.seed(seed)
+                bias = 10 ** np.random.normal(0, sigma_nuv_dex)
+                nuv_evo = nuv_evo * bias
+
+                self.evolution[planet["planetID"]] = {
+                    "time": T,
+                    "lum": lum_evo,
+                    "nuv": nuv_evo,
+                    "in_hz": in_hz,
+                }
+
+        else:
+            for index, planet in dd.iterrows():
+                # use face values without measurement errors
+
+                # a time grid in Gyr, sample ~every 0.01 Gyr
+                T = (
+                    np.arange(t0, planet["age"], step=dt)
+                    if planet["age"] > t0 + dt
+                    else np.linspace(t0, planet["age"], num=3)
+                )  # avoid single-element arrays in too young systems.
+
+                # Compute the time evolution of the habitable zone
+                lum_evo = interp_lum(planet["M_st"], T)
+
+                # outside the bounds of the CT interpolator, extrapolate using a nearest neighbor approach
+                if np.isnan(lum_evo).any():
+                    lum_evo = extrap_nn(planet["M_st"], T)
+
+                a_inner, a_outer = hz_evolution(planet, lum_evo)
+                in_hz = (planet["a"] >= a_inner) & (planet["a"] <= a_outer)
+
+                # Compute the time evolution of the NUV flux
+                # nuv_evo = interp_nuv[planet['nuv_class']](T)
+
+                # add the instrinsic, typical error of the NUV data in Richey-Yowell et al. (2023) by applying a random bias
+                np.random.seed(seed)
+                bias = 10 ** np.random.normal(0, sigma_nuv_dex)
+                # nuv_evo = interp_nuv(planet["M_st"], T)
+                nuv_evo = interp_nuv(planet["M_st"], T) * bias
+
+                self.evolution[planet["planetID"]] = {
+                    "time": T,
+                    "lum": lum_evo,
+                    "nuv": nuv_evo,
+                    "in_hz": in_hz,
+                }
+
+        if eec_only:
+            # remove planets where in_hz is not really True in the final time step
+            for id, planet in self.evolution.copy().items():
+                if not planet["in_hz"][-1]:
+                    del self.evolution[id]
+
+                    if self.error is not None:
+                        self.error.update({key: np.delete(vals, np.where(self['planetID'] == id)) for key, vals in
+                                           self.error.items()})
+
+                    self.update({key: np.delete(vals, np.where(self['planetID'] == id)) for key, vals in self.items()})
+
+
     def shuffle(self, inplace=True):
         """ Re-orders rows in the Table. If `inplace` is False, return a new re-ordered Table instead. """
         if not inplace:
@@ -322,20 +532,12 @@ class Table(dict):
         for key, val in self.items():
             self[key] = val[order]
 
-    def pdshow(self):
-        """ If pandas is installed, show the Table represented as a DataFrame. Otherwise return an error. """
-        if DataFrame is None:
-            raise ModuleNotFoundError("Package `pandas` is required to display the Table")
-        else:
-            df_rep = DataFrame(self)
-            display(df_rep)
-            return ''
 
     def to_pandas(self):
         """export Table into a pandas DataFrame"""
         df = DataFrame(self)
         return df
-    
+
     def observed(self, key):
         """ Returns the subset of rows for which self[key] is not nan. """
         if key not in self:
@@ -370,4 +572,3 @@ class Stopwatch():
             print("({:3d}) {:30s}\t{:20.8f}\t{:20.8f}".format(i, self.flags[i], self.t[i]-(self.t[i-1] if i>0 else 0.), self.t[i]))
         idx = np.argmax(np.array(self.t[1:])-np.array(self.t[:-1]))
         print("\nLongest step: ({0}) {1}".format(idx, self.flags[idx]))
-        

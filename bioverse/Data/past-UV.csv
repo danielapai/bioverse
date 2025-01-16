@@ -1,0 +1,18 @@
+# Median NUV fluxes in the Habitable Zones of K, early M, and late M dwarfs as a function of age from Richey-Yowell et al. (2023) Fig. 11/Table 1.
+# age is in Myr; fluxes are in erg/s/cm^2
+age,SpT,NUV_flux
+16.5,K,181
+16.5,earlyM,417
+16.5,lateM,612
+43.5,K,118
+43.5,earlyM,194
+43.5,lateM,290
+150,K,250
+150,earlyM,141
+150,lateM,367
+650,K,61
+650,earlyM,42
+650,lateM,79
+5000,K,40
+5000,earlyM,5.3
+5000,lateM,15

@@ -221,7 +221,7 @@ class Hypothesis():
         method : str, optional
             Which sampling method to use. Options: dynesty (default), emcee, mannwhitney,
         mw_alternative : str, {'two-sided', 'less', 'greater'}, optional
-            Defines the alternative hypothesis. Default is 'two-sided'.
+            Defines the alternative hypothesis. Default is 'greater'.
             Let *F(u)* and *G(u)* be the cumulative distribution functions of the
             distributions underlying `x` and `y`, respectively. Then the following
             alternative hypotheses are available:
@@ -570,7 +570,7 @@ def magma_ocean_hypo(theta, X, gh_increase=True, water_incorp=True, simplified=F
     a_eff_thresh = 1 / (np.sqrt(S_thresh / CONST['S_Earth']))
 
     # # baseline case without steam atmosphere or water incorporation
-    # exp_val = avg
+    exp_val = avg
 
     if (gh_increase==False and water_incorp==False):
         return np.full_like(a_eff, exp_val)

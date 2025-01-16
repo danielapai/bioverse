@@ -123,8 +123,8 @@ class Survey(dict, Object):
             data = self.observe(detected, t_total=t_total)
 
         return sample, detected, data
-        
-    def observe(self, y, t_total=None, data=None, error=None, demographics=True):
+
+    def observe(self, y, t_total=None, data=None, error=None, demographics=False):
         """ Returns a simulated data set for a Table of simulated planets.
         
         Parameters
@@ -153,7 +153,10 @@ class Survey(dict, Object):
         # Perform each measurement in order
         for _, m in self.measurements.items():
             if m.key not in y.keys():
-                print("Could not measure property: {:s}".format(m.key))
+                try:
+                    y.compute(m.key)
+                except ValueError:
+                    print("Could not measure property: {:s}".format(m.key))
                 continue
 
             # Determine the amount of time for this measurement (if it has any exposure time constraints)
@@ -271,7 +274,8 @@ class Measurement():
     t_total : float, optional
         Total amount of time allocated for this measurement, in days.
     priority : dict, optional
-        Describes how target weights are assigned based on target properties. For example {'R':[[1, 2, 5]]} assigns weight = 5 to planets with 1 < R < 2.
+        Describes how target weights are assigned based on target properties.
+        For example {'R':[[1, 2, 5]]} assigns weight = 5 to planets with 1 < R < 2.
     wl_eff : float, optional
         Effective wavelength of observation, used to estimate SNR.
     debias : bool, optional
@@ -339,8 +343,11 @@ class Measurement():
 
         # Place this measurement into the measurements database
         if self.key not in data.keys():
-            data[self.key] = np.full(len(detected), np.nan)
-            data.error[self.key] = np.full(len(detected), np.nan)
+            # Fill the arrays with np.nan, allowing non-numerical dtypes incl. str, bool
+            dtype = x.dtype
+            data[self.key] = np.full(len(detected), np.nan, dtype=dtype)
+            data.error[self.key] = np.full(len(detected), np.nan, dtype=dtype)
+
         data[self.key][observable] = x
         data.error[self.key][observable] = dx
 
