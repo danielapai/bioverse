@@ -80,33 +80,6 @@ Bioverse is compatible with Python 3.7+. It has the following dependencies, all 
    apidoc/bioverse.survey
    apidoc/bioverse.util
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-
-   overview
-   table
-   module1
-   module2
-   module3
-   module4
-   gui
-   Notebooks/Tutorial1
-   Notebooks/Tutorial2
-   tutorial_tref
-   Notebooks/Example1
-   Notebooks/Example2
-   apidoc/bioverse.analysis
-   apidoc/bioverse.classes
-   apidoc/bioverse.constants
-   apidoc/bioverse.custom
-   apidoc/bioverse.functions
-   apidoc/bioverse.generator
-   apidoc/bioverse.hypothesis
-   apidoc/bioverse.plots
-   apidoc/bioverse.survey
-   apidoc/bioverse.util
-
 .. rubric:: Footnotes
 
 Feedback & Development
