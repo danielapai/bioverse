@@ -94,23 +94,19 @@ Bioverse was developed with support from the following grants and collaborations
 Installation
 ************
 
-Bioverse can now be installed directly from PyPI. To install Bioverse, use the following command:
+The recommended way to install the latest stable version of Bioverse is via pip:
 
 .. code-block:: bash
 
     pip install bioverse
 
-Alternatively, Bioverse can be cloned from its GitHub repository:
+Alternatively, Bioverse can be cloned from its `GitHub repository <https://github.com/danielapai/bioverse/>`_:
 
 .. code-block:: bash
 
-    git clone https://github.com/danielapai/bioverse/
-
-To install Bioverse, navigate to the directory containing ``setup.py`` and run:
-
-.. code-block:: bash
-
-   pip install .
+    git clone https://www.github.com/danielapai/bioverse/
+    cd bioverse
+    pip install .
 
 Dependencies
 ************
