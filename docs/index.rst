@@ -144,4 +144,4 @@ Papers making use of Bioverse should cite `Bixel & Apai (2021) <https://ui.adsab
    primaryClass = {astro-ph.EP},
    adsurl = {https://ui.adsabs.harvard.edu/abs/2024PSJ.....5....3S},
    adsnote = {Provided by the SAO/NASA Astrophysics Data System}
-}
+ }
