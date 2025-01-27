@@ -145,3 +145,13 @@ Papers making use of Bioverse should cite `Bixel & Apai (2021) <https://ui.adsab
    adsurl = {https://ui.adsabs.harvard.edu/abs/2024PSJ.....5....3S},
    adsnote = {Provided by the SAO/NASA Astrophysics Data System}
  }
+
+If you make use of the integrated hypothesis testing and parameter fitting, you should also include references to the `emcee <https://github.com/dfm/emcee>`_ and `dynesty <https://github.com/joshspeagle/dynesty>`_ packages.
+
+
+
+Bioverse was developed with support from the following grants and collaborations:
+
+- `Alien Earths <https://alienearths.space/>`_ and Earths in Other Solar Systems
+- NASA Earth and Space Science Fellowship Program (grant No. 80NSSC17K0470)
+- NASA's Nexus for Exoplanet System Science (NExSS) 
