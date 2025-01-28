@@ -1,8 +1,3 @@
-.. Bioverse documentation master file, created by
-   sphinx-quickstart on Mon Jun 21 12:19:11 2021.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 Bioverse
 ========
 
@@ -82,7 +77,6 @@ Bioverse is compatible with Python 3.7+. It has the following dependencies, all 
    apidoc/bioverse.survey
    apidoc/bioverse.util
 
-
 Feedback & Development
 **********************
 Bioverse is open source and in active development. We welcome all feedback, bug reports, or feature requests. Feel free to open a pull request if you'd like to contribute! If you think you found a bug, please raise an `issue <https://github.com/danielapai/bioverse/issues>`_.
@@ -152,14 +146,12 @@ Papers making use of Bioverse should cite `Bixel & Apai (2021) <https://ui.adsab
    adsnote = {Provided by the SAO/NASA Astrophysics Data System}
  }
 
-
-
 If you make use of the integrated hypothesis testing and parameter fitting, you should also include references to the `emcee <https://github.com/dfm/emcee>`_ and `dynesty <https://github.com/joshspeagle/dynesty>`_ packages.
 
 
 
 Bioverse was developed with support from the following grants and collaborations:
 
-- `Alien Earths <http://eos-nexus.org/>`_ & Earths in Other Solar Systems
+- `Alien Earths <https://alienearths.space/>`_ and Earths in Other Solar Systems
 - NASA Earth and Space Science Fellowship Program (grant No. 80NSSC17K0470)
-- NASA's Nexus for Exoplanet System Science (NExSS)
+- NASA's Nexus for Exoplanet System Science (NExSS) 
