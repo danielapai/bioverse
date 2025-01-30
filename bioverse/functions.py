@@ -22,7 +22,7 @@ from .constants import CONST, ROOT_DIR, DATA_DIR
 
 def luminosity_evolution(d):
     """
-    Computes age-dependent luminosities based on the stellar evolution tracks in Baraffe et al. (1998).
+    Computes age-dependent luminosities based on the stellar evolution tracks in Baraffe et al. (2015).
 
     Parameters
     ----------
@@ -89,7 +89,7 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
         Maximum Gaia magnitude of stars. Example: M_G_max=9. keeps all stars brighter than M_G = 9.0.
     lum_evo : bool, optional
         Assign age-dependent stellar luminosities (based on randomly assigned ages and stellar luminosity tracks in
-        Baraffe et al. 1998.
+        Baraffe et al. 2015.
 
     Returns
     -------
