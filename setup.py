@@ -4,7 +4,7 @@ import os
 from setuptools import setup
 
 
-def requirements_list() -> list[str]:
+def requirements_list():
     reqs_list = []
 
     with open("requirements.txt", mode="r") as reqs_file:
@@ -16,9 +16,9 @@ def requirements_list() -> list[str]:
 
 setup(
     name = "bioverse",
-    version="1.1.5",
+    version="1.1.8",
     author = "Alex Bixel",
-    author_email = "d.alex.bixel@gmail.com",
+    author_email = "bioverse-dev@list.arizona.edu",
     description = ("A simulation framework to assess the statistical power of future biosignature surveys"),
     url = "https://github.com/danielapai/bioverse",
     packages=['bioverse'],

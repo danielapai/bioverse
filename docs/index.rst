@@ -1,8 +1,3 @@
-.. Bioverse documentation master file, created by
-   sphinx-quickstart on Mon Jun 21 12:19:11 2021.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 Bioverse
 ========
 
@@ -13,17 +8,20 @@ The :doc:`Overview<overview>` section describes the code's structure and primary
 Installation
 ************
 
-Bioverse can be cloned from its `GitHub repository <https://github.com/danielapai/bioverse/>`_:
+The recommended way to install the latest stable version of Bioverse is via pip:
+
+.. code-block:: bash
+
+    pip install bioverse
+
+Alternatively, Bioverse can be cloned from its `GitHub repository <https://github.com/danielapai/bioverse/>`_:
 
 .. code-block:: bash
 
     git clone https://www.github.com/danielapai/bioverse/
+    cd bioverse
+    pip install .
 
-To install Bioverse, navigate to the directory containing ``setup.py`` and run: [#f1]_
-
-.. code-block:: bash
-
-   pip install .
 
 Dependencies
 ************
@@ -78,10 +76,6 @@ Bioverse is compatible with Python 3.7+. It has the following dependencies, all 
    apidoc/bioverse.plots
    apidoc/bioverse.survey
    apidoc/bioverse.util
-
-.. rubric:: Footnotes
-
-.. [#f1] Bioverse will be added to PyPI in a future update.
 
 Feedback & Development
 **********************
@@ -152,14 +146,12 @@ Papers making use of Bioverse should cite `Bixel & Apai (2021) <https://ui.adsab
    adsnote = {Provided by the SAO/NASA Astrophysics Data System}
  }
 
-
-
 If you make use of the integrated hypothesis testing and parameter fitting, you should also include references to the `emcee <https://github.com/dfm/emcee>`_ and `dynesty <https://github.com/joshspeagle/dynesty>`_ packages.
 
 
 
 Bioverse was developed with support from the following grants and collaborations:
 
-- `Alien Earths <http://eos-nexus.org/>`_ & Earths in Other Solar Systems
+- `Alien Earths <https://alienearths.space/>`_ and Earths in Other Solar Systems
 - NASA Earth and Space Science Fellowship Program (grant No. 80NSSC17K0470)
-- NASA's Nexus for Exoplanet System Science (NExSS)
+- NASA's Nexus for Exoplanet System Science (NExSS) 
