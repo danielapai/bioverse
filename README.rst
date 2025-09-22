@@ -14,11 +14,21 @@ Bioverse is a Python package for simulating the results of a statistical survey 
 
 For documentation, see https://bioverse.readthedocs.io/.
 
+Version Updates & Notifications
+********************************
+
+Stay informed about the latest improvements, bug fixes, and new features in Bioverse. By signing up for update notifications, you will:
+
+ - Ensure you are always using the most reliable and accurate version for your research.
+ - Receive alerts when new functionality is added that could benefit your work.
+ - Stay aware of changes that may affect reproducibility and citation of results.
+ - Be among the first to know about important announcements related to Bioverse.
+
+Sign up here <https://uarizona.co1.qualtrics.com/jfe/form/SV_dbU3Fb4VUYTX9s2> to keep your installation current and your research up to date.
+
 References & Acknowledgments
 ****************************
-Papers making use of Bioverse should stay up to date with the lastest version. We encourage you to sign up for essential updates on bug fixes through `this link <https://uarizona.co1.qualtrics.com/jfe/form/SV_dbU3Fb4VUYTX9s2>`_.
-
-You should also cite `Bixel & Apai (2021) <https://ui.adsabs.harvard.edu/abs/2021AJ....161..228B/abstract>`_, `Hardegree-Ullman et al. (2023) <https://ui.adsabs.harvard.edu/abs/2023AJ....165..267H/abstract>`_, and `Schlecker et al. (2024) <https://ui.adsabs.harvard.edu/abs/2024PSJ.....5....3S/abstract>`_. ::
+Papers making use of Bioverse should stay up to date with the lastest version and cite `Bixel & Apai (2021) <https://ui.adsabs.harvard.edu/abs/2021AJ....161..228B/abstract>`_, `Hardegree-Ullman et al. (2023) <https://ui.adsabs.harvard.edu/abs/2023AJ....165..267H/abstract>`_, and `Schlecker et al. (2024) <https://ui.adsabs.harvard.edu/abs/2024PSJ.....5....3S/abstract>`_. ::
 
  @ARTICLE{2021AJ....161..228B,
    author = {{Bixel}, Alex and {Apai}, D{\'a}niel},
