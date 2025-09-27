@@ -315,26 +315,35 @@ def normal(a,b,xmin=None,xmax=None,size=1):
     result.fill(np.nan)
 
     if b is None or np.sum(b) == 0:
-        return np.full(size, a)
-    else:
-        aa = -np.inf if xmin is None else (xmin-a)/b
-        bb = np.inf if xmax is None else (xmax-a)/b
+        return a
+    if np.isscalar(a):
+        if not np.isscalar(b):
+            return np.array([result])
+        a=np.array([a])
+        b=np.array([b])
+        result=np.array([result])
+    elif np.isscalar(b):
+        b=np.full_like(a,b)
 
-        # Check for nan values in a and b
-        nan_mask_a = np.isnan(a)
-        nan_mask_b = np.isnan(b)
-
-        # If there are any nan values in a or b, return nan at those indices
-        if np.any(nan_mask_a) or np.any(nan_mask_b):
-            result[nan_mask_a] = np.nan
-            result[nan_mask_b] = np.nan
-
-        # For non-nan values, calculate the truncated normal distribution
-        non_nan_mask = ~nan_mask_a & ~nan_mask_b
-        result[non_nan_mask] = scipy.stats.truncnorm.rvs(a=aa[non_nan_mask], b=bb[non_nan_mask], loc=a[non_nan_mask],
-                                                         scale=b[non_nan_mask], size=size)
-
+    if len(a)!=len(b):
         return result
+
+    aa = np.full_like(a,-np.inf) if xmin is None else (xmin-a)/b
+    bb = np.full_like(a,np.inf) if xmax is None else (xmax-a)/b
+    #confusingly named aa is the normalized xmin, bb is the normalized xmax
+
+    # Check for nan values in a and b
+    nan_mask_a = np.isnan(a)
+    nan_mask_b = np.isnan(b)
+
+    # For non-nan values, calculate the truncated normal distribution
+    non_nan_mask = (~nan_mask_a) & (~nan_mask_b)
+
+    num_non_nan =len(a[non_nan_mask])
+    result[non_nan_mask] = truncnorm_hack.truncnorm.rvs(a=aa[non_nan_mask],b=bb[non_nan_mask],loc=a[non_nan_mask],
+                                                        scale=b[non_nan_mask],size=num_non_nan)
+
+    return result
 
 
 def binned_average(x, y, bins=10, match_counts=True):
