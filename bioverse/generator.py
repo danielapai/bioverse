@@ -315,6 +315,7 @@ def reset_imaging_generator():
     g_imaging.insert_step('compute_habitable_zone_boundaries')
     g_imaging.insert_step('classify_planets')
     g_imaging.insert_step('geometric_albedo')
+    g_imaging.insert_step('compute_contrast')
     g_imaging.insert_step('effective_values')
     g_imaging.insert_step('Example1_water')
     g_imaging.insert_step('Example2_oxygen')
