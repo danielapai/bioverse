@@ -1,4 +1,3 @@
-include requirements.txt
 include bioverse/*.dat
 include bioverse/*.csv
 include bioverse/*.txt
