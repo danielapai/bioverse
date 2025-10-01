@@ -624,3 +624,18 @@ def find_distance4samplesize(N_target, g_args, tolerance=2, max_iterations=10, h
         d1 = d2
         i += 1
     return N, d0
+
+def lambertian_phase(alpha):
+    '''
+    Lambertian Phase Function for use in planet contrast calculations
+    Parameters
+    ----------
+    alpha : float
+        phase angle
+    Returns
+    -------
+    phasefunction : float
+        value of the Lambertian Phase function
+    '''
+    phasefunction= (np.sin(alpha)+(np.pi-alpha)*np.cos(alpha))/np.pi
+    return phasefunction
