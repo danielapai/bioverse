@@ -1003,6 +1003,8 @@ def solve_kep(d,t=0,M=None,n_it=3,at_quadrature=False):
     n_it : int, optional
         Number of iterations for the Newton method of solving the Kepler equation.
         The default is 3.
+    at_quadrature: bool,optional
+        Are planets assumed to be observed at quadrature phase? Default is False
     Returns
     -------
     d : Table
@@ -1043,7 +1045,7 @@ def solve_kep(d,t=0,M=None,n_it=3,at_quadrature=False):
 
     # Circular orbit
     else:
-        nu = M
+        #nu = M
         r = d['a']
         cos_nu = np.cos(M)
 

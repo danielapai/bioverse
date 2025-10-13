@@ -39,6 +39,7 @@ e, float, Eccentricity
 M0, float, Mean anomaly at reference time (radians)
 w_LAN, float, Longitude of ascending node (radians)
 w_AP, float, Longitude of periapsis (radians)
+nu, float, True anomaly (radians)
 b, float, Impact parameter on stellar disk
 transiting, bool, Does the planet transit its star?
 T_dur, float, Transit duration (d)
