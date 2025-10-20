@@ -308,9 +308,9 @@ def reset_imaging_generator():
     """ Re-creates the default Generator for imaging surveys. """
     g_imaging = Generator(label=None)
     g_imaging.insert_step('read_stellar_catalog')
-    g_imaging.insert_step('create_planets_bergsten')
+    g_imaging.insert_step('create_planets_SAG13')
     g_imaging.insert_step('assign_orbital_elements')
-    g_imaging.insert_step('impact_parameter')
+    g_imaging.insert_step('solve_kep')
     g_imaging.insert_step('assign_mass')
     g_imaging.insert_step('compute_habitable_zone_boundaries')
     g_imaging.insert_step('classify_planets')
@@ -320,6 +320,7 @@ def reset_imaging_generator():
     g_imaging.insert_step('Example1_water')
     g_imaging.insert_step('Example2_oxygen')
 
+    g_imaging.set_arg('at_quadrature', True)
     g_imaging.save(label='imaging')
 
 def reset_transit_generator():
