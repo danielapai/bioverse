@@ -219,17 +219,21 @@ def compute_occurrence_multiplier(optimistic=False, optimistic_factor=3, N_pts=3
 
     return x, y_N, y_P
 
-def update_stellar_catalog(d_max=100, filename=CATALOG_FILE):
-    """ Updates the catalog of nearby sources from Gaia DR2 and saves it to a file. Requires astroquery. """
+def update_stellar_catalog(d_max=100, Teff_min=4000, Nmax = 100000,filename=CATALOG_FILE):
+    """ Updates the catalog of nearby sources from Gaia DR3 and saves it to a file. Requires astroquery. """
     from astroquery.gaia import Gaia
-    
-    Nmax = 100000
-    query = "SELECT TOP {:d} source_id, parallax, ra, dec, teff_val, phot_g_mean_mag".format(Nmax)+\
-            " FROM gaiadr2.gaia_source"+\
-            " WHERE (parallax>={:f}) AND (teff_val>=4000)".format(1000/d_max)+\
+
+    if Nmax==None:
+        front_text = ""
+    else:
+        front_text = "TOP {:d}".format(Nmax)
+
+    query = "SELECT {:s} source_id, parallax, ra, dec, teff_gspphot, phot_g_mean_mag".format(front_text)+\
+            " FROM gaiadr3.gaia_source"+\
+            " WHERE (parallax>={:f}) AND (teff_gspphot>={:f})".format(1000/d_max,Teff_min)+\
             " ORDER BY parallax DESC"
 
-    job = Gaia.launch_job(query)
+    job = Gaia.launch_job_async(query)
     table = job.get_results()
     table.write(filename, overwrite=True)
 

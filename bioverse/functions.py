@@ -217,8 +217,8 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
     # Step 1: High-mass stars
     d_Gaia = Table()
 
-    # Load Gaia DR2 coordinates and temperatures, filtered by temperature and distance
-    mask = np.isnan(CATALOG['teff_val']) | (CATALOG['teff_val'] < T_eff_split) | (CATALOG['parallax'] < 1000/d_max) 
+    # Load Gaia DR3 coordinates and temperatures, filtered by temperature and distance
+    mask = np.isnan(CATALOG['teff_gspphot']) | (CATALOG['teff_gspphot'] < T_eff_split) | (CATALOG['parallax'] < 1000/d_max)
     t = CATALOG[~mask]
     d_Gaia['d'], d_Gaia['ra'], d_Gaia['dec'], d_Gaia['T_eff_st'] = 1000/t['parallax'], t['ra'], t['dec'], t['teff_val']
     d_Gaia['M_G'] = t['phot_g_mean_mag'] - (5*np.log10(d_Gaia['d']) - 5)
