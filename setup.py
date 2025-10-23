@@ -5,9 +5,12 @@ from setuptools import setup
 
 
 def requirements_list():
+    here = os.path.abspath(os.path.dirname(__file__))
+    reqs_path = os.path.join(here, "requirements.txt")
+    
     reqs_list = []
 
-    with open("requirements.txt", mode="r") as reqs_file:
+    with open(reqs_path, mode="r") as reqs_file:
         for line in reqs_file:
             reqs_list.append(line)
 
