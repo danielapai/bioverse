@@ -171,7 +171,7 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
     return d
 
 def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_max=10., T_eff_split=4500., seed=42):
-    """ Reads temperatures and coordinates for high-mass stars from Gaia DR2. Simulates low-mass stars from the
+    """ Reads temperatures and coordinates for high-mass stars from Gaia DR3. Simulates low-mass stars from the
     Chabrier+2003 PDMF.  Ages are drawn from a uniform distribution, by default from 0 - 10 Gyr. All other
     stellar properties are calculated using the scaling relations of Pecaut+2013.
     
@@ -220,7 +220,7 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
     # Load Gaia DR3 coordinates and temperatures, filtered by temperature and distance
     mask = np.isnan(CATALOG['teff_gspphot']) | (CATALOG['teff_gspphot'] < T_eff_split) | (CATALOG['parallax'] < 1000/d_max)
     t = CATALOG[~mask]
-    d_Gaia['d'], d_Gaia['ra'], d_Gaia['dec'], d_Gaia['T_eff_st'] = 1000/t['parallax'], t['ra'], t['dec'], t['teff_val']
+    d_Gaia['d'], d_Gaia['ra'], d_Gaia['dec'], d_Gaia['T_eff_st'] = 1000/t['parallax'], t['ra'], t['dec'], t['teff_gspphot']
     d_Gaia['M_G'] = t['phot_g_mean_mag'] - (5*np.log10(d_Gaia['d']) - 5)
 
     # Convert effective temperature to mass
