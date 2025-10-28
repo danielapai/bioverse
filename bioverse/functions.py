@@ -174,6 +174,10 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
     """ Reads temperatures and coordinates for high-mass stars from Gaia DR3. Simulates low-mass stars from the
     Chabrier+2003 PDMF.  Ages are drawn from a uniform distribution, by default from 0 - 10 Gyr. All other
     stellar properties are calculated using the scaling relations of Pecaut+2013.
+
+    For high mass stars, this function reads a saved catalog of stars from Gaia DR3. The default stellar catalog
+    extends to 150 pc, and contains stars with Teff > 4000 K. To generate a new stellar catalog, use the
+    update_stellar_catalog function in util.py to query the Gaia archive.
     
     Parameters
     ----------
