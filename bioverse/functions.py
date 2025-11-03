@@ -54,7 +54,7 @@ def luminosity_evolution(d):
 
 def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, M_st_max=2.0, R_st_min=0.095,
                     R_st_max=2.15, T_min=0., T_max=10., inc_binary=0, SpT=None, seed=42, M_G_max=None,
-                    lum_evo=True):  # , mult=0):
+                    lum_evo=False):  # , mult=0):
     """ Reads a list of stellar properties from the Gaia nearby stars catalog.
 
     Parameters
