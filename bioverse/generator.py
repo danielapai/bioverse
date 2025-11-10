@@ -109,6 +109,25 @@ class Generator(Object):
         idx = len(self.steps) if idx is None else idx
         self.steps.insert(idx,step)
 
+    def remove_step(self, old_function='',idx=None):
+        """ Removes a step from the program sequence at the specified index.
+
+        Parameters
+        ----------
+        old_function : str
+            Name of the function to be removed.
+        idx : int
+            Position in the program at which to remove the step.
+        """
+        if old_function!='':
+            for i in range(len(self.steps)):
+                if self.steps[i].function_name==old_function:
+                    idx = i
+                    break
+
+        if idx is not None:
+            self.steps.pop(idx)
+
     def get_arg(self, key):
         """ Gets the default value of a keyword argument, and warns if there are multiple values. """
         vals = [step.get_arg(key) for step in self.steps if key in step.args]
@@ -167,6 +186,11 @@ class Generator(Object):
             print("Timing results:")
             timer.read()
         return d
+
+class Pre_Generator(Generator):
+    """Generator to be run outside a loop for steps that should only be run once"""
+    def __init__(self):
+        Generator.__init__(self, label=None)
 
 class Step():
     """ This class runs one function for a Generator and saves its keyword argument values.
