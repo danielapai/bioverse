@@ -54,7 +54,7 @@ def luminosity_evolution(d):
 
 def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, M_st_max=2.0, R_st_min=0.095,
                     R_st_max=2.15, T_min=0., T_max=10., inc_binary=0, SpT=None, seed=42, M_G_max=None,
-                    lum_evo=True):  # , mult=0):
+                    lum_evo=False):  # , mult=0):
     """ Reads a list of stellar properties from the Gaia nearby stars catalog.
 
     Parameters
@@ -171,9 +171,13 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
     return d
 
 def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_max=10., T_eff_split=4500., seed=42):
-    """ Reads temperatures and coordinates for high-mass stars from Gaia DR2. Simulates low-mass stars from the
+    """ Reads temperatures and coordinates for high-mass stars from Gaia DR3. Simulates low-mass stars from the
     Chabrier+2003 PDMF.  Ages are drawn from a uniform distribution, by default from 0 - 10 Gyr. All other
     stellar properties are calculated using the scaling relations of Pecaut+2013.
+
+    For high mass stars, this function reads a saved catalog of stars from Gaia DR3. The default stellar catalog
+    extends to 150 pc, and contains stars with Teff > 4000 K. To generate a new stellar catalog, use the
+    update_stellar_catalog function in util.py to query the Gaia archive.
     
     Parameters
     ----------
@@ -217,10 +221,10 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
     # Step 1: High-mass stars
     d_Gaia = Table()
 
-    # Load Gaia DR2 coordinates and temperatures, filtered by temperature and distance
-    mask = np.isnan(CATALOG['teff_val']) | (CATALOG['teff_val'] < T_eff_split) | (CATALOG['parallax'] < 1000/d_max) 
+    # Load Gaia DR3 coordinates and temperatures, filtered by temperature and distance
+    mask = np.isnan(CATALOG['teff_gspphot']) | (CATALOG['teff_gspphot'] < T_eff_split) | (CATALOG['parallax'] < 1000/d_max)
     t = CATALOG[~mask]
-    d_Gaia['d'], d_Gaia['ra'], d_Gaia['dec'], d_Gaia['T_eff_st'] = 1000/t['parallax'], t['ra'], t['dec'], t['teff_val']
+    d_Gaia['d'], d_Gaia['ra'], d_Gaia['dec'], d_Gaia['T_eff_st'] = 1000/t['parallax'], t['ra'], t['dec'], t['teff_gspphot']
     d_Gaia['M_G'] = t['phot_g_mean_mag'] - (5*np.log10(d_Gaia['d']) - 5)
 
     # Convert effective temperature to mass
