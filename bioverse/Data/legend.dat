@@ -34,10 +34,12 @@ Ratio, float, Period ratio versus the next planet in
 R, float, Radius (Earth radius)
 a, float, Semi-major axis (AU)
 S, float, Instellation (Earth insolation)
+S_abs, float, Instellation (W/m2)
 e, float, Eccentricity
-M0, float, Mean anomaly at reference time (deg)
-w_LAN, float, Longitude of ascending node (deg)
-w_AP, float, Longitude of periapsis (deg)
+M0, float, Mean anomaly at reference time (radians)
+w_LAN, float, Longitude of ascending node (radians)
+w_AP, float, Longitude of periapsis (radians)
+nu, float, True anomaly (radians)
 b, float, Impact parameter on stellar disk
 transiting, bool, Does the planet transit its star?
 T_dur, float, Transit duration (d)
@@ -72,3 +74,6 @@ A_g, float, Geometric albedo
 contrast, float, Planet-to-star contrast ratio
 a_eff, float, Semi-major axis scaled to the Sun's luminosity (AU)
 R_eff, float, Estimated radius assuming Earth's geometric albedo (Earth radius)
+true_sep, float, True planet-star separation at a given ephemeris (AU)
+phase_angle, float, Planet illumination phase angle (radians)
+ang_sep_mas, float, Planet-star angular separation (milliarcseconds)
