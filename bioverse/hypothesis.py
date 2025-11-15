@@ -146,7 +146,7 @@ class Hypothesis():
             print(x, y)
         return lnlk + lnpr, lnlk
     
-    def sample_posterior_dynesty(self, X, Y, sigma, nlive=100, nburn=None, verbose=False, sampler_results=False):
+    def sample_posterior_dynesty(self, X, Y, sigma, nlive=100,nlive_null=100, nburn=None, verbose=False, sampler_results=False,null_results=False):
         """ Uses dynesty to sample the parameter posterior distributions and compute the log-evidence."""
         # If not explicitly set, nburn=10
         nburn = 10 if nburn is None else nburn
@@ -156,12 +156,15 @@ class Hypothesis():
         sampler.run_nested(print_progress=verbose, dlogz=0.2)
 
         # Sample the null hypothesis
-        sampler_null = dynesty.NestedSampler(self.h_null.lnlike, self.h_null.tfprior, Y.shape[1], logl_args=(X, Y, sigma), nlive=300)
-        sampler_null.run_nested(print_progress=verbose, dlogz=0.1)
+        sampler_null = dynesty.NestedSampler(self.h_null.lnlike, self.h_null.tfprior, self.h_null.nparams, logl_args=(X, Y, sigma), nlive=nlive_null)
+        sampler_null.run_nested(print_progress=verbose, dlogz=0.2)
+        
+        #sampler_null = dynesty.NestedSampler(self.h_null.lnlike, self.h_null.tfprior, Y.shape[1], logl_args=(X, Y, sigma), nlive=300)
+        #sampler_null.run_nested(print_progress=verbose, dlogz=0.1)
 
         # Return the posterior distribution samples and logZ difference
         lnZ = sampler.results.logz[-1] - sampler_null.results.logz[-1]
-        return sampler.results.samples[nburn:, :], sampler.results.logl[nburn:], lnZ, sampler.results if sampler_results else None
+        return sampler.results.samples[nburn:, :], sampler.results.logl[nburn:], sampler_null.results.samples[nburn:, :], sampler_null.results.logl[nburn:],lnZ, sampler.results if sampler_results else None, sampler_null.results if null_results else None
 
     def sample_posterior_emcee(self, x, y, sigma, nsteps=500, nwalkers=32, nburn=100, autocorr=False):
         """ Uses emcee to sample the parameter posterior distributions. """
@@ -199,7 +202,8 @@ class Hypothesis():
         return X, Y, sigma
 
     def fit(self, data, nsteps=500, nwalkers=16, nburn=100, nlive=100, return_chains=False,
-            verbose=False, method='dynesty', mw_alternative='greater', return_data=False, sampler_results=False):
+            verbose=False, method='dynesty', mw_alternative='greater', return_data=False, 
+            sampler_results=False, null_results=False):
         """
         Sample the posterior distribution of h(theta | x, y) using a simulated data set, and compare
         to the null hypothesis via a model comparison metric.
@@ -271,8 +275,8 @@ class Hypothesis():
 
         # Sample the posterior distribution (dynesty)
         if 'dynesty' in method:
-            chains, loglikes, dlnZ, sampler_results = self.sample_posterior_dynesty(X, Y, sigma, nlive=nlive, nburn=nburn,
-                                                                   verbose=verbose, sampler_results=sampler_results)
+            chains, loglikes, null_chains, null_loglikes,dlnZ, sampler_results, null_results = self.sample_posterior_dynesty(X, Y, sigma, nlive=nlive, nburn=nburn,
+                                                                   verbose=verbose, sampler_results=sampler_results, null_results=null_results)
 
         # Sample the posterior distribution (emcee)
         # If both emcee and dynesty are used, then emcee will override the posterior distribution
@@ -290,21 +294,36 @@ class Hypothesis():
             results['p'] = p
 
         if 'emcee' in method or 'dynesty' in method:
-            # Compute the AIC and BIC relative to the null hypothesis (i.e. AIC_null - AIC)
-            theta_opt, theta_opt_null = chains[np.argmax(loglikes)], np.mean(Y, axis=0)
-            dAIC = self.h_null.compute_AIC(theta_opt_null, X, Y, sigma) - self.compute_AIC(theta_opt, X, Y, sigma)
-            dBIC = self.h_null.compute_BIC(theta_opt_null, X, Y, sigma) - self.compute_BIC(theta_opt, X, Y, sigma)
+            
+            if 'dynesty' in method:
+                # Compute the AIC and BIC relative to the null hypothesis (i.e. AIC_null - AIC)
+                theta_opt, theta_opt_null = chains[np.argmax(loglikes)], null_chains[np.argmax(null_loglikes)]
+                dAIC = self.h_null.compute_AIC(theta_opt_null, X, Y, sigma) - self.compute_AIC(theta_opt, X, Y, sigma)
+                dBIC = self.h_null.compute_BIC(theta_opt_null, X, Y, sigma) - self.compute_BIC(theta_opt, X, Y, sigma)
+            else:
+                # Compute the AIC and BIC relative to the null hypothesis (i.e. AIC_null - AIC)
+                theta_opt, theta_opt_null = chains[np.argmax(loglikes)], np.mean(Y, axis=0)
+                dAIC = self.h_null.compute_AIC(theta_opt_null, X, Y, sigma) - self.compute_AIC(theta_opt, X, Y, sigma)
+                dBIC = self.h_null.compute_BIC(theta_opt_null, X, Y, sigma) - self.compute_BIC(theta_opt, X, Y, sigma)
 
             # Summary statistics
             conf = 95
             means, stds, medians = np.mean(chains, axis=0), np.std(chains, axis=0), np.median(chains, axis=0)
             LCIs, UCIs = np.abs(np.percentile(chains, [(100-conf)/2, 100-(100-conf/2)], axis=0) - medians)
+            
+            if 'dynesty' in method:
+                null_means, null_stds, null_medians = np.mean(null_chains, axis=0), np.std(null_chains, axis=0), np.median(null_chains, axis=0)
+                null_LCIs, null_UCIs = np.abs(np.percentile(null_chains, [(100-conf)/2, 100-(100-conf/2)], axis=0) - null_medians)
+                results.update({'null_means':null_means,'null_stds':null_stds,'null_medians':null_medians,
+                                'null_LCIs':null_LCIs,'null_UCIs':null_UCIs, 
+                                'theta_opt':theta_opt, 'null_theta_opt':theta_opt_null})
 
             # Return the results in a dict
             results.update({'means':means, 'stds':stds, 'medians':medians, 'LCIs':LCIs, 'UCIs':UCIs, 'CIs':UCIs+LCIs,
                             'dAIC':dAIC, 'dBIC':dBIC, 'dlnZ': dlnZ if 'dynesty' in method else None,
                             'chains':chains if return_chains else None, 'niter':chains.shape[0],
-                            'sampler_results':sampler_results if sampler_results else None})
+                            'sampler_results':sampler_results if sampler_results else None,
+                            'null_results':null_results if null_results else None})
 
         return results
 

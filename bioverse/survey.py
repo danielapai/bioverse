@@ -5,6 +5,7 @@ from numpy import inf
 from .classes import Object, Table
 from . import util
 from .constants import STR_TYPES, BOOL_TYPES
+from .functions import read_HPIC
 
 @dataclass(repr=False)
 class Survey(dict, Object):
@@ -176,6 +177,190 @@ class Survey(dict, Object):
 
         return data
 
+
+@dataclass(repr=False)
+class HWOSurvey(Survey):
+    inner_working_angle: float = 2.
+    outer_working_angle: float = 30.
+    contrast_limit: float = -10.6
+    mode: str = 'HWO'
+    
+    
+    def schedule_survey(self,Ag=0.3,R_eec=1.0, SNR=7,Vmag_max=None, d_max=None,
+                   band='Vmag', **kwargs):
+        '''
+        Function to generate a survey schedule for a mission. Currently this uses 
+        a simple prioritization scheme based on the time it would take to observe 
+        an Earth analog. Call this function before planet generation.
+
+        Parameters
+        ----------
+        Ag : float, optional
+            default value for geometric albedo. Not used if albedo is already defined
+        R_eec : float, optional
+            The radius of an Earth analog in R_earth. The default is 1.0.
+        SNR : float, optional
+            Required signal to noise for Earth-like planet characterization
+        Vmag_max : float, optional
+            max V magnitude of stars in input catalog
+        d_max : float, optional
+            max distance of stars in input catalog (pc). 
+        band : str, optional
+            name of photometric band used in exposure time calculator
+        **kwargs :
+            keyword arguments for exposure time calculator
+
+        Returns
+        -------
+        d : Table
+            Table of stars to be surveyed
+
+        '''
+        
+        d= Table()
+        d=read_HPIC(d,Vmag_max=Vmag_max, d_max=d_max)
+        d['eeid']= np.sqrt(d['L_st']) #in au
+        #full equation a = a_earth * sqrt(L/L_sun)
+        d['earth_sep'] = (d['eeid'] / d['d']) * 1000 #in mas
+        
+        d['C_earth']= Ag * (4.258756e-5 * R_eec / d['eeid'])**2 / np.pi
+        #contrast of earth analog at quadrature
+        d=self.call_exposure_time_calculator(d,SNR=SNR,C_col='C_earth',sep_col='earth_sep',
+                                               texp_col='t_req', **kwargs)
+        
+        d=d.sort_by('t_req',ascending=True)
+        
+        day_to_sec=24*60*60
+        t_max_sec= self.t_max*day_to_sec
+        
+        t_tot=0.0
+        stop_ind= -1
+        for ind in range(len(d)):
+            t_tot = t_tot + d['t_req'][ind]
+            if t_tot > t_max_sec:
+                stop_ind = ind
+                break
+        
+        d= d[:stop_ind]
+        
+        d['starID'] = np.arange(len(d), dtype=int) #reindex star ids
+
+        return d
+    
+    def compute_yield(self, d, SNR=7,band_width=0.2, A_g=0.3, **kwargs):
+        '''Computes the yield of a survey. Compares whether stars will be observed for long enough duration for planets to be detected at given SNR
+        
+        Parameters
+        ----------
+        d : Table
+            Table of simulated planets for stars in the survey.
+        SNR : float, optional
+            Signal to noise required for planet detection
+        band_width : float, optional
+            width of the detection band pass. dlambda = band_width * lambda, or band_width= 1/R
+        A_g : float, optional
+            default value for geometric albedo. Not used if albedo is already defined
+        **kwargs : 
+            keyword arguments for exposure time calculator
+
+        Returns
+        -------
+        yield: Table
+            Table of planets that are detected.
+
+        '''
+        
+        if 'ang_sep_mas' not in d:
+            d['ang_sep_mas'] = d['a'] / d['d'] * 1000
+            # Compute the angular separation at quadrature (milli-arcseconds)
+            
+
+        # If no albedo is given, assume one
+        if 'A_g' not in d:
+            d['A_g'] = np.full(len(d), A_g)
+
+        # calculate constrast at quadrature if not defined
+        if 'contrast' not in d:
+            d['contrast'] = d['A_g'] * (4.258756e-5*d['R']/d['a'])**2 / np.pi
+            
+        if 'Vmag' not in d:
+            raise KeyError("Missing V band, this function has only been tested to work for V band")
+            return 
+       
+        d= self.call_exposure_time_calculator(d,SNR=SNR,band_width=band_width, band='Vmag',
+                                              C_col='contrast',sep_col='ang_sep_mas',
+                                              texp_col='t_exp')
+        
+        # planets are considered to be detected if the amount of time needed to detect them is less than the time allocated to surveying the star
+        texp_mask= d['t_exp'] <= d['t_req']
+        
+        return d[texp_mask]
+
+    def compute_detectable(self, d, wl_eff=0.5, A_g=0.3):
+        """ Computes a simple estimate of the number of detectable planets for an imaging survey. Compares the contrast ratio and projected separation of each planet to the contrast limit and inner/outer working angles of the survey. Planets that satisfy these criteria are considered to be detectable. Not all these planets will actually be observed by a mission.
+        
+        Parameters
+        ----------
+        d : Table
+            Table of all simulated planets which the survey could attempt to observe.
+        wl_eff : float, optional
+            Effective wavelength of observation in microns (used for calculating the IWA/OWA).
+        A_g : float, optional
+            Geometric albedo of each planet, ignored if 'A_g' is already assigned.
+
+        Returns
+        -------
+        yield : Table
+            Copy of the input Table containing only planets which were detected by the survey.
+        """
+
+        if 'ang_sep_mas' in d:
+            separation= d['ang_sep_mas']
+        else:
+            # Compute the angular separation at quadrature (milli-arcseconds)
+            separation = d['a'] / d['d'] * 1000
+
+        # If no albedo is given, assume one
+        if 'A_g' not in d:
+            d['A_g'] = np.full(len(d), A_g)
+
+        # Determine which planets are brighter than the contrast limit
+        if 'contrast' not in d:
+            d['contrast'] = d['A_g'] * (4.258756e-5*d['R']/d['a'])**2 / np.pi
+        mask1 = d['contrast'] > 10**self.contrast_limit
+
+        # Determine which planets are within the field of view
+        iwa = self.inner_working_angle * (1e-6*wl_eff) / self.diameter*206265*1000
+        owa = self.outer_working_angle * (1e-6*wl_eff) / self.diameter*206265*1000
+        mask2 = (separation > iwa) & (separation < owa)
+
+        # Return the output table
+        return d[mask1 & mask2]
+    
+    def call_exposure_time_calculator(self,d,SNR=7,func=util.simple_exposure_time_calculator,
+                                      band='Vmag',C_col='contrast',sep_col='ang_sep_mas',
+                                      texp_col='t_exp',**kwargs):
+        
+        def texp_func(contrast, sep, mag):
+            texp= func(contrast,sep,self.diameter,mag, SNR=SNR,IWA=self.inner_working_angle,
+                 OWA=self.outer_working_angle,logcontrast_limit=self.contrast_limit,
+                 **kwargs)
+            return texp
+        texp_map=map(texp_func,d[C_col],d[sep_col],d[band])
+        
+        d[texp_col]= list(texp_map)
+        return d
+
+    # 2week max exp time
+    def add_exposure_time_cutoff(self,d, max_texp=1.21e6):
+        d= d[d['t_exp']<max_texp]
+        return d
+
+    def compute_scaling_factor(self, d):
+        """ Computes the scaling factor for the reference exposure time in imaging mode for all planets in `d`. """
+        return (d['contrast']/1e-10)**-1
+
+
 @dataclass(repr=False)
 class ImagingSurvey(Survey):
     inner_working_angle: float = 3.5
@@ -201,8 +386,11 @@ class ImagingSurvey(Survey):
             Copy of the input Table containing only planets which were detected by the survey.
         """
 
-        # Compute the angular separation at quadrature (milli-arcseconds)
-        separation = d['a'] / d['d'] * 1000
+        if 'ang_sep_mas' in d:
+            separation= d['ang_sep_mas']
+        else:
+            # Compute the angular separation at quadrature (milli-arcseconds)
+            separation = d['a'] / d['d'] * 1000
 
         # If no albedo is given, assume one
         if 'A_g' not in d:
