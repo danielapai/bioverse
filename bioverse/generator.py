@@ -191,6 +191,7 @@ class Pre_Generator(Generator):
     """Generator to be run outside a loop for steps that should only be run once"""
     def __init__(self):
         Generator.__init__(self, label=None)
+    #TODO: add ability to pass survey object, call exposure time calculator
 
 class Step():
     """ This class runs one function for a Generator and saves its keyword argument values.

@@ -57,7 +57,7 @@ sch_gcns= pl.Schema({'star_name': str, 'd': float,'ra': float, 'dec': float,'M_G
                      'RV': float})
 
 def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, M_st_max=2.0, R_st_min=0.095,
-                    R_st_max=2.15, T_min=0., T_max=10., inc_binary=0, SpT=None, seed=42, M_G_max=None,
+                    R_st_max=2.15, T_min=0., T_max=10., inc_binary=0, SpT=None, seed=42, m_G_max = None,M_G_max=None,
                     lum_evo=False, fill_missing=True, ecliptic_coords=True, schema=sch_gcns,xyz=True):  # , mult=0):
     """ Reads a list of stellar properties from the Gaia nearby stars catalog.
 
@@ -89,8 +89,10 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
         seed for the random number generators.
     mult : float, optional
         Multiple on the total number of stars simulated. If > 1, duplicates some entries from the LUVOIR catalog.
+    m_G_max : float, optional
+        maximum apparent G magnitude of stars
     M_G_max : float, optional
-        Maximum Gaia magnitude of stars. Example: M_G_max=9. keeps all stars brighter than M_G = 9.0.
+        Maximum absolute Gaia magnitude of stars. Example: M_G_max=9. keeps all stars brighter than M_G = 9.0.
     lum_evo : bool, optional
         Assign age-dependent stellar luminosities (based on randomly assigned ages and stellar luminosity tracks in
         Baraffe et al. 2015.
@@ -100,6 +102,8 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
         compute ecliptic coordinates for stars
     schema : polars schema object, optional
         schema for column datatypes used for polars file reading
+    xyz : bool, optional
+        compute galactic xyz coordinates
 
     Returns
     -------
@@ -132,6 +136,7 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
         else:
             col_names = list(query.collect_schema().keys())
 
+        #is this step still necessary, do any col names contain extra whitespace?
         rename_dict = {col: col.strip() for col in col_names}
         query = query.rename(rename_dict)
 
@@ -139,16 +144,19 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
         filter_conditions = []
         col_names_stripped = [col.strip() for col in col_names]
 
-        if 'd' in col_names_stripped:
+        if d_max and ('d' in col_names_stripped):
             filter_conditions.append(pl.col('d') < d_max)
 
-        if M_G_max and 'M_G' in col_names_stripped:
+        if m_G_max and ('Gmag' in col_names_stripped):
+            filter_conditions.append(pl.col('Gmag') < m_G_max)
+
+        if M_G_max and ('M_G' in col_names_stripped):
             filter_conditions.append(pl.col('M_G') < M_G_max)
 
-        if 'M_st' in col_names_stripped:
+        if M_st_min and M_st_max and ('M_st' in col_names_stripped):
             filter_conditions.append((pl.col('M_st') > M_st_min) & (pl.col('M_st') < M_st_max))
 
-        if 'R_st' in col_names_stripped:
+        if R_st_min and R_st_max  and ('R_st' in col_names_stripped):
             filter_conditions.append((pl.col('R_st') > R_st_min) & (pl.col('R_st') < R_st_max))
 
         if inc_binary == 0 and 'binary' in col_names_stripped:
@@ -199,17 +207,19 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
 
         # Apply filters (pandas approach)
         # Enforce a maximum distance
-        if 'd' in cat_pd.columns:
+        if d_max and ('d' in cat_pd.columns):
             cat_pd = cat_pd[cat_pd['d'] < d_max]
 
+        if m_G_max and ('Gmag' in cat_pd.columns):
+            cat_pd = cat_pd[cat_pd['Gmag'] < m_G_max]
         # Apply magnitude limit
-        if M_G_max and 'M_G' in cat_pd.columns:
+        if M_G_max and ('M_G' in cat_pd.columns):
             cat_pd = cat_pd[cat_pd['M_G'] < M_G_max]
 
         # Enforce a min/max mass & radius
-        if 'M_st' in cat_pd.columns:
+        if M_st_min and M_st_max and ('M_st' in cat_pd.columns):
             cat_pd = cat_pd[(cat_pd['M_st'] > M_st_min) & (cat_pd['M_st'] < M_st_max)]
-        if 'R_st' in cat_pd.columns:
+        if R_st_min and R_st_max and ('R_st' in cat_pd.columns):
             cat_pd = cat_pd[(cat_pd['R_st'] > R_st_min) & (cat_pd['R_st'] < R_st_max)]
 
         # Include/exclude stars in binary systems
@@ -224,7 +234,7 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
         for col_name in cat_pd.columns:
             d[col_name.strip()] = np.array(cat_pd[col_name])
 
-    # Missing values (TODO: this part is ironically incomplete)
+    # Missing values
     if fill_missing:
         if 'd' not in d.keys():
             d['d'] = np.cbrt(np.random.uniform(0, d_max ** 3, len(d)))
@@ -245,9 +255,6 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
     d['starID'] = np.arange(len(d), dtype=int)
     d['simulated'] = np.zeros(len(d), dtype=bool)
 
-    # Draw a random age for each system
-    #d['age'] = np.random.uniform(T_min, T_max, len(d))
-
     # Add ecliptic coordinates
     if ecliptic_coords:
         ra = np.array(d['ra'])
@@ -259,125 +266,7 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
         d['helio_ecl_lat'] = np.array(c_ec.lat.value)
 
     if lum_evo:
-        d = luminosity_evolution(d)
-
-    return d
-
-#remove once new function is working
-def read_stars_Gaia_old(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, M_st_max=2.0, R_st_min=0.095,
-                    R_st_max=2.15, T_min=0., T_max=10., inc_binary=0, SpT=None, seed=42, M_G_max=None,
-                    lum_evo=False):  # , mult=0):
-    """ Reads a list of stellar properties from the Gaia nearby stars catalog.
-
-    Parameters
-    ----------
-    d : Table
-        An empty Table object.
-    filename : str, optional
-        Filename containing the Gaia target catalog.
-    d_max : float, optional
-        Maximum distance to which to simulate stars, in parsecs.
-    M_st_min : float, optional
-        Minimum stellar mass, in solar units.
-    M_st_max : float, optional
-        Maximum stellar mass, in solar units.
-    R_st_min : float, optional
-        Minimum stellar radius, in solar units.
-    R_st_max : float, optional
-        Maximum stellar radius, in solar units.
-    T_min : float, optional
-        Minimum stellar age, in Gyr.
-    T_max : float, optional
-        Maximum stellar age, in Gyr.
-    inc_binary : bool, optional
-        Include binary stars? Default = False.
-    SpT : list of str, optional
-        List of spectral types to include in the sample. Example: SpT=['F', 'G', 'K', 'M'].
-    seed : int, optional
-        seed for the random number generators.
-    mult : float, optional
-        Multiple on the total number of stars simulated. If > 1, duplicates some entries from the LUVOIR catalog.
-    M_G_max : float, optional
-        Maximum Gaia magnitude of stars. Example: M_G_max=9. keeps all stars brighter than M_G = 9.0.
-    lum_evo : bool, optional
-        Assign age-dependent stellar luminosities (based on randomly assigned ages and stellar luminosity tracks in
-        Baraffe et al. 2015.
-
-    Returns
-    -------
-    d : Table
-        Table containing the sample of real stars.
-    """
-
-    np.random.seed(seed)
-
-    # Read the catalog with column names
-    path = filename if os.path.exists(filename) else DATA_DIR + '/' + filename
-    cat = pd.read_csv(path,sep=' ',header=0,dtype={'star_name':str, 'd':float,
-                                                     'ra':float, 'dec':float,
-                                                     'M_G':float, 'M_st':float,
-                                                     'R_st':float, 'L_st':float,
-                                                     'T_eff_st':int, 'SpT':str,
-                                                     'subSpT':str, 'binary':bool,
-                                                     'RV':float})
-    catalog = cat.to_records(index=False)
-    # catalog = np.genfromtxt(path, unpack=False, names=True, dtype=None, encoding=None)
-    for name in catalog.dtype.names:
-        d[name.strip()] = list(catalog[name])  # *int(mult)
-
-    # Missing values (TODO: this part is ironically incomplete)
-    if 'd' not in d.keys():
-        d['d'] = np.cbrt(np.random.uniform(0, d_max ** 3, len(d)))
-    if 'x' not in d.keys():
-        cost, phi = np.random.uniform(-1, 1, len(d)), np.random.uniform(0, 2 * np.pi, len(d))
-        r = d['d'] * np.sin(np.arccos(cost))
-        d['x'], d['y'], d['z'] = r * np.cos(phi), r * np.sin(phi), d['d'] * cost
-    if 'age' not in d.keys():
-        d['age'] = np.random.uniform(T_min, T_max, size=len(d))
-    if 'logL' not in d.keys():
-        d['logL'] = np.log10(d['L_st'])
-    if 'star_name' not in d.keys():
-        d['star_name'] = np.char.array(np.full(len(d), 'REAL-')) + np.char.array(np.arange(len(d)).astype(str))
-    if 'RV' not in d.keys():
-        d['RV'] = np.random.uniform(-200, 200, size=len(d))
-
-    # Enforce a maximum distance
-    d = d[d['d'] < d_max]
-
-    # Apply magnitude limit
-    if M_G_max:
-        d = d[d['M_G'] < M_G_max]
-
-    # Enforce a min/max mass & radius
-    d = d[(d['M_st'] < M_st_max) & (d['M_st'] > M_st_min)]
-    d = d[(d['R_st'] < R_st_max) & (d['R_st'] > R_st_min)]
-
-    # Include/exclude stars in binary systems, default is (0/False) exclude binaries
-    if inc_binary == 0:
-        d = d[(d['binary'] == False)]
-        # d.reset_index(inplace=True,drop=True)
-
-    # Include only specific spectral types
-    if SpT:
-        d = d[np.isin(d['SpT'], SpT)]
-
-    # Assign stellar IDs and names
-    d['starID'] = np.arange(len(d), dtype=int)
-    d['simulated'] = np.zeros(len(d), dtype=bool)
-
-    # Draw a random age for each system
-    d['age'] = np.random.uniform(T_min, T_max, len(d))
-
-    # Add ecliptic coordinates
-    ra = np.array(d['ra'])
-    dec = np.array(d['dec'])
-    dist = np.array(d['d'])
-    c = SkyCoord(ra * u.degree, dec * u.degree, distance=dist * u.pc, frame='icrs', equinox='J2016.0')
-    c_ec = c.transform_to('heliocentrictrueecliptic')
-    d['helio_ecl_lon'] = np.array(c_ec.lon.value)
-    d['helio_ecl_lat'] = np.array(c_ec.lat.value)
-
-    if lum_evo:
+        #warning: this will be very slow for a large target list
         d = luminosity_evolution(d)
 
     return d
