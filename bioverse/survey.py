@@ -228,10 +228,10 @@ class ImagingSurvey(Survey):
 class TransitSurvey(Survey):
     N_obs_max: int = 1000
     mode: str = 'transit'
-    d_max: float = None  #max distance for planet detections
-    P_max: float = None #max period
-    min_depth: float = None # minimum transit depth
-    m_G_max: float = None # maximum gaia G magnitude
+    d_max: float = np.nan  #max distance for planet detections
+    P_max: float = np.nan #max period
+    min_depth: float = np.nan # minimum transit depth
+    m_G_max: float = np.nan # maximum gaia G magnitude
 
     def compute_detectable(self,d):
         """Computes whether planets are detectable for the survey
@@ -249,19 +249,19 @@ class TransitSurvey(Survey):
 
         mask = d['transiting']
 
-        if (self.d_max is not None) and ('d' in d.keys()):
+        if (not np.isnan(self.d_max)) and ('d' in d.keys()):
             new_mask= d['d'] <= self.d_max
             mask = mask & new_mask
 
-        if (self.P_max is not None) and ('P' in d.keys()):
+        if (not np.isnan(self.P_max)) and ('P' in d.keys()):
             new_mask2= d['P'] <= self.P_max
             mask = mask & new_mask2
 
-        if (self.min_depth is not None) and ('depth' in d.keys()):
+        if (not np.isnan(self.min_depth)) and ('depth' in d.keys()):
             new_mask3= d['depth'] >= self.min_depth
             mask = mask & new_mask3
 
-        if (self.m_G_max is not None) and ('Gmag' in d.keys()):
+        if (not np.isnan(self.m_G_max)) and ('Gmag' in d.keys()):
             new_mask4= d['Gmag'] <= self.m_G_max
             mask = mask & new_mask4
 
