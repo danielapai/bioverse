@@ -58,7 +58,6 @@ class Survey(dict, Object):
             Keyword arguments passed to Measurement.__init__().
         """
         self.measurements[key] = Measurement(key, self, **kwargs)
-        # print(self.measurements[key].survey is self) # TODO: is this needed for something or a leftover from debugging?
         if idx is not None:
             self.move_measurement(key, idx)
     
@@ -229,9 +228,49 @@ class ImagingSurvey(Survey):
 class TransitSurvey(Survey):
     N_obs_max: int = 1000
     mode: str = 'transit'
+    d_max: float = None  #max distance for planet detections
+    P_max: float = None #max period
+    min_depth: float = None # minimum transit depth
+    m_G_max: float = None # maximum gaia G magnitude
+
+    def compute_detectable(self,d):
+        """Computes whether planets are detectable for the survey
+
+        Parameters
+        ----------
+        d : Table
+            Table of all simulated planets which the survey could attempt to observe.
+
+        Returns
+        -------
+        detectable : Table
+            Copy of the input table containing only planets which are detectable by the survey.
+        """
+
+        mask = d['transiting']
+
+        if (self.d_max is not None) and ('d' in d.keys()):
+            new_mask= d['d'] <= self.d_max
+            mask = mask & new_mask
+
+        if (self.P_max is not None) and ('P' in d.keys()):
+            new_mask2= d['P'] <= self.P_max
+            mask = mask & new_mask2
+
+        if (self.min_depth is not None) and ('depth' in d.keys()):
+            new_mask3= d['depth'] >= self.min_depth
+            mask = mask & new_mask3
+
+        if (self.m_G_max is not None) and ('Gmag' in d.keys()):
+            new_mask4= d['Gmag'] <= self.m_G_max
+            mask = mask & new_mask4
+
+        return d[mask]
+
 
     def compute_yield(self, d):
-        """ Computes a simple estimate of the detection yield for a transit survey. All transiting planets are considered to be detected.
+        """ Computes a simple estimate of the detection yield for a transit survey. Currently all detectable transiting
+        planets are considered to be detected.
 
         Parameters
         ----------
@@ -244,10 +283,13 @@ class TransitSurvey(Survey):
             Copy of the input table containing only planets which were detected by the survey.
         """
         # Determine which planets transit their stars
-        mask1 = d['transiting']
+        d = self.compute_detectable(d)
+
+        #add sky area constraint
+        #survey constraint
 
         # Return the output table
-        return d[mask1]
+        return d
 
     def compute_scaling_factor(self, d):
         """ Computes the scaling factor for the reference exposure time in transit mode for all planets in `d`. """
