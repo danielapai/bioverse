@@ -17,7 +17,7 @@ warnings.filterwarnings("ignore")
 # Bioverse modules and constants
 from .classes import Table
 from . import util
-from .util import CATALOG, interpolate_df
+from .util import CATALOG, interpolate_df, lambertian_phase
 from .constants import CONST, ROOT_DIR, DATA_DIR
 
 def luminosity_evolution(d):
@@ -1045,8 +1045,85 @@ def scale_height(d):
 
     return d
 
+def solve_kep(d,t=0,M=None,n_it=3,at_quadrature=False):
+    '''
+    Solves Kepler equation for generated planets, calculating true anomalies,
+    true planet star separations, phase angles, and angular separations in milliarcsecs.
+    Adapted from the get_xyz function in util.py.
+    If computing contrast with at_quadrature=False, add this step beforehand
+    Parameters
+    ----------
+    d : Table
+        Table containing the sample of simulated planets.
+    t : float, optional
+        Time at which to solve Kepler equation. Same units as period. The default is 0.
+    M : float, optional
+        Mean longitude. If not specified, calculated at time t. The default is None.
+    n_it : int, optional
+        Number of iterations for the Newton method of solving the Kepler equation.
+        The default is 3.
+    at_quadrature: bool,optional
+        Are planets assumed to be observed at quadrature phase? Default is False
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets.
+    '''
+    if at_quadrature:
+        d['true_sep']=d['a']
+        d['phase_angle']=(np.pi/2)* np.ones(len(d))
+        d['ang_sep_mas']= 1000.0 * d['true_sep']* np.sin(d['phase_angle'])/d['d']
+        return d
+
+    # Determine the mean longitude at time(s) t
+    if M is None:
+        M = d['M0']+(2*np.pi*t)/d['P']
+
+    # Eccentric orbit
+    if np.any(d['e'] != 0):
+        # Increment M by 2pi (so the solver doesn't break near M = 0)
+        M += 2 * np.pi
+
+        # Eccentric anomaly (Kepler's equation solved w/ Newton's method with one iteration)
+        E = M
+        for i in range(n_it):
+            E = E - (E-d['e']*np.sin(E)-M)/(1-d['e']*np.cos(E))
+
+        # Check that the equation is properly solved
+        sinE = np.sin(E)
+        if (np.abs(M-(E-d['e']*sinE)) > (0.002*np.pi)).any():
+            print("Kepler's equation failed to solve! ")
+
+        # Distance
+        cosE = np.cos(E)
+        r = d['a']*(1-d['e']*cosE)
+
+        # True anomaly
+        cos_nu = (cosE-d['e'])/(1-d['e']*cosE)
+
+
+    # Circular orbit
+    else:
+        #nu = M
+        r = d['a']
+        cos_nu = np.cos(M)
+
+    nu= np.arccos(cos_nu)
+    d['nu']=nu
+
+    i= np.arccos(d['cos(i)'])
+    cosalpha= np.sin(nu + d['w_AP'])*np.sin(i)
+    alpha= np.arccos(cosalpha)
+
+    #true planet star separation
+    d['true_sep']=r
+    d['phase_angle']=alpha
+    d['ang_sep_mas']= 1000.0 * r* np.sin(alpha)/d['d'] #convert r to pc then theta to mas
+
+    return d
+
 def geometric_albedo(d, A_g_min=0.1, A_g_max=0.7, seed=42):
-    """ Assigns each planet a random geometric albedo from 0.1 -- 0.7, and computes the contrast ratio when viewed at quadrature.
+    """ Assigns each planet a random geometric albedo from 0.1 -- 0.7
     
     Parameters
     ----------
@@ -1070,10 +1147,38 @@ def geometric_albedo(d, A_g_min=0.1, A_g_max=0.7, seed=42):
     # Random albedo
     d['A_g'] = np.random.uniform(A_g_min, A_g_max, len(d))
 
-    # Contrast ratio
-    d['contrast'] = d['A_g'] * (4.258756e-5 * d['R'] / d['a'])**2 / np.pi
+    return d
+
+def compute_contrast(d, at_quadrature=True, phasefunc=lambertian_phase):
+    '''
+    Function to compute planet-star contrast. If not at quadrature, requires phase angle
+    calculated by solve_kep function
+
+    Parameters
+    ----------
+    d : Table
+        Table containing the sample of simulated planets.
+    at_quadrature : Boolean, optional
+        Specify whether observations are taken at quadrature phase The default is True.
+    phasefunc : function, optional
+        User defined phase function. Not called in quadrature case. The default is the Lambertian phase function.
+    Returns
+    -------
+    d : Table
+        Table containing the sample of simulated planets.
+    '''
+    if at_quadrature:
+        # contrast at quadrature
+        d['contrast'] = d['A_g'] * (4.258756e-5 * d['R'] / d['a']) ** 2 / np.pi
+    else:
+        try:
+            # contrast at given phase, requires knowledge of phase angle
+            d['contrast'] = d['A_g'] * pow((4.258756e-5 * d['R'] / d['a']), 2) * phasefunc(d['phase_angle'])
+        except KeyError:
+            raise KeyError("Missing key for 'phase_angle'")
 
     return d
+
 
 def effective_values(d):
     """ Computes the "effective" radius and semi-major axis (i.e. assuming an Earth-like planet).
