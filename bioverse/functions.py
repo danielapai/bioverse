@@ -395,6 +395,63 @@ def read_HPIC(d, filename='HPIC.txt', Vmag_max=None, d_max=None,
 
     return d
 
+def schedule_DI_survey(d,survey=None, Ag=0.3, R_eec=1.0, SNR=7,band='Vmag', **e_kwargs):
+    """
+    Function to generate a survey schedule for a direct imaging mission. Currently this uses
+    a simple prioritization scheme based on the time it would take to observe
+    an Earth analog. Call this function before planet generation.
+
+    Parameters
+    ----------
+    Ag : float, optional
+        default value for geometric albedo. Not used if albedo is already defined
+    R_eec : float, optional
+        The radius of an Earth analog in R_earth. The default is 1.0.
+    SNR : float, optional
+        Required signal to noise for Earth-like planet characterization
+    band : str, optional
+        name of photometric band used in exposure time calculator
+    **e_kwargs :
+        keyword arguments for exposure time calculator
+
+    Returns
+    -------
+    d : Table
+        Table of stars to be surveyed
+
+    """
+    if survey is None:
+        raise Exception('Survey needs to be defined for this function')
+
+    d['eeid'] = np.sqrt(d['L_st'])  # in au
+    # full equation a = a_earth * sqrt(L/L_sun)
+    d['earth_sep'] = (d['eeid'] / d['d']) * 1000  # in mas
+
+    # contrast of earth analog at quadrature
+    d['C_earth'] = Ag * (4.258756e-5 * R_eec / d['eeid']) ** 2 / np.pi
+
+    d = survey.call_exposure_time_calculator(d, SNR=SNR, C_col='C_earth', sep_col='earth_sep',
+                                           texp_col='t_req', **e_kwargs)
+
+    d = d.sort_by('t_req', ascending=True)
+
+    day_to_sec = 24 * 60 * 60
+    t_max_sec = survey.t_max * day_to_sec
+
+    t_tot = 0.0
+    stop_ind = -1
+    for ind in range(len(d)):
+        t_tot = t_tot + d['t_req'][ind]
+        if t_tot > t_max_sec:
+            stop_ind = ind
+            break
+
+    d = d[:stop_ind]
+
+    d['starID'] = np.arange(len(d), dtype=int)  # reindex star ids
+
+    return d
+
 
 def create_planets_bergsten(d, R_min=1.0, R_max=3.5, P_min=2, P_max=100., transit_mode=False, f_eta=1., seed=42):
     """ Generates planets with periods and radii according to Bergsten+2022 occurrence rate estimates.

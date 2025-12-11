@@ -182,9 +182,9 @@ class ImagingSurvey(Survey):
     contrast_limit: float = -10.6
     mode: str = 'imaging'
 
-    def compute_yield(self, d, wl_eff=0.5, A_g=0.3):
-        """ Computes a simple estimate of the detection yield for an imaging survey. Compares the contrast ratio and projected separation of each planet when observed at quadrature to the contrast limit and inner/outer working angles of the survey. Planets that satisfy these criteria are considered to be detected.
-        
+    def compute_detectable(self, d, wl_eff=0.5, A_g=0.3):
+        """ Computes a simple estimate of the number of detectable planets for an imaging survey. Compares the contrast ratio and projected separation of each planet to the contrast limit and inner/outer working angles of the survey. Planets that satisfy these criteria are considered to be detectable. Not all these planets will actually be observed by a mission.
+
         Parameters
         ----------
         d : Table
@@ -199,12 +199,12 @@ class ImagingSurvey(Survey):
         yield : Table
             Copy of the input Table containing only planets which were detected by the survey.
         """
+
         if 'ang_sep_mas' in d:
             separation = d['ang_sep_mas']
         else:
             # Compute the angular separation at quadrature (milli-arcseconds)
             separation = d['a'] / d['d'] * 1000
-
 
         # If no albedo is given, assume one
         if 'A_g' not in d:
@@ -212,16 +212,95 @@ class ImagingSurvey(Survey):
 
         # Determine which planets are brighter than the contrast limit
         if 'contrast' not in d:
-            d['contrast'] = d['A_g'] * (4.258756e-5*d['R']/d['a'])**2 / np.pi
-        mask1 = d['contrast'] > 10**self.contrast_limit
+            d['contrast'] = d['A_g'] * (4.258756e-5 * d['R'] / d['a']) ** 2 / np.pi
+        mask1 = d['contrast'] > 10 ** self.contrast_limit
 
         # Determine which planets are within the field of view
-        iwa = self.inner_working_angle * (1e-6*wl_eff) / self.diameter*206265*1000
-        owa = self.outer_working_angle * (1e-6*wl_eff) / self.diameter*206265*1000
+        iwa = self.inner_working_angle * (1e-6 * wl_eff) / self.diameter * 206265 * 1000
+        owa = self.outer_working_angle * (1e-6 * wl_eff) / self.diameter * 206265 * 1000
         mask2 = (separation > iwa) & (separation < owa)
 
         # Return the output table
         return d[mask1 & mask2]
+
+    def compute_yield(self, d,method='detectable',SNR=7,band_width=0.2, wl_eff=0.5, A_g=0.3,**kwargs):
+        """Computes the yield of a survey. Compares whether stars will be observed for long enough duration for planets
+        to be detected at given SNR. Old versions of the yield calculation considering only contrast and separation can
+        be replicated using method='detectable'
+
+        Parameters
+        ----------
+        d : Table
+            Table of all simulated planets which the survey could attempt to observe.
+        method : str, optional
+            Method used for yield calculation.
+            "detectable" implies all detectable planets are observed without consideration of exposure time
+                and total mission duration.
+            "exp_time" uses an exposure time calculator to determine if simulated planets were detected.
+                Requires survey to have been scheduled in generation or pre-generator
+        wl_eff : float, optional
+            Effective wavelength of observation in microns (used for calculating the IWA/OWA).
+        A_g : float, optional
+            Geometric albedo of each planet, ignored if 'A_g' is already assigned.
+
+
+        Returns
+        -------
+        yield : Table
+            Copy of the input Table containing only planets which were detected by the survey.
+        """
+        if method == 'detectable':
+            d = self.compute_detectable(d, wl_eff=wl_eff, A_g=A_g)
+            return d
+        elif method == 'exp_time':
+
+            if 't_req' not in d:
+                raise Exception("'t_ref' not found in Table. Be sure to run schedule survey before calling this function")
+
+            if 'ang_sep_mas' not in d:
+                d['ang_sep_mas'] = d['a'] / d['d'] * 1000
+                # Compute the angular separation at quadrature (milli-arcseconds)
+
+                # If no albedo is given, assume one
+            if 'A_g' not in d:
+                d['A_g'] = np.full(len(d), A_g)
+
+                # calculate constrast at quadrature if not defined
+            if 'contrast' not in d:
+                d['contrast'] = d['A_g'] * (4.258756e-5 * d['R'] / d['a']) ** 2 / np.pi
+
+            if 'Vmag' not in d:
+                raise KeyError("Missing V band, this function has only been tested to work for V band")
+                return
+
+            d = self.call_exposure_time_calculator(d, SNR=SNR, band_width=band_width, band='Vmag',
+                                                   C_col='contrast', sep_col='ang_sep_mas',
+                                                   texp_col='t_exp')
+
+            # planets are considered to be detected if the amount of time needed to detect them is less than the time allocated to surveying the star
+            texp_mask = d['t_exp'] <= d['t_req']
+
+            return d[texp_mask]
+        else:
+            raise Exception('Method: {} not recognized'.format(method))
+
+        #should never get here
+        return
+
+    def call_exposure_time_calculator(self, d, SNR=7, func=util.DI_exposure_time_calculator,
+                                      band='Vmag', C_col='contrast', sep_col='ang_sep_mas',
+                                      texp_col='t_exp', **kwargs):
+
+        def texp_func(contrast, sep, mag):
+            texp = func(contrast, sep, self.diameter, mag, SNR=SNR, IWA=self.inner_working_angle,
+                        OWA=self.outer_working_angle, logcontrast_limit=self.contrast_limit,
+                        **kwargs)
+            return texp
+
+        texp_map = map(texp_func, d[C_col], d[sep_col], d[band])
+
+        d[texp_col] = list(texp_map)
+        return d
 
     def compute_scaling_factor(self, d):
         """ Computes the scaling factor for the reference exposure time in imaging mode for all planets in `d`. """
