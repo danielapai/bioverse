@@ -548,6 +548,7 @@ class Measurement():
         if np.isinf(t_total):
             return weights > 0
 
+        #should be moved to transit specific if statement?
         # (Transit mode) Debias targets based on orbital period
         weights *= self.compute_debias(data)
 
@@ -585,6 +586,7 @@ class Measurement():
         """ Computes the exposure time and number of observations required to characterize each planet in `d`. """
         wl = self.wl_eff / 10000 # convert from microns -> cm
         h, c, k, T_eff_sol = 6.6261e-27, 2.9979e10, 1.3807e-16, 5780.
+        #add to constants.py
 
         # Reference case parameters
         T_ref, R_ref, D_ref, d_ref = self.survey.T_st_ref, self.survey.R_st_ref, self.survey.D_ref, self.survey.d_ref
@@ -601,7 +603,7 @@ class Measurement():
             N_obs = np.ones(len(d))
         if self.survey.mode == 'transit':
             N_obs = np.ceil(t_exp/d['T_dur'])
-            N_act = t_exp/d['T_dur']
+            #N_act = t_exp/d['T_dur']
             t_exp = d['T_dur']*N_obs
 
         return t_exp, N_obs

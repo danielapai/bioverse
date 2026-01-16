@@ -1102,7 +1102,7 @@ def scale_height(d):
 
     return d
 
-def solve_kep(d,t=0,M=None,n_it=3,at_quadrature=False):
+def solve_kep(d,t=0,M=None,n_it=3,at_quadrature=True):
     '''
     Solves Kepler equation for generated planets, calculating true anomalies,
     true planet star separations, phase angles, and angular separations in milliarcsecs.
@@ -1120,7 +1120,7 @@ def solve_kep(d,t=0,M=None,n_it=3,at_quadrature=False):
         Number of iterations for the Newton method of solving the Kepler equation.
         The default is 3.
     at_quadrature: bool,optional
-        Are planets assumed to be observed at quadrature phase? Default is False
+        Are planets assumed to be observed at quadrature phase? Default is True
     Returns
     -------
     d : Table

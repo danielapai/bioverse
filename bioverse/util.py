@@ -703,7 +703,7 @@ def contrast_to_dmag(contrast):
 
 def DI_exposure_time_calculator(contrast, sep_mas, D, mag_star, lambda_ref=550.,
                                     F_0=10375.7, SNR=7, IWA=3.5, OWA=64.0, logcontrast_limit=-10.6,
-                                    band_width=0.2):
+                                    band_width=1.0/140.0):
     """
     Simple exposure time calculator for direct imaging based on that of Stark+ 2014
     Assumes simple tophat function in throughput, step function in contrast
