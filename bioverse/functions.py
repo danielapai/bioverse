@@ -5,6 +5,7 @@ import os
 import glob
 import numpy as np
 import pandas as pd
+import polars as pl
 import astropy.units as u
 import warnings
 
@@ -51,10 +52,13 @@ def luminosity_evolution(d):
     d['L_st'] = df['L_st']
     return d
 
+sch_gcns= pl.Schema({'star_name': str, 'd': float,'ra': float, 'dec': float,'M_G': float, 'M_st': float,
+                    'R_st': float, 'L_st': float,'T_eff_st': int, 'SpT': str,'subSpT': str, 'binary': bool,
+                     'RV': float})
 
 def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, M_st_max=2.0, R_st_min=0.095,
-                    R_st_max=2.15, T_min=0., T_max=10., inc_binary=0, SpT=None, seed=42, M_G_max=None,
-                    lum_evo=False):  # , mult=0):
+                    R_st_max=2.15, T_min=0., T_max=10., inc_binary=0, SpT=None, seed=42, m_G_max = None,M_G_max=None,
+                    lum_evo=False, fill_missing=True, ecliptic_coords=True, schema=sch_gcns,xyz=True):  # , mult=0):
     """ Reads a list of stellar properties from the Gaia nearby stars catalog.
 
     Parameters
@@ -85,11 +89,21 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
         seed for the random number generators.
     mult : float, optional
         Multiple on the total number of stars simulated. If > 1, duplicates some entries from the LUVOIR catalog.
+    m_G_max : float, optional
+        maximum apparent G magnitude of stars
     M_G_max : float, optional
-        Maximum Gaia magnitude of stars. Example: M_G_max=9. keeps all stars brighter than M_G = 9.0.
+        Maximum absolute Gaia magnitude of stars. Example: M_G_max=9. keeps all stars brighter than M_G = 9.0.
     lum_evo : bool, optional
         Assign age-dependent stellar luminosities (based on randomly assigned ages and stellar luminosity tracks in
         Baraffe et al. 2015.
+    fill_missing : bool, optional
+        Fill in missing values of stellar properties.
+    ecliptic_coords : bool, optional
+        compute ecliptic coordinates for stars
+    schema : polars schema object, optional
+        schema for column datatypes used for polars file reading
+    xyz : bool, optional
+        compute galactic xyz coordinates
 
     Returns
     -------
@@ -99,73 +113,160 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
 
     np.random.seed(seed)
 
-    # Read the catalog with column names
-    path = filename if os.path.exists(filename) else DATA_DIR + '/' + filename
-    cat = pd.read_csv(path,sep=' ',header=0,dtype={'star_name':str, 'd':float,
-                                                     'ra':float, 'dec':float,
-                                                     'M_G':float, 'M_st':float,
-                                                     'R_st':float, 'L_st':float,
-                                                     'T_eff_st':int, 'SpT':str,
-                                                     'subSpT':str, 'binary':bool,
-                                                     'RV':float})
-    catalog = cat.to_records(index=False)
-    # catalog = np.genfromtxt(path, unpack=False, names=True, dtype=None, encoding=None)
-    for name in catalog.dtype.names:
-        d[name.strip()] = list(catalog[name])  # *int(mult)
+    # Read the catalog with column names using Polars
+    # Check multiple possible locations for the file
+    if os.path.exists(filename):
+        path = filename
+    elif os.path.exists(ROOT_DIR + '/' + filename):
+        path = ROOT_DIR + '/' + filename
+    elif os.path.exists(DATA_DIR + filename):
+        path = DATA_DIR + filename
+    else:
+        path = DATA_DIR + '/' + filename
 
-    # Missing values (TODO: this part is ironically incomplete)
-    if 'd' not in d.keys():
-        d['d'] = np.cbrt(np.random.uniform(0, d_max ** 3, len(d)))
-    if 'x' not in d.keys():
-        cost, phi = np.random.uniform(-1, 1, len(d)), np.random.uniform(0, 2 * np.pi, len(d))
-        r = d['d'] * np.sin(np.arccos(cost))
-        d['x'], d['y'], d['z'] = r * np.cos(phi), r * np.sin(phi), d['d'] * cost
-    if 'age' not in d.keys():
-        d['age'] = np.random.uniform(T_min, T_max, size=len(d))
-    if 'logL' not in d.keys():
-        d['logL'] = np.log10(d['L_st'])
-    if 'star_name' not in d.keys():
-        d['star_name'] = np.char.array(np.full(len(d), 'REAL-')) + np.char.array(np.arange(len(d)).astype(str))
-    if 'RV' not in d.keys():
-        d['RV'] = np.random.uniform(-200, 200, size=len(d))
+    try:
+        # Use lazy evaluation with scan_csv for better memory efficiency with large files
+        # Read without schema first to be flexible with different file formats
+        query = pl.scan_csv(path, separator=' ', has_header=True,schema=schema)
 
-    # Enforce a maximum distance
-    d = d[d['d'] < d_max]
+        # Strip whitespace from column names
+        # Use collect_schema() to avoid performance warning
+        if schema is not None:
+            col_names = schema.names()
+        else:
+            col_names = list(query.collect_schema().keys())
 
-    # Apply magnitude limit
-    if M_G_max:
-        d = d[d['M_G'] < M_G_max]
+        #is this step still necessary, do any col names contain extra whitespace?
+        rename_dict = {col: col.strip() for col in col_names}
+        query = query.rename(rename_dict)
 
-    # Enforce a min/max mass & radius
-    d = d[(d['M_st'] < M_st_max) & (d['M_st'] > M_st_min)]
-    d = d[(d['R_st'] < R_st_max) & (d['R_st'] > R_st_min)]
+        # Apply filters in Polars (lazy evaluation - more efficient for large files)
+        filter_conditions = []
+        col_names_stripped = [col.strip() for col in col_names]
 
-    # Include/exclude stars in binary systems, default is (0/False) exclude binaries
-    if inc_binary == 0:
-        d = d[(d['binary'] == False)]
-        # d.reset_index(inplace=True,drop=True)
+        if d_max and ('d' in col_names_stripped):
+            filter_conditions.append(pl.col('d') < d_max)
 
-    # Include only specific spectral types
-    if SpT:
-        d = d[np.isin(d['SpT'], SpT)]
+        if m_G_max and ('Gmag' in col_names_stripped):
+            filter_conditions.append(pl.col('Gmag') < m_G_max)
+
+        if M_G_max and ('M_G' in col_names_stripped):
+            filter_conditions.append(pl.col('M_G') < M_G_max)
+
+        if M_st_min and M_st_max and ('M_st' in col_names_stripped):
+            filter_conditions.append((pl.col('M_st') > M_st_min) & (pl.col('M_st') < M_st_max))
+
+        if R_st_min and R_st_max  and ('R_st' in col_names_stripped):
+            filter_conditions.append((pl.col('R_st') > R_st_min) & (pl.col('R_st') < R_st_max))
+
+        if inc_binary == 0 and 'binary' in col_names_stripped:
+            # Handle both int (0/1) and bool binary columns
+            filter_conditions.append(pl.col('binary') == 0)
+
+        if SpT and 'SpT' in col_names_stripped:
+            filter_conditions.append(pl.col('SpT').is_in(SpT))
+
+        # Apply all filters at once
+        if filter_conditions:
+            combined_filter = filter_conditions[0]
+            for condition in filter_conditions[1:]:
+                combined_filter = combined_filter & condition
+            query = query.filter(combined_filter)
+
+        # Collect the lazy query into a DataFrame (this is where actual I/O happens)
+        cat = query.collect()
+
+        # Convert Polars DataFrame to Table using to_dict() method (fast and efficient)
+        # This converts the DataFrame to a dict of column_name -> list/array
+        cat_dict = cat.to_dict(as_series=False)
+
+        # Populate Table object from the dictionary
+        # Convert lists to numpy arrays (Table expects numpy arrays)
+        for col_name, col_values in cat_dict.items():
+            d[col_name] = np.array(col_values)
+
+    except Exception as e:
+        # Fallback to pandas if Polars fails
+        import warnings
+        warnings.warn(f"Polars read failed ({e}), falling back to pandas", UserWarning)
+        # Use the same path resolution for pandas fallback
+        if not os.path.exists(path):
+            if os.path.exists(ROOT_DIR + '/' + filename):
+                path = ROOT_DIR + '/' + filename
+            elif os.path.exists(DATA_DIR + filename):
+                path = DATA_DIR + filename
+            else:
+                path = DATA_DIR + '/' + filename
+        cat_pd = pd.read_csv(path, sep=' ', header=0, dtype={'star_name': str, 'd': float,
+                                                             'ra': float, 'dec': float,
+                                                             'M_G': float, 'M_st': float,
+                                                             'R_st': float, 'L_st': float,
+                                                             'T_eff_st': int, 'SpT': str,
+                                                             'subSpT': str, 'binary': bool,
+                                                             'RV': float})
+
+        # Apply filters (pandas approach)
+        # Enforce a maximum distance
+        if d_max and ('d' in cat_pd.columns):
+            cat_pd = cat_pd[cat_pd['d'] < d_max]
+
+        if m_G_max and ('Gmag' in cat_pd.columns):
+            cat_pd = cat_pd[cat_pd['Gmag'] < m_G_max]
+        # Apply magnitude limit
+        if M_G_max and ('M_G' in cat_pd.columns):
+            cat_pd = cat_pd[cat_pd['M_G'] < M_G_max]
+
+        # Enforce a min/max mass & radius
+        if M_st_min and M_st_max and ('M_st' in cat_pd.columns):
+            cat_pd = cat_pd[(cat_pd['M_st'] > M_st_min) & (cat_pd['M_st'] < M_st_max)]
+        if R_st_min and R_st_max and ('R_st' in cat_pd.columns):
+            cat_pd = cat_pd[(cat_pd['R_st'] > R_st_min) & (cat_pd['R_st'] < R_st_max)]
+
+        # Include/exclude stars in binary systems
+        if inc_binary == 0 and 'binary' in cat_pd.columns:
+            cat_pd = cat_pd[cat_pd['binary'] == False]
+
+        # Include only specific spectral types
+        if SpT and 'SpT' in cat_pd.columns:
+            cat_pd = cat_pd[cat_pd['SpT'].isin(SpT)]
+
+        # Populate Table object from pandas DataFrame
+        for col_name in cat_pd.columns:
+            d[col_name.strip()] = np.array(cat_pd[col_name])
+
+    # Missing values
+    if fill_missing:
+        if 'd' not in d.keys():
+            d['d'] = np.cbrt(np.random.uniform(0, d_max ** 3, len(d)))
+        if xyz and ('x' not in d.keys()):
+            cost, phi = np.random.uniform(-1, 1, len(d)), np.random.uniform(0, 2 * np.pi, len(d))
+            r = d['d'] * np.sin(np.arccos(cost))
+            d['x'], d['y'], d['z'] = r * np.cos(phi), r * np.sin(phi), d['d'] * cost
+        if 'age' not in d.keys():
+            d['age'] = np.random.uniform(T_min, T_max, size=len(d))
+        if 'logL' not in d.keys():
+            d['logL'] = np.log10(d['L_st'])
+        if 'star_name' not in d.keys():
+            d['star_name'] = np.char.array(np.full(len(d), 'REAL-')) + np.char.array(np.arange(len(d)).astype(str))
+        if 'RV' not in d.keys():
+            d['RV'] = np.random.uniform(-200, 200, size=len(d))
 
     # Assign stellar IDs and names
     d['starID'] = np.arange(len(d), dtype=int)
     d['simulated'] = np.zeros(len(d), dtype=bool)
 
-    # Draw a random age for each system
-    d['age'] = np.random.uniform(T_min, T_max, len(d))
-
     # Add ecliptic coordinates
-    ra = np.array(d['ra'])
-    dec = np.array(d['dec'])
-    dist = np.array(d['d'])
-    c = SkyCoord(ra * u.degree, dec * u.degree, distance=dist * u.pc, frame='icrs', equinox='J2016.0')
-    c_ec = c.transform_to('heliocentrictrueecliptic')
-    d['helio_ecl_lon'] = np.array(c_ec.lon.value)
-    d['helio_ecl_lat'] = np.array(c_ec.lat.value)
+    if ecliptic_coords:
+        ra = np.array(d['ra'])
+        dec = np.array(d['dec'])
+        dist = np.array(d['d'])
+        c = SkyCoord(ra * u.degree, dec * u.degree, distance=dist * u.pc, frame='icrs', equinox='J2016.0')
+        c_ec = c.transform_to('heliocentrictrueecliptic')
+        d['helio_ecl_lon'] = np.array(c_ec.lon.value)
+        d['helio_ecl_lat'] = np.array(c_ec.lat.value)
 
     if lum_evo:
+        #warning: this will be very slow for a large target list
         d = luminosity_evolution(d)
 
     return d

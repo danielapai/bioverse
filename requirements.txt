@@ -11,3 +11,4 @@ tqdm
 pandas
 PyQt5
 astropy>=5.2
+polars
