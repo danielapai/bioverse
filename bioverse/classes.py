@@ -144,7 +144,7 @@ class Table(dict):
             raise KeyError("invalid key {:s}; '{:s}' does not refer to a dict-like object".format(key,key1))
 
     def keys(self):
-        """ Returns an array of keys instead of a dict_keys object, because I prefer it this way. """
+        """ Returns an array of keys instead of a dict_keys object, because I prefer it this way. """  '''Understandable.'''
         return np.array(list(super().keys()))
 
     def sort_by(self, key, inplace=False, ascending=True):
