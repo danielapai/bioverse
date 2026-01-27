@@ -4,7 +4,7 @@ from numpy import inf
 
 from .classes import Object, Table
 from . import util
-from .constants import STR_TYPES, BOOL_TYPES
+from .constants import STR_TYPES, BOOL_TYPES, CONST
 
 @dataclass(repr=False)
 class Survey(dict, Object):
@@ -16,10 +16,10 @@ class Survey(dict, Object):
     diameter: float = 15.0
     t_max: float = 10*365.25
     t_slew: float = 0.1
-    T_st_ref: float = 5788.
-    R_st_ref: float = 1.0
-    D_ref: float = 15.0
-    d_ref: float = 10.0
+    #T_st_ref: float = 5788.
+    #R_st_ref: float = 1.0
+    #D_ref: float = 15.0
+    #d_ref: float = 10.0
 
     def __post_init__(self):
         if type(self) == Survey:
@@ -302,9 +302,9 @@ class ImagingSurvey(Survey):
         d[texp_col] = list(texp_map)
         return d
 
-    def compute_scaling_factor(self, d):
-        """ Computes the scaling factor for the reference exposure time in imaging mode for all planets in `d`. """
-        return (d['contrast']/1e-10)**-1
+    #def compute_scaling_factor(self, d):
+    #    """ Computes the scaling factor for the reference exposure time in imaging mode for all planets in `d`. """
+    #    return (d['contrast']/1e-10)**-1
 
 @dataclass(repr=False)
 class TransitSurvey(Survey):
@@ -350,7 +350,7 @@ class TransitSurvey(Survey):
         return d[mask]
 
 
-    def compute_yield(self, d):
+    def compute_yield(self, d, method='detectable',**kwargs):
         """ Computes a simple estimate of the detection yield for a transit survey. Currently all detectable transiting
         planets are considered to be detected.
 
@@ -365,19 +365,69 @@ class TransitSurvey(Survey):
             Copy of the input table containing only planets which were detected by the survey.
         """
         # Determine which planets transit their stars
-        d = self.compute_detectable(d)
+        if method == 'detectable':
+            d = self.compute_detectable(d)
+        elif method == 'scaling_relation':
+            d = self.compute_detectable(d)
+            d= self.exp_time_scaling_relation(d,**kwargs)
+            pass
+            #adapt alexs target prioritization here + overheads
+        else:
+            raise Exception('Method: {} not recognized'.format(method))
 
         #add sky area constraint
         #survey constraint
 
+        #add logic for max number of transits here
         # Return the output table
         return d
 
-    def compute_scaling_factor(self, d):
-        """ Computes the scaling factor for the reference exposure time in transit mode for all planets in `d`. """
-        d.compute('S')
-        return (d['H']/9)**-2 * d['R']**-2 * (d['R_st']/self.R_st_ref)**4
+    #function to estimate exposure time from a scaling relation
+    #
+    def exp_time_scaling_relation(self, d, t_ref=3.1, wl_eff=0.6, T_st_ref=5788.,
+                                  R_st_ref =1.0 , D_ref=15.0,d_ref=10.0, R_pl_ref=1.0,
+                                  H_ref=9):
+        """ Computes the exposure time and number of observations required to characterize each planet in `d`.
 
+            d: data table
+            t_ref: exposure time for example psg run (days?)
+            wl_eff: wavelength in um
+            T_st_ref: reference stellar temperature in K
+            R_st_ref: reference stellar radius in R_sun
+            D_ref: reference telescope diameter in m
+            d_ref: reference distance in pc
+            R_pl_ref: reference planet radius in R_earth
+            H_ref: reference atmosphere scale height
+
+        """
+        wl = wl_eff / 10000 # convert from microns -> cm
+        h, c, k, T_eff_sol = CONST['h'], CONST['c'], CONST['k'], d['T_eff_sol']
+        #add to constants.py
+
+        # Compute scaling factor
+        #legacy code not sure if need to compute S here since its done in occurence rates functions
+        if 'S' not in d.keys():
+            d.compute('S')
+
+        f= (d['H'] / H_ref) ** -2 * (d['R']/R_pl_ref) ** -2 * (d['R_st'] / R_st_ref) ** 4
+
+        # Calculate the exposure time required for each target, based on the reference time
+        flux_ratio = (np.exp(h*c/(wl*k*T_st_ref)) - 1) / (np.exp(h*c/(wl*k*d['T_eff_st'])) - 1)
+        t_exp = f * t_ref * (self.diameter/D_ref)**-2 * (d['d']/d_ref)**2 * (d['R_st']/R_st_ref)**-2 * flux_ratio**-1
+
+        # Number of observations (1 for imaging mode, integer multiple of transit duration for transit mode)
+
+        N_obs = np.ceil(t_exp/d['T_dur'])
+        too_many_transits= (N_obs > self.N_obs_max)
+            #N_act = t_exp/d['T_dur']
+        t_exp = d['T_dur']*N_obs
+        t_exp[too_many_transits]=np.inf
+        d['t_exp'] = t_exp
+
+        return d
+
+
+#needs major work after recent changes
 class Measurement():
     """
     Class describing a simple measurement to be applied to a set of planets detected by a Survey.
@@ -581,11 +631,11 @@ class Measurement():
             observable[finished&valid], priority[finished] = True, 0.
 
         return observable
-
+    #move this function into survey object
     def compute_exposure_time(self, d):
         """ Computes the exposure time and number of observations required to characterize each planet in `d`. """
         wl = self.wl_eff / 10000 # convert from microns -> cm
-        h, c, k, T_eff_sol = 6.6261e-27, 2.9979e10, 1.3807e-16, 5780.
+        h, c, k, T_eff_sol = CONST['h'], CONST['c'], CONST['k'], d['T_eff_sol']
         #add to constants.py
 
         # Reference case parameters
