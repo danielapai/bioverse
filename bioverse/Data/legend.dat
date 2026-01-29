@@ -77,4 +77,5 @@ R_eff, float, Estimated radius assuming Earth's geometric albedo (Earth radius)
 true_sep, float, True planet-star separation at a given ephemeris (AU)
 phase_angle, float, Planet illumination phase angle (radians)
 ang_sep_mas, float, Planet-star angular separation (milliarcseconds)
-t_exp, float, exposure time required for observation
+t_req, float, exposure time required for observation
+t_exp, float, exposure time

@@ -1,6 +1,5 @@
 from dataclasses import asdict, dataclass, fields
 import numpy as np
-from numpy import inf
 
 from .classes import Object, Table
 from . import util
@@ -11,11 +10,12 @@ class Survey(dict, Object):
     """
     Describes an exoplanet survey, including methods for creating simulated datasets. This class should not be called directly; instead use ImagingSurvey or TransitSurvey.
     """
-    
+
     label: str = None
     diameter: float = 15.0
     t_max: float = 10*365.25
     t_slew: float = 0.1
+    #priority: dict = {}
     #T_st_ref: float = 5788.
     #R_st_ref: float = 1.0
     #D_ref: float = 15.0
@@ -25,6 +25,7 @@ class Survey(dict, Object):
         if type(self) == Survey:
             raise ValueError("don't call Survey directly - instead use ImagingSurvey or TransitSurvey")
         self.measurements = {}
+        self.priority={}
         Object.__init__(self, self.label)
 
         # Casts all parameters to the correct type
@@ -175,6 +176,102 @@ class Survey(dict, Object):
 
         return data
 
+    def compute_overhead_time(self, d, N_obs=1):
+        """ Computes the overheads associated with each observation. """
+
+        if not hasattr(self, 'mode'):
+            raise KeyError("No mode was specified for this survey.")
+        # Imaging mode: 1x overhead for each target
+        if self.mode == 'imaging':
+            t_over = np.full(len(d), self.t_slew)
+
+        # Transit mode: N_obs x (overhead + T_dur) for each target
+        if self.mode == 'transit':
+            if 'T_dur' not in d:
+                raise KeyError("No T_dur column in Table. Transit duration required for overhead calculation.")
+            t_over = N_obs * (self.t_slew + d['T_dur'])
+
+        return t_over
+
+    def compute_debias(self, d):
+        """ Removes detection biases from the data set (transit mode only). """
+        if not hasattr(self, 'mode'):
+            raise KeyError("No mode was specified for this survey.")
+
+        debias = np.ones(len(d))
+        if self.mode != 'transit':
+            return debias
+
+        if 'a' not in d:
+            d.compute('a')
+        #if 'a_eff' not in d:
+        #    d.compute('a_eff')
+
+        debias = d['a']/d['R_st']
+        return debias
+
+    def schedule_observations(self, d, texp_col='t_exp', N_obs_col='N_obs',debias=False):
+        if not hasattr(self, 'mode'):
+            raise KeyError("No mode was specified for this survey.")
+
+        if texp_col not in d:
+            raise KeyError("No t_exp column found in Table.")
+
+        weights = np.ones(len(d))  # temporarily equal weights
+
+        t_exp = d[texp_col]
+        t_over = self.compute_overhead_time(d)
+
+        t_total= self.t_max
+        if t_total is None:
+            raise Exception("Total Survey duration needs to be defined")
+
+        if self.mode == 'imaging':
+            pass
+        elif self.mode == 'transit':
+            if N_obs_col not in d:
+                raise KeyError("No N_obs column found in Table.")
+            N_obs= d[N_obs_col]
+            # ensure that measurements don't exceed the maximum number of observations and survey duration
+            weights[N_obs > self.N_obs_max]= 0
+            weights[(N_obs*d['P']) > t_total] = 0
+
+        if np.isinf(t_total):
+            return weights > 0
+
+        if debias:
+            weights *= self.compute_debias(d)
+
+        priority = weights / (t_exp + t_over)
+
+        # Observe planets in order of priority, until we run out of time or valid targets
+        t_sum, observable = 0., np.zeros(len(d), dtype=bool)
+        valid = weights > 0
+        for i in range(valid.sum()):
+            # Determine the current highest priority planet and how much time is required to observe it
+            t_obs = t_exp + t_over
+            idx = np.argmax(priority)
+
+            # Add this amount of time to the budget - if it's too much, then stop observing immediately
+            t_sum += t_obs[idx]
+            if t_sum > t_total:
+                break
+
+            # (Imaging mode) Observe the target along with other planets in the same system
+            if self.mode == 'imaging':
+                t_exp[d['starID'] == d['starID'][idx]] -= t_exp[idx]
+                #weird legacy code resets t_exp to negative or zero if observed, it works though
+
+            # (Transit mode) Only observe the target
+            elif self.mode == 'transit':
+                t_exp[idx] -= t_exp[idx]
+
+            # Mark planets with t_exp <= 0 as "observable" and remove them from the line-up
+            finished = t_exp <= 0
+            observable[finished & valid], priority[finished] = True, 0.
+
+        return observable
+
 @dataclass(repr=False)
 class ImagingSurvey(Survey):
     inner_working_angle: float = 3.5
@@ -242,6 +339,8 @@ class ImagingSurvey(Survey):
             Effective wavelength of observation in microns (used for calculating the IWA/OWA).
         A_g : float, optional
             Geometric albedo of each planet, ignored if 'A_g' is already assigned.
+        kwargs : dict, optional
+            Additional keyword arguments for exposure time calculator
 
 
         Returns
@@ -253,7 +352,7 @@ class ImagingSurvey(Survey):
             d = self.compute_detectable(d, wl_eff=wl_eff, A_g=A_g)
             return d
         elif method == 'exp_time':
-
+            #assumes scheduling function has been run in generator
             if 't_req' not in d:
                 raise Exception("'t_ref' not found in Table. Be sure to run schedule survey before calling this function")
 
@@ -261,7 +360,7 @@ class ImagingSurvey(Survey):
                 d['ang_sep_mas'] = d['a'] / d['d'] * 1000
                 # Compute the angular separation at quadrature (milli-arcseconds)
 
-                # If no albedo is given, assume one
+                # If no albedo is given, assume fixed value
             if 'A_g' not in d:
                 d['A_g'] = np.full(len(d), A_g)
 
@@ -275,7 +374,7 @@ class ImagingSurvey(Survey):
 
             d = self.call_exposure_time_calculator(d, SNR=SNR, band_width=band_width, band='Vmag',
                                                    C_col='contrast', sep_col='ang_sep_mas',
-                                                   texp_col='t_exp')
+                                                   texp_col='t_exp', **kwargs)
 
             # planets are considered to be detected if the amount of time needed to detect them is less than the time allocated to surveying the star
             texp_mask = d['t_exp'] <= d['t_req']
@@ -302,9 +401,6 @@ class ImagingSurvey(Survey):
         d[texp_col] = list(texp_map)
         return d
 
-    #def compute_scaling_factor(self, d):
-    #    """ Computes the scaling factor for the reference exposure time in imaging mode for all planets in `d`. """
-    #    return (d['contrast']/1e-10)**-1
 
 @dataclass(repr=False)
 class TransitSurvey(Survey):
@@ -350,7 +446,7 @@ class TransitSurvey(Survey):
         return d[mask]
 
 
-    def compute_yield(self, d, method='detectable',**kwargs):
+    def compute_yield(self, d, method='detectable',debias=False,**kwargs):
         """ Computes a simple estimate of the detection yield for a transit survey. Currently all detectable transiting
         planets are considered to be detected.
 
@@ -368,10 +464,12 @@ class TransitSurvey(Survey):
         if method == 'detectable':
             d = self.compute_detectable(d)
         elif method == 'scaling_relation':
+            #adapt alex's target prioritization here + overheads
+            #originally in measurement object
             d = self.compute_detectable(d)
             d= self.exp_time_scaling_relation(d,**kwargs)
-            pass
-            #adapt alexs target prioritization here + overheads
+            to_observe= self.schedule_observations(d,texp_col='t_exp',N_obs_col='N_obs',debias=debias)
+            d= d[to_observe]
         else:
             raise Exception('Method: {} not recognized'.format(method))
 
@@ -381,6 +479,7 @@ class TransitSurvey(Survey):
         #add logic for max number of transits here
         # Return the output table
         return d
+
 
     #function to estimate exposure time from a scaling relation
     #
@@ -401,7 +500,7 @@ class TransitSurvey(Survey):
 
         """
         wl = wl_eff / 10000 # convert from microns -> cm
-        h, c, k, T_eff_sol = CONST['h'], CONST['c'], CONST['k'], d['T_eff_sol']
+        h, c, k, T_eff_sol = CONST['h'], CONST['c'], CONST['k'], CONST['T_eff_sol']
         #add to constants.py
 
         # Compute scaling factor
@@ -418,11 +517,10 @@ class TransitSurvey(Survey):
         # Number of observations (1 for imaging mode, integer multiple of transit duration for transit mode)
 
         N_obs = np.ceil(t_exp/d['T_dur'])
-        too_many_transits= (N_obs > self.N_obs_max)
-            #N_act = t_exp/d['T_dur']
+
         t_exp = d['T_dur']*N_obs
-        t_exp[too_many_transits]=np.inf
         d['t_exp'] = t_exp
+        d['N_obs'] = N_obs
 
         return d
 
@@ -456,23 +554,23 @@ class Measurement():
         self.key = key
         self.survey = survey
         self.precision = precision
-        self.t_total = t_total
-        self.t_ref = t_ref
-        self.priority = {key:np.array(val) for key, val in priority.items()}
-        self.wl_eff = wl_eff
+        #self.t_total = t_total
+        #self.t_ref = t_ref
+        #self.priority = {key:np.array(val) for key, val in priority.items()}
+        #self.wl_eff = wl_eff
         self.debias = debias
 
     def __repr__(self):
         s = "Measures parameter '{:s}'".format(self.key)
         if self.precision != 0.:
             s += " with {:s} precision".format(str(self.precision))
-        try:
-            for i,cdtn in enumerate(self.conditions):
-                s += "\n    Conditions: {:s}".format(cdtn) if i == 0 else ' AND {:s}'.format(cdtn)
-        except AttributeError:
-            pass
-        if self.t_ref is not None:
-            s += "\n    Average time required: {:.1f} d".format(self.t_ref)
+        # try:
+        #     for i,cdtn in enumerate(self.conditions):
+        #         s += "\n    Conditions: {:s}".format(cdtn) if i == 0 else ' AND {:s}'.format(cdtn)
+        # except AttributeError:
+        #     pass
+        # if self.t_ref is not None:
+        #     s += "\n    Average time required: {:.1f} d".format(self.t_ref)
             
         return s
 
@@ -506,17 +604,17 @@ class Measurement():
         data['starID'] = detected['starID']
         
         # Determine which planets are valid targets and can be observed in the allotted time
-        observable = self.compute_observable_targets(data, t_total)
+        #observable = self.compute_observable_targets(data, t_total)
 
         # Simulate a measurement for each observable planet
-        x, dx = self.perform_measurement(detected[self.key][observable])
+        x, dx = self.perform_measurement(detected[self.key])
 
         # Place this measurement into the measurements database
         if self.key not in data.keys():
             data[self.key] = np.full(len(detected), np.nan)
             data.error[self.key] = np.full(len(detected), np.nan)
-        data[self.key][observable] = x
-        data.error[self.key][observable] = dx
+        data[self.key] = x
+        data.error[self.key] = dx
 
         return data
     
@@ -558,81 +656,81 @@ class Measurement():
             self.priority[key] = np.empty(shape=(0, 3))
         self.priority[key] = np.append(self.priority[key], [arr], axis=0)
         
-    def compute_observable_targets(self, data, t_total=None):
-        """ Determines which planets are observable based on the total allotted observing time.
-
-        Parameters
-        ----------
-        data : Table
-            Table of data values already measured for these planets.
-        t_total : float, optional
-            Total observing time for this measurement. If None, use self.t_total.
-        
-        Returns
-        -------
-        observable : bool array
-            Specifies which planets in the table are observable within the allotted time.
-        """
-
-        # Compute the weight of each target
-        weights = self.compute_weights(data)
-
-        # If t_ref is zero, then the measurement is instantaneous;
-        # all targets with weight > 0 are observable
-        if self.t_ref is None or self.t_ref == 0:
-            return weights > 0
-
-        # Compute the required exposure and overhead time for each target
-        t_exp, N_obs = self.compute_exposure_time(data)
-        t_over = self.compute_overhead_time(data)
-
-        # (Transit mode) Targets are invalid if they require too many transit observations
-        if self.survey.mode == 'transit':
-            weights[(N_obs*data['P']) > self.survey.t_max] = 0
-            weights[N_obs > self.survey.N_obs_max] = 0
-
-        # If t_total is infinite, then all targets with weight > 0 are observable, except
-        # those for which too many transit observations are required
-        if t_total is None:
-            t_total = self.t_total
-        if np.isinf(t_total):
-            return weights > 0
-
-        #should be moved to transit specific if statement?
-        # (Transit mode) Debias targets based on orbital period
-        weights *= self.compute_debias(data)
-
-        # Compute the priority of each target based on its weight and the required exposure time
-        priority = weights/(t_exp+t_over)
-
-        # Observe planets in order of priority, until we run out of time or valid targets
-        t_sum, observable = 0., np.zeros(len(data), dtype=bool)
-        valid = weights > 0
-        for i in range(valid.sum()):
-            # Determine the current highest priority planet and how much time is required to observe it
-            t_obs = t_exp + t_over
-            idx = np.argmax(priority)
-
-            # Add this amount of time to the budget - if it's too much, then stop observing immediately
-            t_sum += t_obs[idx]
-            if t_sum > t_total:
-                break
-
-            # (Imaging mode) Observe the target along with other planets in the same system
-            if self.survey.mode == 'imaging':
-                t_exp[data['starID']==data['starID'][idx]] -= t_exp[idx]
-                
-            # (Transit mode) Only observe the target
-            elif self.survey.mode == 'transit':
-                t_exp[idx] -= t_exp[idx]
-
-            # Mark planets with t_exp <= 0 as "observable" and remove them from the line-up
-            finished = t_exp <= 0
-            observable[finished&valid], priority[finished] = True, 0.
-
-        return observable
+    # def compute_observable_targets(self, data, t_total=None):
+    #     """ Determines which planets are observable based on the total allotted observing time.
+    #
+    #     Parameters
+    #     ----------
+    #     data : Table
+    #         Table of data values already measured for these planets.
+    #     t_total : float, optional
+    #         Total observing time for this measurement. If None, use self.t_total.
+    #
+    #     Returns
+    #     -------
+    #     observable : bool array
+    #         Specifies which planets in the table are observable within the allotted time.
+    #     """
+    #
+    #     # Compute the weight of each target
+    #     weights = self.compute_weights(data)
+    #
+    #     # If t_ref is zero, then the measurement is instantaneous;
+    #     # all targets with weight > 0 are observable
+    #     if self.t_ref is None or self.t_ref == 0:
+    #         return weights > 0
+    #
+    #     # Compute the required exposure and overhead time for each target
+    #     t_exp, N_obs = self.compute_exposure_time(data)
+    #     t_over = self.compute_overhead_time(data)
+    #
+    #     # (Transit mode) Targets are invalid if they require too many transit observations
+    #     if self.survey.mode == 'transit':
+    #         weights[(N_obs*data['P']) > self.survey.t_max] = 0
+    #         weights[N_obs > self.survey.N_obs_max] = 0
+    #
+    #     # If t_total is infinite, then all targets with weight > 0 are observable, except
+    #     # those for which too many transit observations are required
+    #     if t_total is None:
+    #         t_total = self.t_total
+    #     if np.isinf(t_total):
+    #         return weights > 0
+    #
+    #     #should be moved to transit specific if statement?
+    #     # (Transit mode) Debias targets based on orbital period
+    #     weights *= self.compute_debias(data)
+    #
+    #     # Compute the priority of each target based on its weight and the required exposure time
+    #     priority = weights/(t_exp+t_over)
+    #
+    #     # Observe planets in order of priority, until we run out of time or valid targets
+    #     t_sum, observable = 0., np.zeros(len(data), dtype=bool)
+    #     valid = weights > 0
+    #     for i in range(valid.sum()):
+    #         # Determine the current highest priority planet and how much time is required to observe it
+    #         t_obs = t_exp + t_over
+    #         idx = np.argmax(priority)
+    #
+    #         # Add this amount of time to the budget - if it's too much, then stop observing immediately
+    #         t_sum += t_obs[idx]
+    #         if t_sum > t_total:
+    #             break
+    #
+    #         # (Imaging mode) Observe the target along with other planets in the same system
+    #         if self.survey.mode == 'imaging':
+    #             t_exp[data['starID']==data['starID'][idx]] -= t_exp[idx]
+    #
+    #         # (Transit mode) Only observe the target
+    #         elif self.survey.mode == 'transit':
+    #             t_exp[idx] -= t_exp[idx]
+    #
+    #         # Mark planets with t_exp <= 0 as "observable" and remove them from the line-up
+    #         finished = t_exp <= 0
+    #         observable[finished&valid], priority[finished] = True, 0.
+    #
+    #     return observable
     #move this function into survey object
-    def compute_exposure_time(self, d):
+    ''' def compute_exposure_time(self, d):
         """ Computes the exposure time and number of observations required to characterize each planet in `d`. """
         wl = self.wl_eff / 10000 # convert from microns -> cm
         h, c, k, T_eff_sol = CONST['h'], CONST['c'], CONST['k'], d['T_eff_sol']
@@ -656,9 +754,9 @@ class Measurement():
             #N_act = t_exp/d['T_dur']
             t_exp = d['T_dur']*N_obs
 
-        return t_exp, N_obs
+        return t_exp, N_obs'''
 
-    def compute_overhead_time(self, d, N_obs=1):
+    '''def compute_overhead_time(self, d, N_obs=1):
         """ Computes the overheads associated with each observation. """
 
         # Imaging mode: 1x overhead for each target
@@ -669,7 +767,7 @@ class Measurement():
         if self.survey.mode == 'transit':
             t_over = N_obs * (self.survey.t_slew + d['T_dur'])
 
-        return t_over
+        return t_over'''
 
     def compute_weights(self, d):
         """ Computes the priority weight of each planet in `d`. """
@@ -691,17 +789,18 @@ class Measurement():
                 weights[match] *= wt
         return weights
 
-    def compute_debias(self, d):
+    '''def compute_debias(self, d):
         """ Removes detection biases from the data set (transit mode only). """
         debias = np.ones(len(d))
         if self.survey.mode == 'imaging' or not self.debias:
             return debias
 
+        #should check if these already exist
         d.compute('a')
         d.compute('a_eff')
         if 'a' in d and self.survey.mode == 'transit':
             debias = d['a']/d['R_st']
-        return debias
+        return debias'''
 
     def perform_measurement(self, x):
         """ Simulates measurements of the parameter from a set of true values. Measurements
@@ -745,25 +844,21 @@ def reset_imaging_survey():
                             diameter = 15.0,
                             inner_working_angle = 3.5,
                             outer_working_angle = 64.0,
-                            t_slew = 0.1,
-                            T_st_ref = 5788.,
-                            R_st_ref = 1.0,
-                            D_ref = 15.0,
-                            d_ref = 10.0)
+                            t_slew = 0.1)
 
     # Define the measurements to conduct
     margs = {}
-    mkeys = ['L_st', 'R_st', 'T_eff_st', 'd', 'contrast', 'a', 'has_H2O', 'age', 'EEC', 'has_O2']
+    mkeys = ['L_st', 'R_st', 'T_eff_st', 'd', 'contrast', 'a', 'age', 'EEC']
 
     margs['precision'] = {'contrast': '10%',
                         'a': '10%',
                         'age': '10%'}
 
-    margs['t_ref'] = {'has_H2O': 0.035,
-                    'has_O2': 0.1}
+    #margs['t_ref'] = {'has_H2O': 0.035,
+    #                'has_O2': 0.1}
 
-    margs['wl_eff'] = {'has_H2O': 1.4,
-                       'has_O2': 0.7}
+    #margs['wl_eff'] = {'has_H2O': 1.4,
+    #                   'has_O2': 0.7}
 
     # Add the measurements to s_imaging
     for mkey in mkeys:
@@ -774,20 +869,20 @@ def reset_imaging_survey():
         s_imaging.add_measurement(mkey, **kwargs)
     
     # Set target weights
-    m = s_imaging.measurements['has_H2O']
-    m.set_weight('a_eff', min=0.2, max=1, weight=1)
-    m.set_weight('a_eff', min=1, max=2, weight=5)
-    m.set_weight('a_eff', min=2, max=10, weight=2)
-    m.set_weight('a_eff', max=0.1, weight=0)
-    m.set_weight('a_eff', min=10, weight=0)
-    m.set_weight('R_eff', max=0.5, weight=0)
-    m.set_weight('R_eff', min=2, weight=0)
-
-    m = s_imaging.measurements['has_O2']
-    m.set_weight('age', min=0, max=1, weight=10)
-    m.set_weight('age', min=1, max=2, weight=5)
-    m.set_weight('age', min=2, max=10, weight=1)
-    m.set_weight('EEC', value=False, weight=0)
+    # m = s_imaging.measurements['has_H2O']
+    # m.set_weight('a_eff', min=0.2, max=1, weight=1)
+    # m.set_weight('a_eff', min=1, max=2, weight=5)
+    # m.set_weight('a_eff', min=2, max=10, weight=2)
+    # m.set_weight('a_eff', max=0.1, weight=0)
+    # m.set_weight('a_eff', min=10, weight=0)
+    # m.set_weight('R_eff', max=0.5, weight=0)
+    # m.set_weight('R_eff', min=2, weight=0)
+    #
+    # m = s_imaging.measurements['has_O2']
+    # m.set_weight('age', min=0, max=1, weight=10)
+    # m.set_weight('age', min=1, max=2, weight=5)
+    # m.set_weight('age', min=2, max=10, weight=1)
+    # m.set_weight('EEC', value=False, weight=0)
 
     s_imaging.save(label='default')
 
@@ -796,15 +891,11 @@ def reset_transit_survey():
     s_transit = TransitSurvey(label=None,
                             diameter = 50.0,
                             N_obs_max = 1000,
-                            t_slew = 0.0208,
-                            T_st_ref = 3300.,
-                            R_st_ref = 0.315,
-                            D_ref = 50.0,
-                            d_ref = 50.0)
+                            t_slew = 0.0208)
 
     # Define the measurements to conduct
     margs = {}
-    mkeys = ['L_st', 'R_st', 'M_st', 'T_eff_st', 'd', 'H', 'age', 'depth', 'T_dur', 'P', 'has_H2O', 'EEC', 'has_O2']
+    mkeys = ['L_st', 'R_st', 'M_st', 'T_eff_st', 'd', 'H', 'age', 'depth', 'T_dur', 'P', 'EEC']
 
     margs['precision'] = {'T_eff_st': 25.,
                         'R_st': '5%',
@@ -812,11 +903,11 @@ def reset_transit_survey():
                         'age': '30%',
                         'P': 0.001}
 
-    margs['t_ref'] = {'has_H2O': 7.5,
-                    'has_O2': 3.1}
-
-    margs['wl_eff'] = {'has_H2O': 1.7,
-                       'has_O2': 0.6}
+    # margs['t_ref'] = {'has_H2O': 7.5,
+    #                 'has_O2': 3.1}
+    #
+    # margs['wl_eff'] = {'has_H2O': 1.7,
+    #                    'has_O2': 0.6}
 
     # Add the measurements to s_transit
     for mkey in mkeys:
@@ -827,21 +918,21 @@ def reset_transit_survey():
         s_transit.add_measurement(mkey, **kwargs)
 
     # Set target weights
-    m = s_transit.measurements['has_H2O']
-    m.set_weight('a_eff', min=0.3, max=0.816, weight=2)
-    m.set_weight('a_eff', min=0.816, max=1.414, weight=3)
-    m.set_weight('a_eff', min=1.414, max=10, weight=6)
-    m.set_weight('a_eff', max=0.1, weight=0)
-    m.set_weight('a_eff', min=10, weight=0)
-    m.set_weight('R', max=0.7, weight=0)
-    m.set_weight('R', min=1.5, weight=0)
-
-    m = s_transit.measurements['has_O2']
-    m.set_weight('age', min=0, max=2, weight=3)
-    m.set_weight('age', min=2, max=4, weight=2)
-    m.set_weight('age', min=4, max=6, weight=1)
-    m.set_weight('age', min=6, max=8, weight=2)
-    m.set_weight('age', min=8, max=12, weight=3)
-    m.set_weight('EEC', value=False, weight=0)
+    # m = s_transit.measurements['has_H2O']
+    # m.set_weight('a_eff', min=0.3, max=0.816, weight=2)
+    # m.set_weight('a_eff', min=0.816, max=1.414, weight=3)
+    # m.set_weight('a_eff', min=1.414, max=10, weight=6)
+    # m.set_weight('a_eff', max=0.1, weight=0)
+    # m.set_weight('a_eff', min=10, weight=0)
+    # m.set_weight('R', max=0.7, weight=0)
+    # m.set_weight('R', min=1.5, weight=0)
+    #
+    # m = s_transit.measurements['has_O2']
+    # m.set_weight('age', min=0, max=2, weight=3)
+    # m.set_weight('age', min=2, max=4, weight=2)
+    # m.set_weight('age', min=4, max=6, weight=1)
+    # m.set_weight('age', min=6, max=8, weight=2)
+    # m.set_weight('age', min=8, max=12, weight=3)
+    # m.set_weight('EEC', value=False, weight=0)
 
     s_transit.save(label='default')
