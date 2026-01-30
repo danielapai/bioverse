@@ -124,7 +124,7 @@ class Survey(dict, Object):
 
         return sample, detected, data
         
-    def observe(self, y, t_total=None, data=None, error=None, demographics=True):
+    def observe(self, y, t_total=None, data=None, error=None, demographics=False):
         """ Returns a simulated data set for a Table of simulated planets.
         
         Parameters
@@ -158,13 +158,17 @@ class Survey(dict, Object):
 
             # Determine the amount of time for this measurement (if it has any exposure time constraints)
             t = np.inf
-            if t_total is not None and m.t_ref is not None:
-                if isinstance(t_total, dict) and m.key in t_total:
-                    t = t_total[m.key]
-                elif not isinstance(t_total, dict):
-                    t = t_total
-                    
-            data = m.measure(y, data, t_total=t)
+            #outdated now that time is associated with survey not measurement
+            # if t_total is not None and m.t_ref is not None:
+            #     if isinstance(t_total, dict) and m.key in t_total:
+            #         t = t_total[m.key]
+            #     elif not isinstance(t_total, dict):
+            #         t = t_total
+
+            try:
+                data = m.measure(y, data, t_total=t)
+            except:
+                print("Problem measuring property: {:s}".format(m.key))
 
         if demographics:
             # compute moving averages for R, rho
@@ -600,21 +604,28 @@ class Measurement():
         if data is None:
             data = Table()
             data.error = Table()
-        data['planetID'] = detected['planetID']
-        data['starID'] = detected['starID']
+            #moved this from outside if statement
+            data['planetID'] = detected['planetID']
+            data['starID'] = detected['starID']
         
         # Determine which planets are valid targets and can be observed in the allotted time
         #observable = self.compute_observable_targets(data, t_total)
 
         # Simulate a measurement for each observable planet
         x, dx = self.perform_measurement(detected[self.key])
+        if dx is None:
+            dx = 0.0
 
         # Place this measurement into the measurements database
         if self.key not in data.keys():
-            data[self.key] = np.full(len(detected), np.nan)
+            data[self.key] = np.full(len(detected), np.nan) #is this needed?
             data.error[self.key] = np.full(len(detected), np.nan)
         data[self.key] = x
-        data.error[self.key] = dx
+
+        if type(x)!=type(dx):
+            data.error[self.key] = dx*np.ones(len(detected))
+        else:
+            data.error[self.key] = dx
 
         return data
     
