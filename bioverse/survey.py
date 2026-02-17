@@ -1,5 +1,6 @@
 from dataclasses import asdict, dataclass, fields
 import numpy as np
+import copy
 
 from .classes import Object, Table
 from . import util
@@ -15,6 +16,7 @@ class Survey(dict, Object):
     diameter: float = 15.0
     t_max: float = 10*365.25
     t_slew: float = 0.1
+    debias: bool = False
     #priority: dict = {}
     #T_st_ref: float = 5788.
     #R_st_ref: float = 1.0
@@ -221,9 +223,10 @@ class Survey(dict, Object):
         if texp_col not in d:
             raise KeyError("No t_exp column found in Table.")
 
-        weights = np.ones(len(d))  # temporarily equal weights
+        weights = self.compute_weights(d)
+        #weights = np.ones(len(d))  # temporarily equal weights
 
-        t_exp = d[texp_col]
+        t_exp = copy.deepcopy(d[texp_col]) #needs deepcopy or edits d in place
         t_over = self.compute_overhead_time(d)
 
         t_total= self.t_max
@@ -275,6 +278,64 @@ class Survey(dict, Object):
             observable[finished & valid], priority[finished] = True, 0.
 
         return observable
+
+    def set_weight(self, key, weight, min=None, max=None, value=None):
+        """ Adds a new rule for determining target weight. `weight` can be set
+        for targets whose parameter fall within (`min`, `max`) or exactly match `value`.
+
+        Parameters
+        ----------
+        key : str
+            Name of the parameter being checked.
+        weight : float
+            Weight of targets that meet the conditions.
+        min : float, optional
+            Minimum value of range. Default is -inf.
+        max : float, optional
+            Maximum value of range. Default is +inf.
+        value : int or str or bool, optional
+            Exact value with which to compare.
+        """
+        # Check inputs
+        if min is None and max is None and value is None:
+            raise ValueError("Must specify one of `min`, `max`, or `value`.")
+        elif (min is not None or max is not None) and value is not None:
+            raise ValueError("Cannot specify both `min`/`max` and `value`.")
+
+        # Check if weight is for specific value
+        if value is not None:
+            arr = [value, None, weight]
+
+        # Check min < x < max
+        else:
+            min = min if min is not None else -np.inf
+            max = max if max is not None else np.inf
+            arr = [min, max, weight]
+
+        # Add the new rule
+        if key not in self.priority:
+            self.priority[key] = np.empty(shape=(0, 3))
+        self.priority[key] = np.append(self.priority[key], [arr], axis=0)
+
+    def compute_weights(self, d):
+        """ Computes the priority weight of each planet in `d`. """
+        weights = np.ones(len(d))
+        for key, arr1 in self.priority.items():
+            # Try to compute d[key] if it hasn't already been measured
+            d.compute(key) #the compute function exits if key exists in d
+            for arr2 in arr1:
+                val1, val2, wt = arr2
+
+                # If val1 and val2 are given, check whether val1 < d[key] < val2
+                if val2 is not None:
+                    match = (d[key] >= val1) & (d[key] <= val2)
+
+                # If only val1 is given, check whether d[key] == val1
+                else:
+                    match = d[key] == val1
+
+                weights[match] *= wt
+        return weights
 
 @dataclass(repr=False)
 class ImagingSurvey(Survey):
@@ -629,43 +690,43 @@ class Measurement():
 
         return data
     
-    def set_weight(self, key, weight, min=None, max=None, value=None):
-        """ Adds a new rule for determining target weight. `weight` can be set
-        for targets whose parameter fall within (`min`, `max`) or exactly match `value`.
-        
-        Parameters
-        ----------
-        key : str
-            Name of the parameter being checked.
-        weight : float
-            Weight of targets that meet the conditions.
-        min : float, optional
-            Minimum value of range. Default is -inf.
-        max : float, optional
-            Maximum value of range. Default is +inf.
-        value : int or str or bool, optional
-            Exact value with which to compare.
-        """
-        # Check inputs
-        if min is None and max is None and value is None:
-            raise ValueError("Must specify one of `min`, `max`, or `value`.")
-        elif (min is not None or max is not None) and value is not None:
-            raise ValueError("Cannot specify both `min`/`max` and `value`.")
-
-        # Check min < x < max
-        if value is not None:
-            arr = [value, None, weight]
-        
-        # Check min < x < max
-        else:
-            min = min if min is not None else -np.inf
-            max = max if max is not None else np.inf
-            arr = [min, max, weight]
-
-        # Add the new rule
-        if key not in self.priority:
-            self.priority[key] = np.empty(shape=(0, 3))
-        self.priority[key] = np.append(self.priority[key], [arr], axis=0)
+    # def set_weight(self, key, weight, min=None, max=None, value=None):
+    #     """ Adds a new rule for determining target weight. `weight` can be set
+    #     for targets whose parameter fall within (`min`, `max`) or exactly match `value`.
+    #
+    #     Parameters
+    #     ----------
+    #     key : str
+    #         Name of the parameter being checked.
+    #     weight : float
+    #         Weight of targets that meet the conditions.
+    #     min : float, optional
+    #         Minimum value of range. Default is -inf.
+    #     max : float, optional
+    #         Maximum value of range. Default is +inf.
+    #     value : int or str or bool, optional
+    #         Exact value with which to compare.
+    #     """
+    #     # Check inputs
+    #     if min is None and max is None and value is None:
+    #         raise ValueError("Must specify one of `min`, `max`, or `value`.")
+    #     elif (min is not None or max is not None) and value is not None:
+    #         raise ValueError("Cannot specify both `min`/`max` and `value`.")
+    #
+    #     # Check min < x < max
+    #     if value is not None:
+    #         arr = [value, None, weight]
+    #
+    #     # Check min < x < max
+    #     else:
+    #         min = min if min is not None else -np.inf
+    #         max = max if max is not None else np.inf
+    #         arr = [min, max, weight]
+    #
+    #     # Add the new rule
+    #     if key not in self.priority:
+    #         self.priority[key] = np.empty(shape=(0, 3))
+    #     self.priority[key] = np.append(self.priority[key], [arr], axis=0)
         
     # def compute_observable_targets(self, data, t_total=None):
     #     """ Determines which planets are observable based on the total allotted observing time.
@@ -780,25 +841,25 @@ class Measurement():
 
         return t_over'''
 
-    def compute_weights(self, d):
-        """ Computes the priority weight of each planet in `d`. """
-        weights = np.ones(len(d))
-        for key, arr1 in self.priority.items():
-            # Try to compute d[key] if it hasn't already been measured
-            d.compute(key)
-            for arr2 in arr1:
-                val1, val2, wt = arr2
-
-                # If val1 and val2 are given, check whether val1 < d[key] < val2
-                if val2 is not None:
-                    match = (d[key] >= val1) & (d[key] <= val2)
-
-                # If only val1 is given, check whether d[key] == val1
-                else:
-                    match = d[key] == val1
-
-                weights[match] *= wt
-        return weights
+    # def compute_weights(self, d):
+    #     """ Computes the priority weight of each planet in `d`. """
+    #     weights = np.ones(len(d))
+    #     for key, arr1 in self.priority.items():
+    #         # Try to compute d[key] if it hasn't already been measured
+    #         d.compute(key)
+    #         for arr2 in arr1:
+    #             val1, val2, wt = arr2
+    #
+    #             # If val1 and val2 are given, check whether val1 < d[key] < val2
+    #             if val2 is not None:
+    #                 match = (d[key] >= val1) & (d[key] <= val2)
+    #
+    #             # If only val1 is given, check whether d[key] == val1
+    #             else:
+    #                 match = d[key] == val1
+    #
+    #             weights[match] *= wt
+    #     return weights
 
     '''def compute_debias(self, d):
         """ Removes detection biases from the data set (transit mode only). """
