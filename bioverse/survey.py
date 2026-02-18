@@ -15,8 +15,8 @@ class Survey(dict, Object):
     label: str = None
     diameter: float = 15.0
     t_max: float = 10*365.25
-    t_slew: float = 0.1
-    debias: bool = False
+    t_slew: float = 0.00347 #5 min in days
+    #debias: bool = False
     #priority: dict = {}
     #T_st_ref: float = 5788.
     #R_st_ref: float = 1.0
@@ -216,7 +216,7 @@ class Survey(dict, Object):
         debias = d['a']/d['R_st']
         return debias
 
-    def schedule_observations(self, d, texp_col='t_exp', N_obs_col='N_obs',debias=False):
+    def schedule_observations(self, d, texp_col='t_exp', N_obs_col='N_obs',debias=False,zero_overhead=False):
         if not hasattr(self, 'mode'):
             raise KeyError("No mode was specified for this survey.")
 
@@ -227,7 +227,10 @@ class Survey(dict, Object):
         #weights = np.ones(len(d))  # temporarily equal weights
 
         t_exp = copy.deepcopy(d[texp_col]) #needs deepcopy or edits d in place
-        t_over = self.compute_overhead_time(d)
+        if zero_overhead:
+            t_over= np.zeros_like(t_exp)
+        else:
+            t_over = self.compute_overhead_time(d)
 
         t_total= self.t_max
         if t_total is None:
@@ -511,7 +514,7 @@ class TransitSurvey(Survey):
         return d[mask]
 
 
-    def compute_yield(self, d, method='detectable',debias=False,**kwargs):
+    def compute_yield(self, d, method='detectable',debias=False,zero_overhead=False,**kwargs):
         """ Computes a simple estimate of the detection yield for a transit survey. Currently all detectable transiting
         planets are considered to be detected.
 
@@ -519,6 +522,13 @@ class TransitSurvey(Survey):
         ----------
         d : Table
             Table of all simulated planets which the survey could attempt to observe.
+        method : str
+            Method used for yield calculation.
+                "detectable" implies all detectable planets are observed without consideration of exposure time
+                and total mission duration.
+                "scaling relation" uses estimated exposure times from PSG and a scaling relation
+        debias : bool
+            Apply debias correction for transiting planets.
 
         Returns
         -------
@@ -533,7 +543,7 @@ class TransitSurvey(Survey):
             #originally in measurement object
             d = self.compute_detectable(d)
             d= self.exp_time_scaling_relation(d,**kwargs)
-            to_observe= self.schedule_observations(d,texp_col='t_exp',N_obs_col='N_obs',debias=debias)
+            to_observe= self.schedule_observations(d,texp_col='t_exp',N_obs_col='N_obs',debias=debias,zero_overhead=zero_overhead)
             d= d[to_observe]
         else:
             raise Exception('Method: {} not recognized'.format(method))
@@ -541,7 +551,6 @@ class TransitSurvey(Survey):
         #add sky area constraint
         #survey constraint
 
-        #add logic for max number of transits here
         # Return the output table
         return d
 
