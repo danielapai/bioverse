@@ -1158,7 +1158,7 @@ def scale_height(d):
 
     """
     # Assign the mean molecular weight based on planet size
-    rocky = np.in1d(d['class2'], ['rocky', 'super-Earth'])
+    rocky = np.isin(d['class2'], ['rocky', 'super-Earth'])
 
     d['mu'], d['pCO2'], d['pN2'] = np.zeros((3, len(d)))
 

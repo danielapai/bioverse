@@ -19,7 +19,7 @@ def requirements_list():
 
 setup(
     name = "bioverse",
-    version="1.1.8",
+    version="1.2.0",
     author = "Alex Bixel",
     author_email = "bioverse-dev@list.arizona.edu",
     description = ("A simulation framework to assess the statistical power of future biosignature surveys"),
