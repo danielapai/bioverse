@@ -427,6 +427,7 @@ def compute_t_ref(filenames, t_exp, wl_min, wl_max, threshold=5, usecols=(0, 1, 
     x2, y2, _ = np.loadtxt(filenames[1], usecols=usecols, unpack=True)
 
     # Ensure the wavelength values match within the specified range
+    #does this require both x1 and x2 have identical wl ranges?
     idx1 = (x1 >= wl_min) & (x1 <= wl_max)
     idx2 = (x2 >= wl_min) & (x2 <= wl_max)
     if not (x1[idx1] == x2[idx2]).all():

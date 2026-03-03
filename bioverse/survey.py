@@ -11,17 +11,11 @@ class Survey(dict, Object):
     """
     Describes an exoplanet survey, including methods for creating simulated datasets. This class should not be called directly; instead use ImagingSurvey or TransitSurvey.
     """
-
     label: str = None
     diameter: float = 15.0
     t_max: float = 10*365.25
     t_slew: float = 0.00347 #5 min in days
     #debias: bool = False
-    #priority: dict = {}
-    #T_st_ref: float = 5788.
-    #R_st_ref: float = 1.0
-    #D_ref: float = 15.0
-    #d_ref: float = 10.0
 
     def __post_init__(self):
         if type(self) == Survey:
@@ -257,6 +251,28 @@ class Survey(dict, Object):
         # Observe planets in order of priority, until we run out of time or valid targets
         t_sum, observable = 0., np.zeros(len(d), dtype=bool)
         valid = weights > 0
+        #finished = np.zeros_like(observable)
+
+        sorted_inds= np.argsort(priority)
+        sorted_inds= sorted_inds[::-1]
+
+        t_obs = t_exp + t_over
+        for i in sorted_inds:
+            t_sum += t_obs[i]
+            if t_sum > t_total:
+                break
+
+            if self.mode == 'imaging':
+                same_system= (d['starID'] == d['starID'][i])
+                t_exp[same_system] -= t_exp[i]
+
+            elif self.mode == 'transit':
+                t_exp[i]-= t_exp[i]
+
+        finished = (t_exp <= 0)
+        observable[finished & valid]= True
+        '''
+        #TODO redo this for loop
         for i in range(valid.sum()):
             # Determine the current highest priority planet and how much time is required to observe it
             t_obs = t_exp + t_over
@@ -278,7 +294,7 @@ class Survey(dict, Object):
 
             # Mark planets with t_exp <= 0 as "observable" and remove them from the line-up
             finished = t_exp <= 0
-            observable[finished & valid], priority[finished] = True, 0.
+            observable[finished & valid], priority[finished] = True, 0.'''
 
         return observable
 
@@ -623,29 +639,17 @@ class Measurement():
     debias : bool, optional
         (Transit mode) If True, weight targets by a/R_* to cancel the transit detection bias.
     """
-    def __init__(self, key, survey, precision=0., t_total=None, t_ref=None, priority={}, wl_eff=0.5, debias=True):
+    def __init__(self, key, survey, precision=0.):
         # Save the keyword values
         self.key = key
         self.survey = survey
         self.precision = precision
-        #self.t_total = t_total
-        #self.t_ref = t_ref
-        #self.priority = {key:np.array(val) for key, val in priority.items()}
-        #self.wl_eff = wl_eff
-        self.debias = debias
 
     def __repr__(self):
         s = "Measures parameter '{:s}'".format(self.key)
         if self.precision != 0.:
             s += " with {:s} precision".format(str(self.precision))
-        # try:
-        #     for i,cdtn in enumerate(self.conditions):
-        #         s += "\n    Conditions: {:s}".format(cdtn) if i == 0 else ' AND {:s}'.format(cdtn)
-        # except AttributeError:
-        #     pass
-        # if self.t_ref is not None:
-        #     s += "\n    Average time required: {:.1f} d".format(self.t_ref)
-            
+
         return s
 
     def measure(self, detected, data=None, error=None, t_total=None):
@@ -698,190 +702,6 @@ class Measurement():
             data.error[self.key] = dx
 
         return data
-    
-    # def set_weight(self, key, weight, min=None, max=None, value=None):
-    #     """ Adds a new rule for determining target weight. `weight` can be set
-    #     for targets whose parameter fall within (`min`, `max`) or exactly match `value`.
-    #
-    #     Parameters
-    #     ----------
-    #     key : str
-    #         Name of the parameter being checked.
-    #     weight : float
-    #         Weight of targets that meet the conditions.
-    #     min : float, optional
-    #         Minimum value of range. Default is -inf.
-    #     max : float, optional
-    #         Maximum value of range. Default is +inf.
-    #     value : int or str or bool, optional
-    #         Exact value with which to compare.
-    #     """
-    #     # Check inputs
-    #     if min is None and max is None and value is None:
-    #         raise ValueError("Must specify one of `min`, `max`, or `value`.")
-    #     elif (min is not None or max is not None) and value is not None:
-    #         raise ValueError("Cannot specify both `min`/`max` and `value`.")
-    #
-    #     # Check min < x < max
-    #     if value is not None:
-    #         arr = [value, None, weight]
-    #
-    #     # Check min < x < max
-    #     else:
-    #         min = min if min is not None else -np.inf
-    #         max = max if max is not None else np.inf
-    #         arr = [min, max, weight]
-    #
-    #     # Add the new rule
-    #     if key not in self.priority:
-    #         self.priority[key] = np.empty(shape=(0, 3))
-    #     self.priority[key] = np.append(self.priority[key], [arr], axis=0)
-        
-    # def compute_observable_targets(self, data, t_total=None):
-    #     """ Determines which planets are observable based on the total allotted observing time.
-    #
-    #     Parameters
-    #     ----------
-    #     data : Table
-    #         Table of data values already measured for these planets.
-    #     t_total : float, optional
-    #         Total observing time for this measurement. If None, use self.t_total.
-    #
-    #     Returns
-    #     -------
-    #     observable : bool array
-    #         Specifies which planets in the table are observable within the allotted time.
-    #     """
-    #
-    #     # Compute the weight of each target
-    #     weights = self.compute_weights(data)
-    #
-    #     # If t_ref is zero, then the measurement is instantaneous;
-    #     # all targets with weight > 0 are observable
-    #     if self.t_ref is None or self.t_ref == 0:
-    #         return weights > 0
-    #
-    #     # Compute the required exposure and overhead time for each target
-    #     t_exp, N_obs = self.compute_exposure_time(data)
-    #     t_over = self.compute_overhead_time(data)
-    #
-    #     # (Transit mode) Targets are invalid if they require too many transit observations
-    #     if self.survey.mode == 'transit':
-    #         weights[(N_obs*data['P']) > self.survey.t_max] = 0
-    #         weights[N_obs > self.survey.N_obs_max] = 0
-    #
-    #     # If t_total is infinite, then all targets with weight > 0 are observable, except
-    #     # those for which too many transit observations are required
-    #     if t_total is None:
-    #         t_total = self.t_total
-    #     if np.isinf(t_total):
-    #         return weights > 0
-    #
-    #     #should be moved to transit specific if statement?
-    #     # (Transit mode) Debias targets based on orbital period
-    #     weights *= self.compute_debias(data)
-    #
-    #     # Compute the priority of each target based on its weight and the required exposure time
-    #     priority = weights/(t_exp+t_over)
-    #
-    #     # Observe planets in order of priority, until we run out of time or valid targets
-    #     t_sum, observable = 0., np.zeros(len(data), dtype=bool)
-    #     valid = weights > 0
-    #     for i in range(valid.sum()):
-    #         # Determine the current highest priority planet and how much time is required to observe it
-    #         t_obs = t_exp + t_over
-    #         idx = np.argmax(priority)
-    #
-    #         # Add this amount of time to the budget - if it's too much, then stop observing immediately
-    #         t_sum += t_obs[idx]
-    #         if t_sum > t_total:
-    #             break
-    #
-    #         # (Imaging mode) Observe the target along with other planets in the same system
-    #         if self.survey.mode == 'imaging':
-    #             t_exp[data['starID']==data['starID'][idx]] -= t_exp[idx]
-    #
-    #         # (Transit mode) Only observe the target
-    #         elif self.survey.mode == 'transit':
-    #             t_exp[idx] -= t_exp[idx]
-    #
-    #         # Mark planets with t_exp <= 0 as "observable" and remove them from the line-up
-    #         finished = t_exp <= 0
-    #         observable[finished&valid], priority[finished] = True, 0.
-    #
-    #     return observable
-    #move this function into survey object
-    ''' def compute_exposure_time(self, d):
-        """ Computes the exposure time and number of observations required to characterize each planet in `d`. """
-        wl = self.wl_eff / 10000 # convert from microns -> cm
-        h, c, k, T_eff_sol = CONST['h'], CONST['c'], CONST['k'], d['T_eff_sol']
-        #add to constants.py
-
-        # Reference case parameters
-        T_ref, R_ref, D_ref, d_ref = self.survey.T_st_ref, self.survey.R_st_ref, self.survey.D_ref, self.survey.d_ref
-
-        # Scaling factors for each survey mode
-        f = self.survey.compute_scaling_factor(d)
-
-        # Calculate the exposure time required for each target, based on the reference time
-        flux_ratio = (np.exp(h*c/(wl*k*T_ref)) - 1) / (np.exp(h*c/(wl*k*d['T_eff_st'])) - 1)
-        t_exp = f * self.t_ref * (self.survey.diameter/D_ref)**-2 * (d['d']/d_ref)**2 * (d['R_st']/R_ref)**-2 * flux_ratio**-1
-
-        # Number of observations (1 for imaging mode, integer multiple of transit duration for transit mode)
-        if self.survey.mode == 'imaging':
-            N_obs = np.ones(len(d))
-        if self.survey.mode == 'transit':
-            N_obs = np.ceil(t_exp/d['T_dur'])
-            #N_act = t_exp/d['T_dur']
-            t_exp = d['T_dur']*N_obs
-
-        return t_exp, N_obs'''
-
-    '''def compute_overhead_time(self, d, N_obs=1):
-        """ Computes the overheads associated with each observation. """
-
-        # Imaging mode: 1x overhead for each target
-        if self.survey.mode == 'imaging':
-            t_over = np.full(len(d), self.survey.t_slew)
-
-        # Transit mode: N_obs x (overhead + T_dur) for each target
-        if self.survey.mode == 'transit':
-            t_over = N_obs * (self.survey.t_slew + d['T_dur'])
-
-        return t_over'''
-
-    # def compute_weights(self, d):
-    #     """ Computes the priority weight of each planet in `d`. """
-    #     weights = np.ones(len(d))
-    #     for key, arr1 in self.priority.items():
-    #         # Try to compute d[key] if it hasn't already been measured
-    #         d.compute(key)
-    #         for arr2 in arr1:
-    #             val1, val2, wt = arr2
-    #
-    #             # If val1 and val2 are given, check whether val1 < d[key] < val2
-    #             if val2 is not None:
-    #                 match = (d[key] >= val1) & (d[key] <= val2)
-    #
-    #             # If only val1 is given, check whether d[key] == val1
-    #             else:
-    #                 match = d[key] == val1
-    #
-    #             weights[match] *= wt
-    #     return weights
-
-    '''def compute_debias(self, d):
-        """ Removes detection biases from the data set (transit mode only). """
-        debias = np.ones(len(d))
-        if self.survey.mode == 'imaging' or not self.debias:
-            return debias
-
-        #should check if these already exist
-        d.compute('a')
-        d.compute('a_eff')
-        if 'a' in d and self.survey.mode == 'transit':
-            debias = d['a']/d['R_st']
-        return debias'''
 
     def perform_measurement(self, x):
         """ Simulates measurements of the parameter from a set of true values. Measurements
