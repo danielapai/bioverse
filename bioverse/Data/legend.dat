@@ -79,3 +79,4 @@ phase_angle, float, Planet illumination phase angle (radians)
 ang_sep_mas, float, Planet-star angular separation (milliarcseconds)
 t_req, float, exposure time required for observation
 t_exp, float, exposure time
+N_obs, int, number of observations of the planet

@@ -22,6 +22,7 @@ class Survey(dict, Object):
             raise ValueError("don't call Survey directly - instead use ImagingSurvey or TransitSurvey")
         self.measurements = {}
         self.priority={}
+        self.reference={} #dictionary of reference values for scaling relation
         Object.__init__(self, self.label)
 
         # Casts all parameters to the correct type
@@ -355,6 +356,10 @@ class Survey(dict, Object):
 
                 weights[match] *= wt
         return weights
+    def set_reference_observation(self,**ref_kwargs):
+        self.reference.update({**ref_kwargs})
+        return
+
 
 @dataclass(repr=False)
 class ImagingSurvey(Survey):
@@ -530,7 +535,7 @@ class TransitSurvey(Survey):
         return d[mask]
 
 
-    def compute_yield(self, d, method='detectable',debias=False,zero_overhead=False,**kwargs):
+    def compute_yield(self, d, method='detectable',debias=False,zero_overhead=False,**ref_kwargs):
         """ Computes a simple estimate of the detection yield for a transit survey. Currently all detectable transiting
         planets are considered to be detected.
 
@@ -545,6 +550,10 @@ class TransitSurvey(Survey):
                 "scaling relation" uses estimated exposure times from PSG and a scaling relation
         debias : bool
             Apply debias correction for transiting planets.
+        zero_overhead : bool
+            set overhead to zero
+        ref_kwargs : dict, optional
+            sets reference observation, updates self.reference
 
         Returns
         -------
@@ -557,8 +566,11 @@ class TransitSurvey(Survey):
         elif method == 'scaling_relation':
             #adapt alex's target prioritization here + overheads
             #originally in measurement object
+
+            self.reference.update({**ref_kwargs})
             d = self.compute_detectable(d)
-            d= self.exp_time_scaling_relation(d,**kwargs)
+            d = self.compute_detectable(d)
+            d= self.exp_time_scaling_relation(d,**self.reference)
             to_observe= self.schedule_observations(d,texp_col='t_exp',N_obs_col='N_obs',debias=debias,zero_overhead=zero_overhead)
             d= d[to_observe]
         else:
@@ -837,3 +849,38 @@ def reset_transit_survey():
     # m.set_weight('EEC', value=False, weight=0)
 
     s_transit.save(label='default')
+
+#preserve old target prioritization so that example notebooks still work
+def prioritize_survey(survey,label):
+    if label == 'imaging_H2O':
+        survey.set_weight('a_eff', min=0.2, max=1, weight=1)
+        survey.set_weight('a_eff', min=1, max=2, weight=5)
+        survey.set_weight('a_eff', min=2, max=10, weight=2)
+        survey.set_weight('a_eff', max=0.1, weight=0)
+        survey.set_weight('a_eff', min=10, weight=0)
+        survey.set_weight('R_eff', max=0.5, weight=0)
+        survey.set_weight('R_eff', min=2, weight=0)
+    elif label == 'imaging_O2':
+        survey.set_weight('age', min=0, max=1, weight=10)
+        survey.set_weight('age', min=1, max=2, weight=5)
+        survey.set_weight('age', min=2, max=10, weight=1)
+        survey.set_weight('EEC', value=False, weight=0)
+    elif label == 'transit_H2O':
+        survey.set_weight('a_eff', min=0.3, max=0.816, weight=2)
+        survey.set_weight('a_eff', min=0.816, max=1.414, weight=3)
+        survey.set_weight('a_eff', min=1.414, max=10, weight=6)
+        survey.set_weight('a_eff', max=0.1, weight=0)
+        survey.set_weight('a_eff', min=10, weight=0)
+        survey.set_weight('R', max=0.7, weight=0)
+        survey.set_weight('R', min=1.5, weight=0)
+    elif label == 'transit_O2':
+        survey.set_weight('age', min=0, max=2, weight=3)
+        survey.set_weight('age', min=2, max=4, weight=2)
+        survey.set_weight('age', min=4, max=6, weight=1)
+        survey.set_weight('age', min=6, max=8, weight=2)
+        survey.set_weight('age', min=8, max=12, weight=3)
+        survey.set_weight('EEC', value=False, weight=0)
+    else:
+        raise Exception("Unknown label: {}".format(label))
+
+    return
