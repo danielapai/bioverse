@@ -259,6 +259,9 @@ class Survey(dict, Object):
 
         t_obs = t_exp + t_over
         for i in sorted_inds:
+            if not valid[i]:
+                continue
+
             t_sum += t_obs[i]
             if t_sum > t_total:
                 break
@@ -270,32 +273,8 @@ class Survey(dict, Object):
             elif self.mode == 'transit':
                 t_exp[i]-= t_exp[i]
 
-        finished = (t_exp <= 0)
-        observable[finished & valid]= True
-        '''
-        #TODO redo this for loop
-        for i in range(valid.sum()):
-            # Determine the current highest priority planet and how much time is required to observe it
-            t_obs = t_exp + t_over
-            idx = np.argmax(priority)
-
-            # Add this amount of time to the budget - if it's too much, then stop observing immediately
-            t_sum += t_obs[idx]
-            if t_sum > t_total:
-                break
-
-            # (Imaging mode) Observe the target along with other planets in the same system
-            if self.mode == 'imaging':
-                t_exp[d['starID'] == d['starID'][idx]] -= t_exp[idx]
-                #weird legacy code resets t_exp to negative or zero if observed, it works though
-
-            # (Transit mode) Only observe the target
-            elif self.mode == 'transit':
-                t_exp[idx] -= t_exp[idx]
-
-            # Mark planets with t_exp <= 0 as "observable" and remove them from the line-up
-            finished = t_exp <= 0
-            observable[finished & valid], priority[finished] = True, 0.'''
+        #finished = (t_exp <= 0)
+        observable[t_exp <= 0]= True
 
         return observable
 
@@ -568,7 +547,6 @@ class TransitSurvey(Survey):
             #originally in measurement object
 
             self.reference.update({**ref_kwargs})
-            d = self.compute_detectable(d)
             d = self.compute_detectable(d)
             d= self.exp_time_scaling_relation(d,**self.reference)
             to_observe= self.schedule_observations(d,texp_col='t_exp',N_obs_col='N_obs',debias=debias,zero_overhead=zero_overhead)
