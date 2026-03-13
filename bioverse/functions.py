@@ -19,7 +19,7 @@ warnings.filterwarnings("ignore")
 from .classes import Table
 from . import util
 from .util import CATALOG, interpolate_df, lambertian_phase
-from .constants import CONST, ROOT_DIR, DATA_DIR
+from .constants import CONST, ROOT_DIR, DATA_DIR, HZ_CONST
 
 def luminosity_evolution(d):
     """
@@ -1010,7 +1010,7 @@ def classify_planets(d):
 
     return d
 
-def compute_habitable_zone_boundaries(d):
+def compute_habitable_zone_boundaries(d,HZ_formulation='K14'):
     """ Computes the habitable zone boundaries from Kopparapu et al. (2014), including
     dependence on planet mass.
 
@@ -1018,6 +1018,12 @@ def compute_habitable_zone_boundaries(d):
     ----------
     d : Table
         Table containing the sample of simulated planets.
+    HZ_formulation: str, optional
+        Formulation of the habitable zone to use. Options are:
+        'K14' : Kopparapu et al. (2014) HZ, including dependence on planet mass
+        'K13': Kopparapu el al. (2013) HZ, conservative (moist greenhouse,max_greenhouse)
+        'K13_optimistic': Kopparapu+ 2013 HZ, optimistic base on recent Venus and early mars
+        'R18': Ramirez et al. (2018) HZ, including methane
 
     Returns
     -------
@@ -1026,63 +1032,103 @@ def compute_habitable_zone_boundaries(d):
     """
     L,T_eff = d['L_st'],d['T_eff_st']
     M_pl = d['M']
-    
-    # Parameters for each planet mass and boundary (Table 1)
-    M_ref = np.array([0.1,1.,5.])
-    S_eff_sol = np.array([[1.776,0.99,0.356,0.32],
-                          [1.776,1.107,0.356,0.32],
-                          [1.776,1.188,0.356,0.32]])
-    a = np.array([[2.136e-4,1.209e-4,6.171e-5,5.547e-5],
-                  [2.136e-4,1.332e-4,6.171e-5,5.547e-5],
-                  [2.136e-4,1.433e-4,6.171e-5,5.547e-5]])
-    b = np.array([[2.533e-5,1.404e-8,1.698e-9,1.526e-9],
-                  [2.533e-5,1.58e-8,1.698e-9,1.526e-9],
-                  [2.533e-5,1.707e-8,1.698e-9,1.526e-9]])
-    c = np.array([[-1.332e-11,-7.418e-12,-3.198e-12,-2.874e-12],
-                  [-1.332e-11,-8.308e-12,-3.198e-12,-2.874e-12],
-                  [-1.332e-11,-8.968e-12,-3.198e-12,-2.874e-12]])
-    d2 = np.array([[-3.097e-15,-1.713e-15,-5.575e-16,-5.011e-16],
-                  [-3.097e-15,-1.931e-15,-5.575e-16,-5.011e-16],
-                  [-3.097e-15,-2.084e-15,-5.575e-16,-5.011e-16]])
-    
-    # Interpolate in mass to estimate the constant values for each planet
-    S_eff_sol0 = np.array([np.interp(M_pl,M_ref,S_eff_sol[:,i]) for i in range(len(S_eff_sol[0]))])
-    a = np.array([np.interp(M_pl,M_ref,a[:,i]) for i in range(len(a[0]))])
-    b = np.array([np.interp(M_pl,M_ref,b[:,i]) for i in range(len(b[0]))])
-    c = np.array([np.interp(M_pl,M_ref,c[:,i]) for i in range(len(c[0]))])
-    d2 = np.array([np.interp(M_pl,M_ref,d2[:,i]) for i in range(len(d2[0]))])
-    
-    # Calculate the effective stellar flux at each boundary (Equation 4)
-    T_st = T_eff-5780.
-    S_eff = S_eff_sol0+a*T_st+b*T_st**2+c*T_st**3+d2*T_st**4
-    
-    # The corresponding distances in AU (stars with T_eff > 7200 K are not habitable so d = inf)
-    Tm = T_eff<7200
-    dist = (L/S_eff)**0.5
-    dist[:,~Tm] = np.inf
 
-    # Inner, outer HZ bounds for each planet
-    d_in,d_out = dist[1],dist[2]
-    d['a_inner'],d['a_outer'] = d_in,d_out
-    d['S_inner'],d['S_outer'] = S_eff[1],S_eff[2]
+    if HZ_formulation == 'K14':
+        #from Kopparapu et al. (2014), including dependence on planet mass.
+        # Parameters for each planet mass and boundary (Table 1)
+        M_ref = np.array([0.1,1.,5.])
+        S_eff_sol = np.array([[1.776,0.99,0.356,0.32],
+                              [1.776,1.107,0.356,0.32],
+                              [1.776,1.188,0.356,0.32]])
+        a = np.array([[2.136e-4,1.209e-4,6.171e-5,5.547e-5],
+                      [2.136e-4,1.332e-4,6.171e-5,5.547e-5],
+                      [2.136e-4,1.433e-4,6.171e-5,5.547e-5]])
+        b = np.array([[2.533e-5,1.404e-8,1.698e-9,1.526e-9],
+                      [2.533e-5,1.58e-8,1.698e-9,1.526e-9],
+                      [2.533e-5,1.707e-8,1.698e-9,1.526e-9]])
+        c = np.array([[-1.332e-11,-7.418e-12,-3.198e-12,-2.874e-12],
+                      [-1.332e-11,-8.308e-12,-3.198e-12,-2.874e-12],
+                      [-1.332e-11,-8.968e-12,-3.198e-12,-2.874e-12]])
+        d2 = np.array([[-3.097e-15,-1.713e-15,-5.575e-16,-5.011e-16],
+                      [-3.097e-15,-1.931e-15,-5.575e-16,-5.011e-16],
+                      [-3.097e-15,-2.084e-15,-5.575e-16,-5.011e-16]])
+
+        # Interpolate in mass to estimate the constant values for each planet
+        S_eff_sol0 = np.array([np.interp(M_pl,M_ref,S_eff_sol[:,i]) for i in range(len(S_eff_sol[0]))])
+        a = np.array([np.interp(M_pl,M_ref,a[:,i]) for i in range(len(a[0]))])
+        b = np.array([np.interp(M_pl,M_ref,b[:,i]) for i in range(len(b[0]))])
+        c = np.array([np.interp(M_pl,M_ref,c[:,i]) for i in range(len(c[0]))])
+        d2 = np.array([np.interp(M_pl,M_ref,d2[:,i]) for i in range(len(d2[0]))])
+    
+        # Calculate the effective stellar flux at each boundary (Equation 4)
+        T_st = T_eff-5780.
+        S_eff = S_eff_sol0+a*T_st+b*T_st**2+c*T_st**3+d2*T_st**4
+    
+        # The corresponding distances in AU (stars with T_eff > 7200 K are not habitable so d = inf)
+        Tm = T_eff<7200
+        dist = (L/S_eff)**0.5
+        dist[:,~Tm] = np.inf
+
+        # Inner, outer HZ bounds for each planet
+        d_in,d_out = dist[1],dist[2]
+        S_in,S_out = S_eff[1],S_eff[2]
+        d['a_inner'], d['a_outer'] = d_in, d_out
+        d['S_inner'], d['S_outer'] = S_in, S_out
+
+        # Compute the mean semi-major axis
+        d['a0'] = d['a'] / (1 - d['e'] ** 2) ** 0.5
+        return d
+
+    if HZ_formulation == 'K13':
+        #Kopparapu+ 2013 HZ formulation
+        C_inner=HZ_CONST['moist_greenhouse']
+        C_outer=HZ_CONST['max_greenhouse']
+        T_max= 7200
+    elif HZ_formulation == 'K13_optimistic':
+        #Kopparapu+ 2013 optimistic HZ
+        C_inner=HZ_CONST['recent_venus']
+        C_outer=HZ_CONST['early_mars']
+        T_max= 7200
+    elif HZ_formulation == 'R18':
+        #Ramirez et al 2018 HZ
+        C_inner=HZ_CONST['leconte']
+        C_outer=HZ_CONST['CO2_max']
+        T_max= 10000
+    else:
+        raise ValueError('HZ formation not recognized')
+
+    T_st = T_eff - 5780.
+    S_in = C_inner[0] + C_inner[1] * T_st + C_inner[2] * T_st ** 2 + C_inner[3] * T_st ** 3 + C_inner[4] * T_st ** 4
+    S_out = C_outer[0] + C_outer[1] * T_st + C_outer[2] * T_st ** 2 + C_outer[3] * T_st ** 3 + C_outer[4] * T_st ** 4
+
+    d_in = (L/S_in)**0.5
+    d_out = (L/S_out)**0.5
+
+    d_in[T_eff>T_max]=np.inf
+    d_out[T_eff>T_max]=np.inf
+
+    d['a_inner'], d['a_outer'] = d_in, d_out
+    d['S_inner'], d['S_outer'] = S_in, S_out
 
     # Compute the mean semi-major axis
-    d['a0'] = d['a']/(1-d['e']**2)**0.5
+    d['a0'] = d['a'] / (1 - d['e'] ** 2) ** 0.5
+
+    return d
+
 
     # By default planets are in the 'None' zone
-    zones = np.full(len(d),'None',dtype='<U20')
+    #zones = np.full(len(d),'None',dtype='<U20')
     
     # Kopparapu+2014 limits
-    zones[d['a0']<=d['a_inner']] = 'runaway'
-    zones[d['a0']>=d['a_outer']] = 'maximum'
-    zones[(d['a0']>d['a_inner'])&(d['a0']<d['a_outer'])] = 'temperate'
+    #zones[d['a0']<=d['a_inner']] = 'runaway'
+    #zones[d['a0']>=d['a_outer']] = 'maximum'
+    #zones[(d['a0']>d['a_inner'])&(d['a0']<d['a_outer'])] = 'temperate'
     
     # Kane+2014 "Venus zone" inner edge (also e.g. Zahnle+2013)
     #zones[d['S']>25] = 'hot'
 
     #d['zone'] = zones
 
-    return d
 
 
 def scale_height(d):
