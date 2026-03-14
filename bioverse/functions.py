@@ -1116,19 +1116,6 @@ def compute_habitable_zone_boundaries(d,HZ_formulation='K14'):
     return d
 
 
-    # By default planets are in the 'None' zone
-    #zones = np.full(len(d),'None',dtype='<U20')
-    
-    # Kopparapu+2014 limits
-    #zones[d['a0']<=d['a_inner']] = 'runaway'
-    #zones[d['a0']>=d['a_outer']] = 'maximum'
-    #zones[(d['a0']>d['a_inner'])&(d['a0']<d['a_outer'])] = 'temperate'
-    
-    # Kane+2014 "Venus zone" inner edge (also e.g. Zahnle+2013)
-    #zones[d['S']>25] = 'hot'
-
-    #d['zone'] = zones
-
 
 
 def scale_height(d):
