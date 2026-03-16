@@ -1022,7 +1022,7 @@ def compute_habitable_zone_boundaries(d,HZ_formulation='K14'):
         Formulation of the habitable zone to use. Options are:
         'K14' : Kopparapu et al. (2014) HZ, including dependence on planet mass
         'K13': Kopparapu el al. (2013) HZ, conservative (moist greenhouse,max_greenhouse)
-        'K13_optimistic': Kopparapu+ 2013 HZ, optimistic base on recent Venus and early mars
+        'K13_optimistic': Kopparapu+ 2013 HZ, optimistic base on recent Venus and early Mars
         'R18': Ramirez et al. (2018) HZ, including methane
 
     Returns
