@@ -4,6 +4,7 @@
 import os
 import glob
 import numpy as np
+from numpy.polynomial import Polynomial
 import pandas as pd
 import polars as pl
 import astropy.units as u
@@ -1011,8 +1012,7 @@ def classify_planets(d):
     return d
 
 def compute_habitable_zone_boundaries(d,HZ_formulation='K14'):
-    """ Computes the habitable zone boundaries from Kopparapu et al. (2014), including
-    dependence on planet mass.
+    """ Computes the habitable zone boundaries for a given formulation.
 
     Parameters
     ----------
@@ -1036,6 +1036,7 @@ def compute_habitable_zone_boundaries(d,HZ_formulation='K14'):
     if HZ_formulation == 'K14':
         #from Kopparapu et al. (2014), including dependence on planet mass.
         # Parameters for each planet mass and boundary (Table 1)
+        #boundaries are given by a polynomial in the form S= S_eff_sol+a*T+b*T^2 +c*T^3 + d*T^4
         M_ref = np.array([0.1,1.,5.])
         S_eff_sol = np.array([[1.776,0.99,0.356,0.32],
                               [1.776,1.107,0.356,0.32],
@@ -1079,27 +1080,37 @@ def compute_habitable_zone_boundaries(d,HZ_formulation='K14'):
         d['a0'] = d['a'] / (1 - d['e'] ** 2) ** 0.5
         return d
 
+    # Kopparapu+ 2013 and Ramirez+ 2018 parameterize the habitable zone boundaries in terms of
+    #   a fourth order polynomial in T= T_eff -T_eff_sun. Here we specify which set of coefficients
+    #   for the polynomial we should use.
     if HZ_formulation == 'K13':
         #Kopparapu+ 2013 HZ formulation
         C_inner=HZ_CONST['moist_greenhouse']
         C_outer=HZ_CONST['max_greenhouse']
+        # maximum temperature that this HZ model is valid for (K)
         T_max= 7200
     elif HZ_formulation == 'K13_optimistic':
         #Kopparapu+ 2013 optimistic HZ
         C_inner=HZ_CONST['recent_venus']
         C_outer=HZ_CONST['early_mars']
+        # maximum temperature that this HZ model is valid for (K)
         T_max= 7200
     elif HZ_formulation == 'R18':
         #Ramirez et al 2018 HZ
         C_inner=HZ_CONST['leconte']
         C_outer=HZ_CONST['CO2_max']
+        # maximum temperature that this HZ model is valid for (K)
         T_max= 10000
     else:
         raise ValueError('HZ formation not recognized')
 
     T_st = T_eff - 5780.
-    S_in = C_inner[0] + C_inner[1] * T_st + C_inner[2] * T_st ** 2 + C_inner[3] * T_st ** 3 + C_inner[4] * T_st ** 4
-    S_out = C_outer[0] + C_outer[1] * T_st + C_outer[2] * T_st ** 2 + C_outer[3] * T_st ** 3 + C_outer[4] * T_st ** 4
+    #this is equivalent to setting S_in=C_inner[0] + C_inner[1] * T_st + C_inner[2] * T_st ** 2 + C_inner[3] * T_st ** 3 + C_inner[4] * T_st ** 4
+    f_in= Polynomial(C_inner)
+    S_in = f_in(T_st)
+
+    f_out= Polynomial(C_outer)
+    S_out = f_out(T_st)
 
     d_in = (L/S_in)**0.5
     d_out = (L/S_out)**0.5
@@ -1114,9 +1125,6 @@ def compute_habitable_zone_boundaries(d,HZ_formulation='K14'):
     d['a0'] = d['a'] / (1 - d['e'] ** 2) ** 0.5
 
     return d
-
-
-
 
 def scale_height(d):
     """ Computes the equilibrium temperature and isothermal scale height
