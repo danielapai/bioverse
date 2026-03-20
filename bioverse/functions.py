@@ -839,7 +839,7 @@ def assign_orbital_elements(d, transit_mode=False, seed=42):
 
     return d
 
-def impact_parameter(d, transit_mode=False):
+def impact_parameter(d, transit_mode=False,ecc_correction=True):
     """ Calculates the impact parameter/transit duration.
     
     Parameters
@@ -848,6 +848,8 @@ def impact_parameter(d, transit_mode=False):
         Table containing the sample of simulated planets.
     transit_mode : bool, optional
         If True, only transiting planets are simulated, so planets with b > 1 are discarded.
+    ecc_correction : bool, optional
+        If True use adjusted equation for transit duration, using equations (14) and (16) from Winn (2010)
 
     Returns
     -------
@@ -856,20 +858,30 @@ def impact_parameter(d, transit_mode=False):
     
     """
     # Transit impact parameter (> 1 means not transiting)
-    # TODO: currently only valid for circular orbits
+    #use equations (7) and (14) in Winn 2010 (in seager exoplanet book)
+    #multiply by factor (16) for eccentric orbit
+    #https://ui.adsabs.harvard.edu/abs/2010exop.book...55W/abstract
     a = d['a']*CONST['AU_to_solRad']
-    d['b'] = (a*d['cos(i)']/d['R_st'])
+    sinw = np.sin(d['w_AP'])
+    inc= np.arccos(d['cos(i)'])
+    d['b'] = (a*d['cos(i)']/d['R_st'])*((1-d['e']**2)/(1+d['e']*sinw))
 
-    # Discard non-transiting planets?
     d['transiting'] = np.abs(d['b']) <= 1
-    if transit_mode:
-        d = d[d['transiting']]
 
     # Calculate transit duration (d)
     tr = d['transiting']
     a, R_pl, R_st = d['a'][tr]*215.032, d['R'][tr]/109.2, d['R_st'][tr]
     d['T_dur'] = np.full(len(d), np.nan)
-    d['T_dur'][tr] = (d['P'][tr]/np.pi) * np.arcsin(((R_st+R_pl)**2 - (d['b'][tr]*R_st)**2)**0.5 / a)
+    ecc_factor= np.sqrt(1-pow(d['e'][tr],2))/(1+d['e'][tr]*sinw[tr])
+    d['T_dur'][tr] = (d['P'][tr]/np.pi)*np.arcsin(((R_st+R_pl)**2 - (d['b'][tr]*R_st)**2)**0.5 / (a*np.sin(inc[tr])))
+    if ecc_correction:
+        d['T_dur'][tr]*= ecc_factor #for eccentric orbits multiply by eq (16) from Winn 2010
+
+    # Discard non-transiting planets?
+    if transit_mode:
+        d = d[tr]
+    #old equation not including eccentricity or inclination
+    #(d['P'][tr]/np.pi) * np.arcsin(((R_st+R_pl)**2 - (d['b'][tr]*R_st)**2)**0.5 / a)
     
     return d
 
