@@ -58,7 +58,7 @@ sch_gcns= pl.Schema({'star_name': str, 'd': float,'ra': float, 'dec': float,'M_G
 
 def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, M_st_max=2.0, R_st_min=0.095,
                     R_st_max=2.15, T_min=0., T_max=10., inc_binary=0, SpT=None, seed=42, m_G_max = None,M_G_max=None,
-                    lum_evo=False, fill_missing=True, ecliptic_coords=True, schema=sch_gcns,xyz=True):  # , mult=0):
+                    lum_evo=False, fill_missing=True, ecliptic_coords=False, schema=sch_gcns,xyz=False):  # , mult=0):
     """ Reads a list of stellar properties from the Gaia nearby stars catalog.
 
     Parameters
@@ -526,7 +526,8 @@ def create_planets_bergsten(d, R_min=1.0, R_max=3.5, P_min=2, P_max=100., transi
     d : Table
         Table containing the sample of simulated planets. Replaces the input Table.
     """
-
+    #make Period in same units as SAG13 function
+    
     np.random.seed(seed)
 
     # Bins, Parameters, and Values from Bergsten et al. 2022
@@ -839,9 +840,10 @@ def assign_orbital_elements(d, transit_mode=False, seed=42):
 
     return d
 
-def impact_parameter(d, transit_mode=False,ecc_correction=True):
-    """ Calculates the impact parameter/transit duration.
-    
+def compute_transit_params(d,transit_mode=False,ecc_correction=True):
+    """ Computes the transit depth, impact parameter, and transit duration
+    of each planet.
+
     Parameters
     ----------
     d : Table
@@ -855,17 +857,20 @@ def impact_parameter(d, transit_mode=False,ecc_correction=True):
     -------
     d : Table
         Table containing the sample of simulated planets.
-    
     """
-    # Transit impact parameter (> 1 means not transiting)
-    #use equations (7) and (14) in Winn 2010 (in seager exoplanet book)
-    #multiply by factor (16) for eccentric orbit
-    #https://ui.adsabs.harvard.edu/abs/2010exop.book...55W/abstract
+    #calculate transit depth
+    Rp, Rs = d['R']*CONST['R_Earth'], d['R_st']*CONST['R_Sun']
+    d['depth'] = (Rp/Rs)**2
+
+    # Calculate Transit impact parameter, b (> 1 means not transiting)
     a = d['a']*CONST['AU_to_solRad']
     sinw = np.sin(d['w_AP'])
     inc= np.arccos(d['cos(i)'])
     d['b'] = (a*d['cos(i)']/d['R_st'])*((1-d['e']**2)/(1+d['e']*sinw))
+    #equation (7) in Winn 2010
+    #https://ui.adsabs.harvard.edu/abs/2010exop.book...55W/abstract
 
+    #determine if planets are transiting
     d['transiting'] = np.abs(d['b']) <= 1
 
     # Calculate transit duration (d)
@@ -873,15 +878,16 @@ def impact_parameter(d, transit_mode=False,ecc_correction=True):
     a, R_pl, R_st = d['a'][tr]*215.032, d['R'][tr]/109.2, d['R_st'][tr]
     d['T_dur'] = np.full(len(d), np.nan)
     ecc_factor= np.sqrt(1-pow(d['e'][tr],2))/(1+d['e'][tr]*sinw[tr])
+    #eq (14) from Winn 2010
     d['T_dur'][tr] = (d['P'][tr]/np.pi)*np.arcsin(((R_st+R_pl)**2 - (d['b'][tr]*R_st)**2)**0.5 / (a*np.sin(inc[tr])))
+
     if ecc_correction:
-        d['T_dur'][tr]*= ecc_factor #for eccentric orbits multiply by eq (16) from Winn 2010
+        #for eccentric orbits multiply by eq (16) from Winn 2010
+        d['T_dur'][tr]*= ecc_factor
 
     # Discard non-transiting planets?
     if transit_mode:
         d = d[tr]
-    #old equation not including eccentricity or inclination
-    #(d['P'][tr]/np.pi) * np.arcsin(((R_st+R_pl)**2 - (d['b'][tr]*R_st)**2)**0.5 / a)
     
     return d
 
@@ -1317,23 +1323,6 @@ def effective_values(d):
         pass
     return d
 
-def compute_transit_params(d):
-    """ Computes the transit depth of each planet.
-
-    Parameters
-    ----------
-    d : Table
-        Table containing the sample of simulated planets.
-
-    Returns
-    -------
-    d : Table
-        Table containing the sample of simulated planets.
-    """
-    Rp, Rs = d['R']*CONST['R_Earth'], d['R_st']*CONST['R_Sun']
-    d['depth'] = (Rp/Rs)**2
-
-    return d
 
 
 def apply_bias(d, M_min=0., M_max=np.inf, S_min=0., S_max=np.inf, depth_min=0.):
