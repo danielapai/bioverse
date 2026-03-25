@@ -643,7 +643,7 @@ def create_planets_bergsten(d, R_min=1.0, R_max=3.5, P_min=2, P_max=100., transi
     if transit_mode:
         # For transit mode, keep only transiting planets
         d = assign_orbital_elements(d, transit_mode=False) # allow all inclinations
-        d = impact_parameter(d, transit_mode=True)
+        d = compute_transit_params(d, transit_mode=True)
 
     return d
 
@@ -799,8 +799,8 @@ def name_planets(d):
     d['planet_name'] = d['star_name'] + alph[d['order']]
     return d
     
-def assign_orbital_elements(d, transit_mode=False, seed=42):
-    """ Draws values for any remaining Keplerian orbital elements. Eccentricities
+def assign_orbital_elements(d, transit_mode=False,zero_ecc=False, e_max=0.8, seed=42):
+    """ Draws values for any remaining Keplerian orbital elements. Eccentricities either set to zero or
     are drawn from a beta distribution following Kipping et al. (2013).
 
     Parameters
@@ -809,6 +809,10 @@ def assign_orbital_elements(d, transit_mode=False, seed=42):
         Table containing the sample of simulated planets.
     transit_mode : bool, optional
         If True, only transiting planets are simulated, so cos(i) < R_*/a for all planets.
+    zero_ecc : bool, optional
+        Set all eccentricities to zero.
+    e_max : float, optional
+        Maximum eccentricity value to be assigned
     seed : int or 1-d array_like, optional
         Seed for numpy's RandomState. Must be convertible to 32 bit unsigned integers.
 
@@ -825,13 +829,17 @@ def assign_orbital_elements(d, transit_mode=False, seed=42):
         # Skip keys which have already been assigned
         if key in d:
             continue
-        # Draw eccentricity from a beta distribution, truncated at e > 0.8
+        # Draw eccentricity from a beta distribution, truncated at e > e_max
         if key == 'e':
-            d['e'] = np.random.beta(0.867,3.03,size=len(d))
-            d['e'][d['e']>0.8] = np.random.uniform(0,0.8,(d['e']>0.8).sum())
+            if zero_ecc:
+                d['e']= np.zeros(len(d))
+            else:
+                d['e'] = np.random.beta(0.867,3.03,size=len(d))
+                d['e'][d['e']>0.8] = np.random.uniform(0,e_max,(d['e']>e_max).sum())
         # Draw angular elements from isotropic distributions
         elif key == 'cos(i)':
             if transit_mode:
+                #this is only applicable if occurrence rates function only generated transiting planets
                 cosi_max = d['R_st']/d['a']/CONST['AU_to_solRad']
                 d['cos(i)'] = np.random.uniform(-cosi_max, cosi_max, size=len(d))
             else:
@@ -892,7 +900,7 @@ def compute_transit_params(d,transit_mode=False,ecc_correction=True):
     
     return d
 
-def assign_mass(d, mr_relation='Wolfgang2016'):
+def assign_mass(d, mr_relation='Wolfgang2016',seed=42):
     """ Determines planet masses using a probabilistic mass-radius relationship,
     following Wolfgang et al. (2016). Also calculates density and surface gravity.
 
@@ -903,12 +911,16 @@ def assign_mass(d, mr_relation='Wolfgang2016'):
     mr_relation : str, optional
         Mass-radius relationship to consider.
         Must be either 'Wolfgang2016' (Wolfgang et al., 2016) or 'Zeng2016' (Zeng et al., 2016).
+    seed : int or 1-d array_like, optional
+        Seed for numpy's RandomState. Must be convertible to 32 bit unsigned integers.
 
     Returns
     -------
     d : Table
         Table containing the sample of simulated planets.
     """
+    np.random.seed(seed)
+
     # Extract the radius of each planet
     R = d['R']
     M = np.zeros(R.shape)
