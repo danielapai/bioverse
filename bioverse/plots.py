@@ -1341,6 +1341,8 @@ def plot_clear_cloudy_spectra(x, y_clr, y_cld, f_clouds=0.75, lw=3, bands=[], c=
         ax.set_xlim(xlim)
     plt.subplots_adjust(bottom=0.17, left=0.15)
 
+    return fig, ax
+
 """
 This method summarizes the planet yield of a survey by plotting the S-R distribution of detected planets and histograms of key parameters.
 It also includes a text block summarizing the number of planets, stars, and EECs in the sample, as well as any assumptions provided.
@@ -1416,7 +1418,7 @@ def plot_yield_summary(d, assumptions=None):
 
     ax_nob.hist(d["N_obs"], bins=25);         
     ax_nob.set_xlabel("N_obs")
-    
+
     ax_tdur.hist(d["T_dur"], bins=25);        
     ax_tdur.set_xlabel("T_dur [days]")
  
