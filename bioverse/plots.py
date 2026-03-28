@@ -7,6 +7,9 @@ from matplotlib.ticker import ScalarFormatter
 from scipy.ndimage import gaussian_filter, zoom
 import numpy as np
 import pickle
+from bioverse.classes import Table
+from matplotlib.gridspec import GridSpec
+
 from warnings import warn
 
 # Bioverse modules and constants
@@ -1339,3 +1342,90 @@ def plot_clear_cloudy_spectra(x, y_clr, y_cld, f_clouds=0.75, lw=3, bands=[], c=
     plt.subplots_adjust(bottom=0.17, left=0.15)
 
     return fig, ax
+
+"""
+This method summarizes the planet yield of a survey by plotting the S-R distribution of detected planets and histograms of key parameters. 
+It also includes a text block summarizing the number of planets, stars, and EECs in the sample, as well as any assumptions provided. 
+The main scatter plot colors the points by the logarithm of the exposure time, and the small summary panels show the distributions of period. 
+stellar mass, exposure time, number of observations, and survey duration. The method validates that the input data is a bioverse Table and contains 
+all required columns before plotting.
+"""
+def plot_yield_summary(d, assumptions=None):
+    
+    """
+    Parameters
+    ----------
+
+    d : Bioverse Table object containing the planet yield data.
+
+    assumptions : dict, optional
+        A dictionary of assumptions to include in the text summary.
+    
+    Returns:
+    fig : matplotlib Figure object
+        The figure containing the yield summary plots.
+    
+    ----------
+    """
+
+    # Validate that an input data is given
+    if d is None: 
+        raise ValueError("No data provided for plotting.")
+    
+    # Validate that the input data is a bioverse Table
+    if not isinstance(d, Table):
+        raise ValueError("Input data must be a bioverse Table.")
+    required_keys = ["S", "R", "P", "M_st", "t_exp", "N_obs", "T_dur", "EEC"]
+    
+    # Validate that all required keys are present in the input data
+    for key in required_keys:
+        if key not in d:
+            raise ValueError(f"Missing required column '{key}' in input data.")
+
+    fig = plt.figure(figsize=(16, 10), constrained_layout=True)
+    gs = GridSpec(nrows=3, ncols=4, figure=fig, height_ratios=[2.2, 1.2, 1.2])
+
+    # Large main panel (top-left 3 columns)
+    ax_main = fig.add_subplot(gs[0, :3])
+
+    # Text panel (top-right)
+    ax_text = fig.add_subplot(gs[0, 3])
+    ax_text.axis("off")
+
+    # Small summary panels (two rows)
+    ax_p   = fig.add_subplot(gs[1, 0])  # log10(P)
+    ax_mst = fig.add_subplot(gs[1, 1])  # M_st
+    ax_texp= fig.add_subplot(gs[1, 2])  # t_exp
+    ax_nob = fig.add_subplot(gs[2, 0])  # N_obs
+    ax_tdur= fig.add_subplot(gs[2, 1])  # T_dur
+
+    # Main scatter
+    sc = ax_main.scatter(d["S"], d["R"], c=np.log10(d["t_exp"]), s=8, cmap="viridis_r")
+    ax_main.set_xscale("log")
+    ax_main.set_xlabel("S")
+    ax_main.set_ylabel("R")
+    fig.colorbar(sc, ax=ax_main, label="log10(t_exp [days])")
+
+    # Small plots
+    ax_p.hist(np.log10(d["P"]), bins=25);     ax_p.set_xlabel("log10(P [days])")
+    ax_mst.hist(d["M_st"], bins=25);          ax_mst.set_xlabel("M_st")
+    ax_texp.hist(d["t_exp"], bins=25);        ax_texp.set_xlabel("t_exp [days]")
+    ax_nob.hist(d["N_obs"], bins=25);         ax_nob.set_xlabel("N_obs")
+    ax_tdur.hist(d["T_dur"], bins=25);        ax_tdur.set_xlabel("T_dur [days]")
+
+    # Text block
+    lines = [
+        f"N planets: {len(d)}",
+        f"N stars: {len(d.get_stars())}",
+        f"N EEC: {int(d['EEC'].sum())}",
+        "",
+        "Assumptions:"
+    ]
+    if assumptions:
+        lines += [f"{k}: {v}" for k, v in assumptions.items()]
+    else:
+        lines += ["(none provided)"]
+
+    ax_text.text(0.0, 1.0, "\n".join(lines), va="top", ha="left")
+
+    return fig
