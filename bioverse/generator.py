@@ -142,6 +142,15 @@ class Generator(Object):
                 step.set_arg(key, value)
                 #print("set {0} = {1} for step '{2}'".format(key, value, step.function_name))
 
+    # This method is a wrapper for set_arg that allows you to set multiple keyword arguments at once using kwargs.
+    def set_args(self, **kwargs):
+        """ Sets the value of multiple keyword arguments at once using the set_arg method. """
+        if kwargs:
+            for key, value in kwargs.items():
+                self.set_arg(key, value)
+        if not kwargs:
+            raise ValueError("no keyword arguments provided")
+
     def generate(self, d=None, timed=False, idx_start=0, idx_stop=None, **kwargs):
         """ Runs the generator with the current program and returns a simulated set of stars and planets.
         
@@ -263,6 +272,14 @@ class Step():
     def get_arg(self, key):
         """ Returns the value of a keyword argument. """
         return self.args[key]
+    
+    def set_args(self, **kwargs):
+        """ Sets the value of multiple keyword arguments at once. """
+        if kwargs:
+            for key,val in kwargs.items():
+                self.set_arg(key, val)
+        else:
+            raise ValueError("no keyword arguments provided")
     
     def set_arg(self, key, value):
         """ Sets the value of a keyword argument.
