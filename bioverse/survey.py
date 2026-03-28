@@ -97,8 +97,7 @@ class Survey(dict, Object):
             Table of planets detected by the Survey.
         data : Table
             Simulated data set produced by the Survey.
-        error : Table
-            Uncertainties on the measurements in `data`.
+            data.error gives uncertainties on the measurements in `data`.
         """
         
         # For transit surveys, set transit_mode=True unless otherwise specified
@@ -339,6 +338,57 @@ class Survey(dict, Object):
         self.reference.update({**ref_kwargs})
         return
 
+    #function to estimate exposure time from a scaling relation
+    def exp_time_scaling_relation(self, d, t_ref=3.1, wl_eff=0.6, T_st_ref=5788.,
+                                  R_st_ref =1.0 , D_ref=15.0,d_ref=10.0, R_pl_ref=1.0,
+                                  H_ref=9):
+        """ Computes the exposure time and number of observations required to characterize each planet in `d`.
+
+            d: data table
+            t_ref: exposure time for example psg run (days?)
+            wl_eff: wavelength in um
+            T_st_ref: reference stellar temperature in K
+            R_st_ref: reference stellar radius in R_sun
+            D_ref: reference telescope diameter in m
+            d_ref: reference distance in pc
+            R_pl_ref: reference planet radius in R_earth
+            H_ref: reference atmosphere scale height
+
+        """
+        wl = wl_eff / 10000 # convert from microns -> cm
+        h, c, k, T_eff_sol = CONST['h'], CONST['c'], CONST['k'], CONST['T_eff_sol']
+
+        if not hasattr(self,'mode'):
+            raise Exception("Must be called from ImagingSurvey or TransitSurvey")
+
+        # legacy code not sure if need to compute S here since its done in occurence rates functions
+        if 'S' not in d.keys():
+            d.compute('S')
+
+        # Compute scaling factor
+        if self.mode == 'imaging':
+            f = (d['contrast']/1e-10)**-1
+            #reference contrast hard coded to be 10^-10, if we use this function
+            #   in future might want to make this part of reference params
+        elif self.mode == 'transit':
+            f = (d['H'] / H_ref) ** -2 * (d['R'] / R_pl_ref) ** -2 * (d['R_st'] / R_st_ref) ** 4
+
+
+        # Calculate the exposure time required for each target, based on the reference time
+        flux_ratio = (np.exp(h*c/(wl*k*T_st_ref)) - 1) / (np.exp(h*c/(wl*k*d['T_eff_st'])) - 1)
+        t_exp = f * t_ref * (self.diameter/D_ref)**-2 * (d['d']/d_ref)**2 * (d['R_st']/R_st_ref)**-2 * flux_ratio**-1
+
+        # Number of observations (1 for imaging mode, integer multiple of transit duration for transit mode)
+        if self.mode == 'imaging':
+            N_obs = np.ones(len(d))
+        elif self.mode == 'transit':
+            N_obs = np.ceil(t_exp/d['T_dur'])
+            t_exp = d['T_dur']*N_obs
+
+        d['t_exp'] = t_exp
+        d['N_obs'] = N_obs
+
+        return d
 
 @dataclass(repr=False)
 class ImagingSurvey(Survey):
@@ -388,7 +438,8 @@ class ImagingSurvey(Survey):
         # Return the output table
         return d[mask1 & mask2]
 
-    def compute_yield(self, d,method='detectable',SNR=7,band_width=0.2, wl_eff=0.5, A_g=0.3,**kwargs):
+    def compute_yield(self, d,method='detectable',SNR=7,band_width=0.2, wl_eff=0.5, A_g=0.3,
+                      zero_overhead=False,**exp_kwargs):
         """Computes the yield of a survey. Compares whether stars will be observed for long enough duration for planets
         to be detected at given SNR. Old versions of the yield calculation considering only contrast and separation can
         be replicated using method='detectable'
@@ -407,19 +458,20 @@ class ImagingSurvey(Survey):
             Effective wavelength of observation in microns (used for calculating the IWA/OWA).
         A_g : float, optional
             Geometric albedo of each planet, ignored if 'A_g' is already assigned.
-        kwargs : dict, optional
+        zero_overhead : bool, optional
+            set overhead time to zero
+        exp_kwargs : dict, optional
             Additional keyword arguments for exposure time calculator
-
 
         Returns
         -------
-        yield : Table
+        d : Table
             Copy of the input Table containing only planets which were detected by the survey.
         """
         if method == 'detectable':
             d = self.compute_detectable(d, wl_eff=wl_eff, A_g=A_g)
             return d
-        elif method == 'exp_time':
+        elif method == 'exp_time': #may want to change name to blind_survey
             #assumes scheduling function has been run in generator
             if 't_req' not in d:
                 raise Exception("'t_ref' not found in Table. Be sure to run schedule survey before calling this function")
@@ -442,12 +494,30 @@ class ImagingSurvey(Survey):
 
             d = self.call_exposure_time_calculator(d, SNR=SNR, band_width=band_width, band='Vmag',
                                                    C_col='contrast', sep_col='ang_sep_mas',
-                                                   texp_col='t_exp', **kwargs)
+                                                   texp_col='t_exp', **exp_kwargs)
 
             # planets are considered to be detected if the amount of time needed to detect them is less than the time allocated to surveying the star
             texp_mask = d['t_exp'] <= d['t_req']
-
             return d[texp_mask]
+
+        elif method == 'scaling_relation':
+            #use scaling relations effective wavelength if available
+            if 'wl_eff' in self.reference.keys():
+                wl_eff=self.reference['wl_eff']
+
+            # ensure that scaling law has dictionary of reference values
+            req_keys = {'t_ref', 'wl_eff', 'T_st_ref', 'R_st_ref', 'D_ref', 'd_ref', 'R_pl_ref', 'H_ref'}
+            if not req_keys.issubset(self.reference.keys()):
+                raise Exception('Reference value dictionary for scaling relation missing required keys. \n\tSet reference values '
+                                'using the survey.set_reference_observation() function.')
+
+            d = self.compute_detectable(d,wl_eff=wl_eff)
+            d = self.exp_time_scaling_relation(d, **self.reference)
+            to_observe = self.schedule_observations(d, texp_col='t_exp', N_obs_col='N_obs', debias=False,
+                                                    zero_overhead=zero_overhead)
+            d = d[to_observe]
+            return d
+
         else:
             raise Exception('Method: {} not recognized'.format(method))
 
@@ -522,14 +592,14 @@ class TransitSurvey(Survey):
         ----------
         d : Table
             Table of all simulated planets which the survey could attempt to observe.
-        method : str
+        method : str, optional
             Method used for yield calculation.
                 "detectable" implies all detectable planets are observed without consideration of exposure time
                 and total mission duration.
                 "scaling relation" uses estimated exposure times from PSG and a scaling relation
-        debias : bool
+        debias : bool, optional
             Apply debias correction for transiting planets.
-        zero_overhead : bool
+        zero_overhead : bool, optional
             set overhead to zero
         ref_kwargs : dict, optional
             sets reference observation, updates self.reference
@@ -547,6 +617,13 @@ class TransitSurvey(Survey):
             #originally in measurement object
 
             self.reference.update({**ref_kwargs})
+
+            #ensure that scaling law has dictionary of reference values
+            req_keys={'t_ref', 'wl_eff', 'T_st_ref', 'R_st_ref', 'D_ref', 'd_ref', 'R_pl_ref', 'H_ref'}
+            if not req_keys.issubset(self.reference.keys()):
+                raise Exception('Reference value dictionary for scaling relation missing required keys. Set reference values'
+                                'using the survey.set_reference_observation() function.')
+
             d = self.compute_detectable(d)
             d= self.exp_time_scaling_relation(d,**self.reference)
             to_observe= self.schedule_observations(d,texp_col='t_exp',N_obs_col='N_obs',debias=debias,zero_overhead=zero_overhead)
@@ -560,49 +637,6 @@ class TransitSurvey(Survey):
         # Return the output table
         return d
 
-
-    #function to estimate exposure time from a scaling relation
-    #
-    def exp_time_scaling_relation(self, d, t_ref=3.1, wl_eff=0.6, T_st_ref=5788.,
-                                  R_st_ref =1.0 , D_ref=15.0,d_ref=10.0, R_pl_ref=1.0,
-                                  H_ref=9):
-        """ Computes the exposure time and number of observations required to characterize each planet in `d`.
-
-            d: data table
-            t_ref: exposure time for example psg run (days?)
-            wl_eff: wavelength in um
-            T_st_ref: reference stellar temperature in K
-            R_st_ref: reference stellar radius in R_sun
-            D_ref: reference telescope diameter in m
-            d_ref: reference distance in pc
-            R_pl_ref: reference planet radius in R_earth
-            H_ref: reference atmosphere scale height
-
-        """
-        wl = wl_eff / 10000 # convert from microns -> cm
-        h, c, k, T_eff_sol = CONST['h'], CONST['c'], CONST['k'], CONST['T_eff_sol']
-        #add to constants.py
-
-        # Compute scaling factor
-        #legacy code not sure if need to compute S here since its done in occurence rates functions
-        if 'S' not in d.keys():
-            d.compute('S')
-
-        f= (d['H'] / H_ref) ** -2 * (d['R']/R_pl_ref) ** -2 * (d['R_st'] / R_st_ref) ** 4
-
-        # Calculate the exposure time required for each target, based on the reference time
-        flux_ratio = (np.exp(h*c/(wl*k*T_st_ref)) - 1) / (np.exp(h*c/(wl*k*d['T_eff_st'])) - 1)
-        t_exp = f * t_ref * (self.diameter/D_ref)**-2 * (d['d']/d_ref)**2 * (d['R_st']/R_st_ref)**-2 * flux_ratio**-1
-
-        # Number of observations (1 for imaging mode, integer multiple of transit duration for transit mode)
-
-        N_obs = np.ceil(t_exp/d['T_dur'])
-
-        t_exp = d['T_dur']*N_obs
-        d['t_exp'] = t_exp
-        d['N_obs'] = N_obs
-
-        return d
 
 
 #needs major work after recent changes
