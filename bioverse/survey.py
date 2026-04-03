@@ -58,6 +58,17 @@ class Survey(dict, Object):
         self.measurements[key] = Measurement(key, self, **kwargs)
         if idx is not None:
             self.move_measurement(key, idx)
+
+    def add_measurements(self, **m_kwargs):
+        """ Adds Multiple Measurement to the Survey.
+
+        Parameters
+        ----------
+        **m_kwargs
+            Keyword arguments in terms of measurement name and precision
+        """
+        for key, val in m_kwargs.items():
+            self.measurements[key]=Measurement(key,self,precision=val)
     
     def move_measurement(self, key, idx):
         """ Moves a Measurement to the designated position in the sequence.
@@ -454,6 +465,7 @@ class ImagingSurvey(Survey):
                 and total mission duration.
             "exp_time" uses an exposure time calculator to determine if simulated planets were detected.
                 Requires survey to have been scheduled in generation or pre-generator
+            "scaling_relation" is a legacy option to use a reference exposure time from PSG calculations
         wl_eff : float, optional
             Effective wavelength of observation in microns (used for calculating the IWA/OWA).
         A_g : float, optional
