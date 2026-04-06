@@ -58,6 +58,17 @@ class Survey(dict, Object):
         self.measurements[key] = Measurement(key, self, **kwargs)
         if idx is not None:
             self.move_measurement(key, idx)
+
+    def add_measurements(self, **m_kwargs):
+        """ Adds Multiple Measurement to the Survey.
+
+        Parameters
+        ----------
+        **m_kwargs
+            Keyword arguments in terms of measurement name and precision
+        """
+        for key, val in m_kwargs.items():
+            self.measurements[key]=Measurement(key,self,precision=val)
     
     def move_measurement(self, key, idx):
         """ Moves a Measurement to the designated position in the sequence.
@@ -75,7 +86,7 @@ class Survey(dict, Object):
 
         self.measurements = {key:self.measurements[key] for key in keys}
 
-    def quickrun(self, generator, t_total=None, N_sim=1, **kwargs):
+    def quickrun(self, generator, t_total=None, N_sim=1, method='detectable', **kwargs):
         """ Convenience function that generates a sample, computes the detection yield, and returns a simulated data set.
         
         Parameters
@@ -86,6 +97,9 @@ class Survey(dict, Object):
             Total amount of observing time for any measurements with a limited observing time.
         N_sim : int, optional
             If greater than 1, simulate the survey this many times and return the combined result.
+        method : str, optional
+            Method used for the yield calculation. Default is 'detectable', observing all detectable planets
+            without considering exposure time and mission duration.
         **kwargs
             Keyword arguments passed to Generator.generate().
 
@@ -108,14 +122,14 @@ class Survey(dict, Object):
             sample, detected, data = Table(), Table(), Table()
             data.error = Table()
             for i in range(int(N_sim)):
-                res = self.quickrun(generator, t_total=t_total, N_sim=1, **kwargs)
+                res = self.quickrun(generator, t_total=t_total, N_sim=1,method=method, **kwargs)
                 sample.append(res[0])
                 detected.append(res[1])
                 data.append(res[2])
                 data.error.append(res[3])
         else:
             sample = generator.generate(**kwargs)
-            detected = self.compute_yield(sample)
+            detected = self.compute_yield(sample, method=method)
             data = self.observe(detected, t_total=t_total)
 
         return sample, detected, data
@@ -454,6 +468,7 @@ class ImagingSurvey(Survey):
                 and total mission duration.
             "exp_time" uses an exposure time calculator to determine if simulated planets were detected.
                 Requires survey to have been scheduled in generation or pre-generator
+            "scaling_relation" is a legacy option to use a reference exposure time from PSG calculations
         wl_eff : float, optional
             Effective wavelength of observation in microns (used for calculating the IWA/OWA).
         A_g : float, optional
@@ -896,3 +911,50 @@ def prioritize_survey(survey,label):
         raise Exception("Unknown label: {}".format(label))
 
     return
+
+#generates a set of scaling parameters to calculate exposure time from example PSG calculations
+def read_scaling_dict(label):
+    if label == 'imaging_H2O':
+        scaling_dict = {
+            't_ref': 0.035,
+            'wl_eff': 1.4,
+            'T_st_ref': 5788.,
+            'R_st_ref': 1.0,
+            'D_ref': 15.0,
+            'd_ref': 10.0,
+            'R_pl_ref': 1.0,
+            'H_ref': 9}
+    elif label == 'imaging_O2':
+        scaling_dict = {
+            't_ref': 0.1,
+            'wl_eff': 0.7,
+            'T_st_ref': 5788.,
+            'R_st_ref': 1.0,
+            'D_ref': 15.0,
+            'd_ref': 10.0,
+            'R_pl_ref': 1.0,
+            'H_ref': 9}
+    elif label == 'transit_H2O':
+        scaling_dict = {
+            't_ref': 7.5,
+            'wl_eff': 1.7,
+            'T_st_ref': 3300.,
+            'R_st_ref': 0.315,
+            'D_ref': 50.0,
+            'd_ref': 50.0,
+            'R_pl_ref': 1.0,
+            'H_ref': 9}
+    elif label == 'transit_O2':
+        scaling_dict = {
+            't_ref': 3.1,
+            'wl_eff': 0.6,
+            'T_st_ref': 3300.,
+            'R_st_ref': 0.315,
+            'D_ref': 50.0,
+            'd_ref': 50.0,
+            'R_pl_ref': 1.0,
+            'H_ref': 9}
+    else:
+        raise Exception("Unknown label: {}".format(label))
+
+    return scaling_dict
