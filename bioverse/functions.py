@@ -59,7 +59,7 @@ sch_gcns= pl.Schema({'star_name': str, 'd': float,'ra': float, 'dec': float,'M_G
 
 def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, M_st_max=2.0, R_st_min=0.095,
                     R_st_max=2.15, a_min=0., a_max=10., inc_binary=0, SpT=None, seed=42, m_G_max = None,M_G_max=None,
-                    lum_evo=False, fill_missing=True, ecliptic_coords=False, schema=sch_gcns,xyz=False, compute_m_G=False):
+                    lum_evo=False, fill_missing=True, ecliptic_coords=False, schema=sch_gcns,xyz=False): #, compute_m_G=False):
     """ Reads a list of stellar properties from a catalog of nearby Gaia stars.
 
     Parameters
@@ -103,8 +103,6 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
         schema for column datatypes used for polars file reading
     xyz : bool, optional
         compute galactic xyz coordinates
-    compute_m_G : bool, optional
-        compute apparent Gaia magnitude
 
     Returns
     -------
@@ -146,9 +144,9 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
         col_names_stripped = [col.strip() for col in col_names]
 
         #compute Gmag if specified or if used in query
-        if (compute_m_G or (m_G_max is not None)) and ('Gmag' not in col_names_stripped):
-            if ('d' in col_names_stripped) and ('M_G' in col_names_stripped):
-                query=query.with_columns((pl.col('M_G')+5*np.log10(pl.col('d'))-5).alias('Gmag'))
+        #if (compute_m_G or (m_G_max is not None)) and ('Gmag' not in col_names_stripped):
+        #    if ('d' in col_names_stripped) and ('M_G' in col_names_stripped):
+        #        query=query.with_columns((pl.col('M_G')+5*np.log10(pl.col('d'))-5).alias('Gmag'))
 
         if d_max and ('d' in col_names_stripped):
             filter_conditions.append(pl.col('d') < d_max)

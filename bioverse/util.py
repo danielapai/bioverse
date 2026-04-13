@@ -597,6 +597,7 @@ def compute_binned_average(d, x_param='S_abs', y_params=['R', 'rho']):
 
     return d
 
+#out of date remove impact parameter function
 def generate_generator(g_args, stars_only=False, **kwargs):
     """Helper function to create a planet generator."""
     from .generator import Generator

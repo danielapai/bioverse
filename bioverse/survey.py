@@ -486,7 +486,7 @@ class ImagingSurvey(Survey):
         if method == 'detectable':
             d = self.compute_detectable(d, wl_eff=wl_eff, A_g=A_g)
             return d
-        elif method == 'exp_time': #may want to change name to blind_survey
+        elif (method == 'exp_time') or (method=='blind_survey'): #may want to change name to blind_survey
             #assumes scheduling function has been run in generator
             if 't_req' not in d:
                 raise Exception("'t_ref' not found in Table. Be sure to run schedule survey before calling this function")
