@@ -19,8 +19,8 @@ warnings.filterwarnings("ignore")
 # Bioverse modules and constants
 from .classes import Table
 from . import util
-from .util import CATALOG, interpolate_df, lambertian_phase
-from .constants import CONST, ROOT_DIR, DATA_DIR, HZ_CONST
+from .util import interpolate_df, lambertian_phase
+from .constants import CONST, ROOT_DIR, DATA_DIR, HZ_CONST,CATALOG_FILE
 
 def luminosity_evolution(d):
     """
@@ -272,7 +272,8 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
 
     return d
 
-def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_max=10., T_eff_split=4500., seed=42):
+def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_max=10., T_eff_split=4500., seed=42,
+                      cat_file=CATALOG_FILE,catalog=None):
     """ Reads temperatures and coordinates for high-mass stars from Gaia DR3. Simulates low-mass stars from the
     Chabrier+2003 PDMF.  Ages are drawn from a uniform distribution, by default from 0 - 10 Gyr. All other
     stellar properties are calculated using the scaling relations of Pecaut+2013.
@@ -280,6 +281,9 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
     For high mass stars, this function reads a saved catalog of stars from Gaia DR3. The default stellar catalog
     extends to 150 pc, and contains stars with Teff > 4000 K. To generate a new stellar catalog, use the
     update_stellar_catalog function in util.py to query the Gaia archive.
+
+    For most efficient performance provide catalog as an argument so that the Gaia catalog doesn't need to be reopened
+    every time this function is called.
     
     Parameters
     ----------
@@ -299,6 +303,10 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
         Effective temperature (in Kelvin) below which to simulate stars from a PDMF instead of using Gaia data.
     seed : int or 1-d array_like, optional
         Seed for numpy's RandomState. Must be convertible to 32 bit unsigned integers.
+    cat_file : str, optional
+        file name for gaia catalog
+    catalog : numpy.ndarray, optional
+        Gaia catalog saved to local memory. Loading the catalog via the util.read_catalog function will yield the best performance
 
     Returns
     -------
@@ -307,6 +315,9 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
     """
 
     np.random.seed(seed)
+
+    if catalog is None:
+        catalog = np.genfromtxt(cat_file, delimiter=',', names=True)
 
     # Create a stellar property conversion table from Pecaut+2013, sorted by ascending temperature
     # Note: the table from Pecaut+2013 was filtered down to A0V - L2V
@@ -317,15 +328,15 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
     cvt['T_eff_st'], cvt['M_st'], cvt['R_st'], cvt['M_G'] = table['Teff'], table['Msun'], table['R_Rsun'], table['M_G']
     
     # Translate min/max stellar masses into temperatures, and T_eff_split into mass
-    T_eff_min, T_eff_max = np.interp([M_st_min, M_st_max], cvt['M_st'], cvt['T_eff_st'])
-    M_st_split = np.interp(T_eff_split, cvt['T_eff_st'], cvt['M_st'])
+    #T_eff_min, T_eff_max = np.interp([M_st_min, M_st_max], cvt['M_st'], cvt['T_eff_st'])
+    #M_st_split = np.interp(T_eff_split, cvt['T_eff_st'], cvt['M_st'])
 
     # Step 1: High-mass stars
     d_Gaia = Table()
 
     # Load Gaia DR3 coordinates and temperatures, filtered by temperature and distance
-    mask = np.isnan(CATALOG['teff_gspphot']) | (CATALOG['teff_gspphot'] < T_eff_split) | (CATALOG['parallax'] < 1000/d_max)
-    t = CATALOG[~mask]
+    mask = np.isnan(catalog['teff_gspphot']) | (catalog['teff_gspphot'] < T_eff_split) | (catalog['parallax'] < 1000/d_max)
+    t = catalog[~mask]
     d_Gaia['d'], d_Gaia['ra'], d_Gaia['dec'], d_Gaia['T_eff_st'] = 1000/t['parallax'], t['ra'], t['dec'], t['teff_gspphot']
     d_Gaia['M_G'] = t['phot_g_mean_mag'] - (5*np.log10(d_Gaia['d']) - 5)
 
