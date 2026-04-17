@@ -1372,6 +1372,8 @@ def plot_yield_summary(
     marker_size=30,
     label_fontsize=16,
     tick_fontsize=13,
+    HZ_INNER = 1.7763,
+    HZ_OUTER = 0.3207
 ):
     """
     Parameters
@@ -1414,6 +1416,10 @@ def plot_yield_summary(
     tick_fontsize : int, optional
         Font size for axis tick labels.
         Default is 13.
+    HZ_INNER : float, optional
+        Inner habitable zone flux boundary
+    HZ_OUTER: float, optional
+        Outer habitable zone flux boundary
 
     Returns
     -------
@@ -1495,12 +1501,11 @@ def plot_yield_summary(
         cbar.ax.tick_params(labelsize=tick_fontsize)
 
     # Habitable zone boundaries
-    HZ_INNER = 1.7763
-    HZ_OUTER = 0.3207
-    hz_kw = dict(color=hz_color, linestyle=hz_style, linewidth=1.4, alpha=0.75)
-    ax_main.axvline(HZ_INNER, **hz_kw, label="Habitable zone")
-    ax_main.axvline(HZ_OUTER, **hz_kw)
-    ax_main.legend(fontsize=tick_fontsize)
+    if (HZ_OUTER is not None) and (HZ_OUTER is not None):
+        hz_kw = dict(color=hz_color, linestyle=hz_style, linewidth=1.4, alpha=0.75)
+        ax_main.axvline(HZ_INNER, **hz_kw, label="Habitable zone")
+        ax_main.axvline(HZ_OUTER, **hz_kw)
+        ax_main.legend(fontsize=tick_fontsize)
 
     # --- Eight histogram panels ------------------------------------------
     for ax, col, xlabel in zip(small_axes, columns, xlabels):

@@ -59,7 +59,7 @@ sch_gcns= pl.Schema({'star_name': str, 'd': float,'ra': float, 'dec': float,'M_G
 
 def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, M_st_max=2.0, R_st_min=0.095,
                     R_st_max=2.15, a_min=0., a_max=10., inc_binary=0, SpT=None, seed=42, m_G_max = None,M_G_max=None,
-                    lum_evo=False, fill_missing=True, ecliptic_coords=False, schema=sch_gcns,xyz=False): #, compute_m_G=False):
+                    lum_evo=False, fill_missing=True, ecliptic_coords=False, schema=sch_gcns,xyz=False, generate_RV=False):
     """ Reads a list of stellar properties from a catalog of nearby Gaia stars.
 
     Parameters
@@ -103,6 +103,8 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
         schema for column datatypes used for polars file reading
     xyz : bool, optional
         compute galactic xyz coordinates
+    generate_RV : bool, optional
+        drawn random radial velocities for simulated stars
 
     Returns
     -------
@@ -251,7 +253,7 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
             d['logL'] = np.log10(d['L_st'])
         if 'star_name' not in d.keys():
             d['star_name'] = np.char.array(np.full(len(d), 'REAL-')) + np.char.array(np.arange(len(d)).astype(str))
-        if 'RV' not in d.keys():
+        if generate_RV and('RV' not in d.keys()):
             d['RV'] = np.random.uniform(-200, 200, size=len(d))
 
     # Assign stellar IDs and names
