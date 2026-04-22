@@ -452,7 +452,7 @@ class ImagingSurvey(Survey):
         # Return the output table
         return d[mask1 & mask2]
 
-    def compute_yield(self, d,method='detectable',SNR=7,band_width=0.2, wl_eff=0.5, A_g=0.3,
+    def compute_yield(self, d0,method='detectable',SNR=7,band_width=0.2, wl_eff=0.5, A_g=0.3,
                       zero_overhead=False,**exp_kwargs):
         """Computes the yield of a survey. Compares whether stars will be observed for long enough duration for planets
         to be detected at given SNR. Old versions of the yield calculation considering only contrast and separation can
@@ -460,7 +460,7 @@ class ImagingSurvey(Survey):
 
         Parameters
         ----------
-        d : Table
+        d0 : Table
             Table of all simulated planets which the survey could attempt to observe.
         method : str, optional
             Method used for yield calculation.
@@ -483,6 +483,8 @@ class ImagingSurvey(Survey):
         d : Table
             Copy of the input Table containing only planets which were detected by the survey.
         """
+        d=copy.deepcopy(d0) #so that we don't modify the properties of the generated planet table
+
         if method == 'detectable':
             d = self.compute_detectable(d, wl_eff=wl_eff, A_g=A_g)
             return d
@@ -599,13 +601,13 @@ class TransitSurvey(Survey):
         return d[mask]
 
 
-    def compute_yield(self, d, method='detectable',debias=False,zero_overhead=False,**ref_kwargs):
+    def compute_yield(self, d0, method='detectable',debias=False,zero_overhead=False,**ref_kwargs):
         """ Computes a simple estimate of the detection yield for a transit survey. Currently all detectable transiting
         planets are considered to be detected.
 
         Parameters
         ----------
-        d : Table
+        d0 : Table
             Table of all simulated planets which the survey could attempt to observe.
         method : str, optional
             Method used for yield calculation.
@@ -624,6 +626,8 @@ class TransitSurvey(Survey):
         yield : Table
             Copy of the input table containing only planets which were detected by the survey.
         """
+        d=copy.deepcopy(d0) #to not overwrite initial table
+
         # Determine which planets transit their stars
         if method == 'detectable':
             d = self.compute_detectable(d)

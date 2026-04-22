@@ -23,6 +23,7 @@ FUNCTIONS_DIR = ROOT_DIR+'/functions/'
 CONST = {}
 CONST['T_eff_sol'] = 5777.
 CONST['yr_to_day'] = 365.2422
+CONST['day_to_sec']=86400.0
 CONST['AU_to_solRad'] = 215.03215567054767
 CONST['rho_Earth'] = 5.51
 CONST['g_Earth'] = 980.7

@@ -789,4 +789,5 @@ def DI_exposure_time_calculator(contrast, sep_mas, D, mag_star, lambda_ref=550.,
     CR_b = CR_s + CR_zodi + CR_exozodi
 
     t_exp = pow(SNR, 2) * (CR_p + 2 * CR_b) / pow(CR_p, 2)  # in seconds
+    t_exp= t_exp/CONST['day_to_sec']
     return t_exp
