@@ -58,9 +58,9 @@ sch_gcns= pl.Schema({'star_name': str, 'd': float,'ra': float, 'dec': float,'M_G
                      'RV': float})
 
 def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, M_st_max=2.0, R_st_min=0.095,
-                    R_st_max=2.15, T_min=0., T_max=10., inc_binary=0, SpT=None, seed=42, m_G_max = None,M_G_max=None,
-                    lum_evo=False, fill_missing=True, ecliptic_coords=False, schema=sch_gcns,xyz=False):  # , mult=0):
-    """ Reads a list of stellar properties from the Gaia nearby stars catalog.
+                    R_st_max=2.15, a_min=0., a_max=10., inc_binary=0, SpT=None, seed=42, m_G_max = None,M_G_max=None,
+                    lum_evo=False, fill_missing=True, ecliptic_coords=False, schema=sch_gcns,xyz=False, generate_RV=False):
+    """ Reads a list of stellar properties from a catalog of nearby Gaia stars.
 
     Parameters
     ----------
@@ -78,9 +78,9 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
         Minimum stellar radius, in solar units.
     R_st_max : float, optional
         Maximum stellar radius, in solar units.
-    T_min : float, optional
+    a_min : float, optional
         Minimum stellar age, in Gyr.
-    T_max : float, optional
+    a_max : float, optional
         Maximum stellar age, in Gyr.
     inc_binary : bool, optional
         Include binary stars? Default = False.
@@ -88,8 +88,6 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
         List of spectral types to include in the sample. Example: SpT=['F', 'G', 'K', 'M'].
     seed : int, optional
         seed for the random number generators.
-    mult : float, optional
-        Multiple on the total number of stars simulated. If > 1, duplicates some entries from the LUVOIR catalog.
     m_G_max : float, optional
         maximum apparent G magnitude of stars
     M_G_max : float, optional
@@ -105,6 +103,8 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
         schema for column datatypes used for polars file reading
     xyz : bool, optional
         compute galactic xyz coordinates
+    generate_RV : bool, optional
+        drawn random radial velocities for simulated stars
 
     Returns
     -------
@@ -144,6 +144,11 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
         # Apply filters in Polars (lazy evaluation - more efficient for large files)
         filter_conditions = []
         col_names_stripped = [col.strip() for col in col_names]
+
+        #compute Gmag if specified or if used in query
+        #if (compute_m_G or (m_G_max is not None)) and ('Gmag' not in col_names_stripped):
+        #    if ('d' in col_names_stripped) and ('M_G' in col_names_stripped):
+        #        query=query.with_columns((pl.col('M_G')+5*np.log10(pl.col('d'))-5).alias('Gmag'))
 
         if d_max and ('d' in col_names_stripped):
             filter_conditions.append(pl.col('d') < d_max)
@@ -188,7 +193,6 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
 
     except Exception as e:
         # Fallback to pandas if Polars fails
-        import warnings
         warnings.warn(f"Polars read failed ({e}), falling back to pandas", UserWarning)
         # Use the same path resolution for pandas fallback
         if not os.path.exists(path):
@@ -244,12 +248,12 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
             r = d['d'] * np.sin(np.arccos(cost))
             d['x'], d['y'], d['z'] = r * np.cos(phi), r * np.sin(phi), d['d'] * cost
         if 'age' not in d.keys():
-            d['age'] = np.random.uniform(T_min, T_max, size=len(d))
+            d['age'] = np.random.uniform(a_min, a_max, size=len(d))
         if 'logL' not in d.keys():
             d['logL'] = np.log10(d['L_st'])
         if 'star_name' not in d.keys():
             d['star_name'] = np.char.array(np.full(len(d), 'REAL-')) + np.char.array(np.arange(len(d)).astype(str))
-        if 'RV' not in d.keys():
+        if generate_RV and('RV' not in d.keys()):
             d['RV'] = np.random.uniform(-200, 200, size=len(d))
 
     # Assign stellar IDs and names
@@ -494,6 +498,63 @@ def read_HPIC(d, filename='HPIC.txt', Vmag_max=None, d_max=None,
 
     d['starID'] = np.arange(len(d), dtype=int)
     d['simulated'] = np.zeros(len(d), dtype=bool)
+
+    return d
+
+def schedule_DI_survey(d,survey=None, Ag=0.3, R_eec=1.0, SNR=7,band='Vmag', **e_kwargs):
+    """
+    Function to generate a survey schedule for a direct imaging mission. Currently this uses
+    a simple prioritization scheme based on the time it would take to observe
+    an Earth analog. Call this function before planet generation.
+
+    Parameters
+    ----------
+    Ag : float, optional
+        default value for geometric albedo. Not used if albedo is already defined
+    R_eec : float, optional
+        The radius of an Earth analog in R_earth. The default is 1.0.
+    SNR : float, optional
+        Required signal to noise for Earth-like planet characterization
+    band : str, optional
+        name of photometric band used in exposure time calculator
+    **e_kwargs :
+        keyword arguments for exposure time calculator
+
+    Returns
+    -------
+    d : Table
+        Table of stars to be surveyed
+
+    """
+    if survey is None:
+        raise Exception('Survey needs to be defined for this function')
+
+    d['eeid'] = np.sqrt(d['L_st'])  # in au
+    # full equation a = a_earth * sqrt(L/L_sun)
+    d['earth_sep'] = (d['eeid'] / d['d']) * 1000  # in mas
+
+    # contrast of earth analog at quadrature
+    d['C_earth'] = Ag * (4.258756e-5 * R_eec / d['eeid']) ** 2 / np.pi
+
+    d = survey.call_exposure_time_calculator(d, SNR=SNR, C_col='C_earth', sep_col='earth_sep',
+                                           texp_col='t_req', **e_kwargs)
+
+    d = d.sort_by('t_req', ascending=True)
+
+    day_to_sec = 24 * 60 * 60
+    t_max_sec = survey.t_max * day_to_sec
+
+    t_tot = 0.0
+    stop_ind = -1
+    for ind in range(len(d)):
+        t_tot = t_tot + d['t_req'][ind]
+        if t_tot > t_max_sec:
+            stop_ind = ind
+            break
+
+    d = d[:stop_ind]
+
+    d['starID'] = np.arange(len(d), dtype=int)  # reindex star ids
 
     return d
 
