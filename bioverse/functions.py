@@ -541,8 +541,7 @@ def schedule_DI_survey(d,survey=None, Ag=0.3, R_eec=1.0, SNR=7,band='Vmag', **e_
 
     d = d.sort_by('t_req', ascending=True)
 
-    #day_to_sec = 24 * 60 * 60
-    t_max_days = survey.t_max #survey.t_max is already in days #* day_to_sec
+    t_max_days = survey.t_max #survey.t_max is already in days
 
     t_tot = 0.0
     stop_ind = -1

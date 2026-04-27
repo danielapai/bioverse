@@ -12,9 +12,9 @@ class Survey(dict, Object):
     Describes an exoplanet survey, including methods for creating simulated datasets. This class should not be called directly; instead use ImagingSurvey or TransitSurvey.
     """
     label: str = None
-    diameter: float = 15.0
-    t_max: float = 10*365.25
-    t_slew: float = 0.00347 #5 min in days
+    diameter: float = 15.0 # in meters
+    t_max: float = 10*365.25 #max survey duration in days
+    t_slew: float = 0.00347 #slew time in days
     #debias: bool = False
 
     def __post_init__(self):
@@ -134,15 +134,13 @@ class Survey(dict, Object):
 
         return sample, detected, data
         
-    def observe(self, y, t_total=None, data=None, error=None, demographics=False):
+    def observe(self, y, data=None, error=None, demographics=False):
         """ Returns a simulated data set for a Table of simulated planets.
         
         Parameters
         ----------
         y : Table
             Table containing the set of planets to be observed, usually the detection yield of the survey.
-        t_total : float, optional
-            Sets the total time allocated to all Measurements.
         data : Table, optional
             Pre-existing Table in which to store the new measurements.
         error : Table, optional
@@ -166,17 +164,8 @@ class Survey(dict, Object):
                 print("Could not measure property: {:s}".format(m.key))
                 continue
 
-            # Determine the amount of time for this measurement (if it has any exposure time constraints)
-            t = np.inf
-            #outdated now that time is associated with survey not measurement
-            # if t_total is not None and m.t_ref is not None:
-            #     if isinstance(t_total, dict) and m.key in t_total:
-            #         t = t_total[m.key]
-            #     elif not isinstance(t_total, dict):
-            #         t = t_total
-
             try:
-                data = m.measure(y, data, t_total=t)
+                data = m.measure(y, data)
             except:
                 print("Problem measuring property: {:s}".format(m.key))
 
@@ -232,7 +221,6 @@ class Survey(dict, Object):
             raise KeyError("No t_exp column found in Table.")
 
         weights = self.compute_weights(d)
-        #weights = np.ones(len(d))  # temporarily equal weights
 
         t_exp = copy.deepcopy(d[texp_col]) #needs deepcopy or edits d in place
         if zero_overhead:
@@ -265,7 +253,6 @@ class Survey(dict, Object):
         # Observe planets in order of priority, until we run out of time or valid targets
         t_sum, observable = 0., np.zeros(len(d), dtype=bool)
         valid = weights > 0
-        #finished = np.zeros_like(observable)
 
         sorted_inds= np.argsort(priority)
         sorted_inds= sorted_inds[::-1]
@@ -286,7 +273,6 @@ class Survey(dict, Object):
             elif self.mode == 'transit':
                 t_exp[i]-= t_exp[i]
 
-        #finished = (t_exp <= 0)
         observable[t_exp <= 0]= True
 
         return observable
@@ -671,16 +657,6 @@ class Measurement():
         Survey associated with this Measurement.
     precision : str or float, optional
         Precision of measurement, e.g. '10%' or 0.10 units. Default is zero.
-    t_ref : float, optional
-        Amount of time required to perform the measurement for a typical target, in days.
-    t_total : float, optional
-        Total amount of time allocated for this measurement, in days.
-    priority : dict, optional
-        Describes how target weights are assigned based on target properties. For example {'R':[[1, 2, 5]]} assigns weight = 5 to planets with 1 < R < 2.
-    wl_eff : float, optional
-        Effective wavelength of observation, used to estimate SNR.
-    debias : bool, optional
-        (Transit mode) If True, weight targets by a/R_* to cancel the transit detection bias.
     """
     def __init__(self, key, survey, precision=0.):
         # Save the keyword values
@@ -695,7 +671,7 @@ class Measurement():
 
         return s
 
-    def measure(self, detected, data=None, error=None, t_total=None):
+    def measure(self, detected, data=None, error=None): #, t_total=None):
         """ Produces the measurement for planets in a Table and places them into a data Table.
         
         Parameters
@@ -707,8 +683,6 @@ class Measurement():
             then a new table is created.
         error : Table, optional
             Table in which to store the measurement uncertainties. Must be given if `data` is given.
-        t_total : float, optional
-            Total amount of time allocated to this Measurement. If None, use self.t_total.
         
         Returns
         -------

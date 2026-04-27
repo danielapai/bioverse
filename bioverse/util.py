@@ -739,7 +739,7 @@ def DI_exposure_time_calculator(contrast, sep_mas, D, mag_star, lambda_ref=550.,
     Returns
     -------
     t_exp: float
-        required exposure time in seconds
+        required exposure time in days
 
     """
     X = 0.7
