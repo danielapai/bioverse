@@ -86,15 +86,13 @@ class Survey(dict, Object):
 
         self.measurements = {key:self.measurements[key] for key in keys}
 
-    def quickrun(self, generator, t_total=None, N_sim=1, method='detectable', **kwargs):
+    def quickrun(self, generator, N_sim=1, method='detectable', **kwargs):
         """ Convenience function that generates a sample, computes the detection yield, and returns a simulated data set.
         
         Parameters
         ----------
         generator : Generator
             Generator used to generate the planet population.
-        t_total : float, optional
-            Total amount of observing time for any measurements with a limited observing time.
         N_sim : int, optional
             If greater than 1, simulate the survey this many times and return the combined result.
         method : str, optional
@@ -116,21 +114,22 @@ class Survey(dict, Object):
         
         # For transit surveys, set transit_mode=True unless otherwise specified
         if isinstance(self, TransitSurvey) and 'transit_mode' not in kwargs:
-            kwargs['transit_mode'] = True
+            generator.set_arg('transit_mode',True)
 
         if N_sim > 1:
+            #be sure to not explicitly set seed as kwarg or all simulations will be the same
             sample, detected, data = Table(), Table(), Table()
             data.error = Table()
             for i in range(int(N_sim)):
-                res = self.quickrun(generator, t_total=t_total, N_sim=1,method=method, **kwargs)
+                res = self.quickrun(generator, N_sim=1,method=method, **kwargs)
                 sample.append(res[0])
                 detected.append(res[1])
                 data.append(res[2])
-                data.error.append(res[3])
+                data.error.append(res[2].error)
         else:
             sample = generator.generate(**kwargs)
-            detected = self.compute_yield(sample, method=method)
-            data = self.observe(detected, t_total=t_total)
+            detected = self.compute_yield(sample, method=method,**kwargs)
+            data = self.observe(detected)
 
         return sample, detected, data
         
@@ -156,6 +155,9 @@ class Survey(dict, Object):
         # Create an output Table to store measurements
         if data is None:
             data = Table()
+            data.error = Table()
+        elif error is None:
+            #if data is defined but error table isn't add blank error table
             data.error = Table()
 
         # Perform each measurement in order
@@ -341,7 +343,7 @@ class Survey(dict, Object):
     #function to estimate exposure time from a scaling relation
     def exp_time_scaling_relation(self, d, t_ref=3.1, wl_eff=0.6, T_st_ref=5788.,
                                   R_st_ref =1.0 , D_ref=15.0,d_ref=10.0, R_pl_ref=1.0,
-                                  H_ref=9):
+                                  H_ref=9,**kwargs):
         """ Computes the exposure time and number of observations required to characterize each planet in `d`.
 
             d: data table
@@ -353,6 +355,7 @@ class Survey(dict, Object):
             d_ref: reference distance in pc
             R_pl_ref: reference planet radius in R_earth
             H_ref: reference atmosphere scale height
+            kwargs: additional keyword arguments (allows us to pass unused kwargs as well)
 
         """
         wl = wl_eff / 10000 # convert from microns -> cm
@@ -599,7 +602,7 @@ class TransitSurvey(Survey):
             Method used for yield calculation.
                 "detectable" implies all detectable planets are observed without consideration of exposure time
                 and total mission duration.
-                "scaling relation" uses estimated exposure times from PSG and a scaling relation
+                "scaling_relation" uses estimated exposure times from PSG and a scaling relation
         debias : bool, optional
             Apply debias correction for transiting planets.
         zero_overhead : bool, optional
@@ -671,7 +674,7 @@ class Measurement():
 
         return s
 
-    def measure(self, detected, data=None, error=None): #, t_total=None):
+    def measure(self, detected, data=None, error=None):
         """ Produces the measurement for planets in a Table and places them into a data Table.
         
         Parameters
