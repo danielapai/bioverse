@@ -67,6 +67,7 @@ class Survey(dict, Object):
         **m_kwargs
             Keyword arguments in terms of measurement name and precision
         """
+
         for key, val in m_kwargs.items():
             self.measurements[key]=Measurement(key,self,precision=val)
     
@@ -160,6 +161,9 @@ class Survey(dict, Object):
             #if data is defined but error table isn't add blank error table
             data.error = Table()
 
+        if len(self.measurements.keys())==0:
+            raise ValueError("Survey requires at least one measurement")
+
         # Perform each measurement in order
         for _, m in self.measurements.items():
             if m.key not in y.keys():
@@ -189,12 +193,13 @@ class Survey(dict, Object):
         # Imaging mode: 1x overhead for each target
         if self.mode == 'imaging':
             t_over = np.full(len(d), self.t_slew)
-
+        elif self.mode == 'transit':
         # Transit mode: N_obs x (overhead + T_dur) for each target
-        if self.mode == 'transit':
             if 'T_dur' not in d:
                 raise KeyError("No T_dur column in Table. Transit duration required for overhead calculation.")
             t_over = N_obs * (self.t_slew + d['T_dur'])
+        else:
+            raise ValueError("compute_overhead_time only works for mode='transit' or mode='imaging'")
 
         return t_over
 
@@ -209,8 +214,9 @@ class Survey(dict, Object):
 
         if 'a' not in d:
             d.compute('a')
-        #if 'a_eff' not in d:
-        #    d.compute('a_eff')
+
+        if 'R_st' not in d:
+            raise KeyError("No R_st column found in Table.")
 
         debias = d['a']/d['R_st']
         return debias
