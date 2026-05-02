@@ -7,6 +7,10 @@ from matplotlib.ticker import ScalarFormatter
 from scipy.ndimage import gaussian_filter, zoom
 import numpy as np
 import pickle
+from bioverse.classes import Table
+from matplotlib.gridspec import GridSpec
+import datetime
+
 from warnings import warn
 
 # Bioverse modules and constants
@@ -1339,3 +1343,211 @@ def plot_clear_cloudy_spectra(x, y_clr, y_cld, f_clouds=0.75, lw=3, bands=[], c=
     plt.subplots_adjust(bottom=0.17, left=0.15)
 
     return fig, ax
+"""
+This method summarizes the planet yield of a survey by plotting the S-R distribution
+of detected planets and histograms of key parameters. It also includes a text block
+summarizing the number of planets, stars, and EECs in the sample, as well as any
+assumptions provided.
+
+The main scatter plot optionally colors the points by the logarithm of the exposure
+time. The small summary panels show distributions of distance, stellar effective
+temperature, stellar luminosity, stellar mass, period, transit duration, number of
+observed transits, and exposure time. Habitable zone boundaries are marked with
+dashed vertical lines on the S-R plot.
+"""
+
+
+
+def plot_yield_summary(
+    d,
+    assumptions=None,
+    show_colorbar=True,
+    S_lim=(6.0, 0.20),
+    R_lim=(0.0, 15.0),
+    title="Planet Yield Summary — Instellation vs. Radius",
+    cmap="viridis_r",
+    hist_color="steelblue",
+    hz_color="0.35",
+    hz_style="--",
+    marker_size=30,
+    label_fontsize=16,
+    tick_fontsize=13,
+    HZ_INNER = 1.7763,
+    HZ_OUTER = 0.3207
+):
+    """
+    Parameters
+    ----------
+    d : bioverse Table
+        Table object containing the planet yield data.
+    assumptions : dict, optional
+        A dictionary of assumptions to include in the text summary.
+    show_colorbar : bool, optional
+        Whether to display the colorbar for log10(t_exp) on the S-R scatter plot.
+        Default is True.
+    S_lim : tuple, optional
+        (left, right) x-axis limits for the instellation axis. Since higher S means
+        closer to the star, the axis is reversed (left > right by default).
+        Default is (6.0, 0.20).
+    R_lim : tuple, optional
+        (bottom, top) y-axis limits for the radius axis.
+        Default is (0.0, 15.0).
+    title : str, optional
+        Title displayed above the main S-R scatter panel.
+        Default is "Planet Yield Summary — Instellation vs. Radius".
+    cmap : str, optional
+        Colormap used to color scatter points by log10(t_exp).
+        Default is "viridis_r".
+    hist_color : str, optional
+        Fill color for the histogram bars in the small summary panels.
+        Default is "steelblue".
+    hz_color : str, optional
+        Color for the habitable zone boundary lines.
+        Default is "0.35" (dark gray).
+    hz_style : str, optional
+        Linestyle for the habitable zone boundary lines.
+        Default is "--" (dashed).
+    marker_size : int or float, optional
+        Size of scatter plot markers in the main S-R panel.
+        Default is 30.
+    label_fontsize : int, optional
+        Font size for axis labels. Tick labels are scaled relative to this.
+        Default is 16.
+    tick_fontsize : int, optional
+        Font size for axis tick labels.
+        Default is 13.
+    HZ_INNER : float, optional
+        Inner habitable zone flux boundary
+    HZ_OUTER: float, optional
+        Outer habitable zone flux boundary
+
+    Returns
+    -------
+    fig : matplotlib Figure
+        The figure containing the yield summary plots.
+    """
+
+    # --- Input validation ------------------------------------------------
+    if d is None:
+        raise ValueError("No data provided for plotting.")
+    if not isinstance(d, Table):
+        raise ValueError("Input data must be a bioverse Table.")
+
+    required_keys = [
+        "S", "R", "P", "M_st", "t_exp", "N_obs", "T_dur", "EEC",
+        "d", "T_eff_st", "L_st",
+    ]
+    for key in required_keys:
+        if key not in d:
+            raise ValueError(f"Missing required column '{key}' in input data.")
+
+    # --- Layout constants ------------------------------------------------
+    TITLE_FS = label_fontsize + 2
+
+    # --- Figure & GridSpec -----------------------------------------------
+    fig = plt.figure(figsize=(20, 13), constrained_layout=True)
+    gs  = GridSpec(nrows=3, ncols=4, figure=fig,
+                   height_ratios=[2.5, 1.3, 1.3])
+
+    ax_main = fig.add_subplot(gs[0, :3])   # main S-R panel
+    ax_text = fig.add_subplot(gs[0, 3])    # text / summary panel
+    ax_text.axis("off")
+
+    columns = [
+        "d",     "T_eff_st", "L_st",  "M_st",
+        "P",     "T_dur",    "N_obs",  "t_exp",
+    ]
+    xlabels = [
+        "Distance (pc)",
+        r"Stellar $\mathrm{T_{eff}}$ (K)",
+        r"Stellar Luminosity ($L_\odot$)",
+        r"Stellar Mass ($M_\odot$)",
+        "Period (days)",
+        "Transit Duration (days)",
+        "Number of Observed Transits",
+        "Exposure Time (days)",
+    ]
+    log_cols = {"P", "L_st"}   # these axes use log10 transformation
+
+    small_axes = []
+    for idx in range(8):
+        row = 1 + idx // 4
+        col = idx  % 4
+        small_axes.append(fig.add_subplot(gs[row, col]))
+
+    # --- Main S-R scatter ------------------------------------------------
+    sc = ax_main.scatter(
+        d["S"], d["R"],
+        c=np.log10(d["t_exp"]),
+        s=marker_size,
+        cmap=cmap,
+        alpha=0.85,
+    )
+
+    ax_main.set_xscale("log")
+    ax_main.set_xlim(*S_lim)
+    ax_main.set_ylim(*R_lim)
+    ax_main.set_xlabel(r"Instellation ($S_\oplus$)", fontsize=label_fontsize)
+    ax_main.set_ylabel(r"Radius ($R_\oplus$)",        fontsize=label_fontsize)
+    ax_main.tick_params(labelsize=tick_fontsize)
+    ax_main.set_title(title, fontsize=TITLE_FS, fontweight="semibold", pad=10)
+
+    if show_colorbar:
+        cbar = fig.colorbar(sc, ax=ax_main)
+        cbar.set_label(
+            r"$\log_{10}(t_\mathrm{exp}\ [\mathrm{days}])$",
+            fontsize=label_fontsize,
+        )
+        cbar.ax.tick_params(labelsize=tick_fontsize)
+
+    # Habitable zone boundaries
+    if (HZ_OUTER is not None) and (HZ_OUTER is not None):
+        hz_kw = dict(color=hz_color, linestyle=hz_style, linewidth=1.4, alpha=0.75)
+        ax_main.axvline(HZ_INNER, **hz_kw, label="Habitable zone")
+        ax_main.axvline(HZ_OUTER, **hz_kw)
+        ax_main.legend(fontsize=tick_fontsize)
+
+    # --- Eight histogram panels ------------------------------------------
+    for ax, col, xlabel in zip(small_axes, columns, xlabels):
+        values = d[col]
+        if col in log_cols:
+            values = np.log10(values)
+            xlabel = r"$\log_{10}$(" + xlabel + ")"
+        ax.hist(values, bins=25, color=hist_color, edgecolor="white", linewidth=0.4)
+        ax.set_xlabel(xlabel,  fontsize=label_fontsize)
+        ax.set_ylabel("Count", fontsize=label_fontsize - 2)
+        ax.tick_params(labelsize=tick_fontsize)
+
+    lines = [
+        f"N planets : {len(d)}",
+        f"N stars   : {len(d.get_stars())}",
+        f"N EEC     : {int(d['EEC'].sum())}",
+        "",
+        "Assumptions:",
+    ]
+    lines += (
+        [f"  {k}: {v}" for k, v in assumptions.items()]
+        if assumptions else ["  (none provided)"]
+    )
+
+    ax_text.text(
+        0.05, 0.97,
+        "\n".join(lines),
+        va="top", ha="left",
+        fontsize=label_fontsize - 2,
+        family="monospace",
+        transform=ax_text.transAxes,
+    )
+
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d  %H:%M:%S")
+    ax_text.text(
+        0.05, 0.03,
+        f"Generated:\n{timestamp}",
+        va="bottom", ha="left",
+        fontsize=11,
+        color="0.4",
+        family="monospace",
+        transform=ax_text.transAxes,
+    )
+
+    return fig

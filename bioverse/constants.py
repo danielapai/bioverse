@@ -23,6 +23,7 @@ FUNCTIONS_DIR = ROOT_DIR+'/functions/'
 CONST = {}
 CONST['T_eff_sol'] = 5777.
 CONST['yr_to_day'] = 365.2422
+CONST['day_to_sec']=86400.0
 CONST['AU_to_solRad'] = 215.03215567054767
 CONST['rho_Earth'] = 5.51
 CONST['g_Earth'] = 980.7
@@ -32,6 +33,9 @@ CONST['R_Sun'] = 6.9634e10
 CONST['h_Earth'] = 8.5e5
 CONST['P_Earth'] = 101325.
 CONST['S_Earth'] = 238.         # global-averaged, top-of-atmosphere insolation of Earth in W/m2. Scaled by an assumed albedo of 0.3.
+CONST['h'] =6.6261e-27
+CONST['c']= 2.9979e10
+CONST['k']= 1.3807e-16
 
 # Data types
 ARRAY_TYPES = (np.ndarray,list,tuple)

@@ -42,7 +42,8 @@ class Object():
                     for key in pkl.keys():
                         self[key] = pkl[key]
         else:
-            print("Created a new {:s}".format(type(self).__name__))
+            #print("Created a new {:s}".format(type(self).__name__))
+            pass
 
     def save(self, label=None):
         """ Saves the Object as a template in a .pkl file under ./<object type>s/. """
@@ -120,7 +121,7 @@ class Table(dict):
         if len(self) > 0 and not force:
             if (np.isscalar(value) or isinstance(value, (dict, type(None)))) and len(self) == 1:
                 pass
-            elif ~np.isscalar(value) and len(self) == len(value):
+            elif (not np.isscalar(value)) and len(self) == len(value):
                 pass
             else:
                 raise ValueError("size of new column does not match other columns")
@@ -340,7 +341,7 @@ class Table(dict):
         """ Returns the subset of rows for which self[key] is not nan. """
         if key not in self:
             raise ValueError("parameter '{:s}' not found".format(key))
-        return self[~np.isnan(self[key])]
+        return self[np.logical_not(np.isnan(self[key]))]
 
 class Stopwatch():
     """ This class uses the time module to profile chunks of code. Use the start() and stop() methods to start and
