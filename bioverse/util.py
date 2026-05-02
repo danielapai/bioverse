@@ -12,18 +12,23 @@ from astropy.visualization import hist as astropyhist
 from .constants import LIST_TYPES, CATALOG_FILE, INT_TYPES, FLOAT_TYPES, CONST
 from .import truncnorm_hack
 
-# Load the Gaia stellar target catalog into memory for fast access
-try:
-    CATALOG = np.genfromtxt(CATALOG_FILE, delimiter=',', names=True)
-except (OSError,IOError):
-    warn("could not load {:s} - try running util.update_stellar_catalog")
 
 # Progress bar if tqdm is installed, else a dummy function
 try:
     from tqdm import tqdm
 except ImportError:
     tqdm = None
-    
+
+
+# Load the Gaia stellar target catalog into memory for fast access
+def read_catalog():
+    try:
+        cat = np.genfromtxt(CATALOG_FILE, delimiter=',', names=True)
+    except (OSError, IOError):
+        warn("could not load {:s} - try running util.update_stellar_catalog")
+
+    return cat
+
 def bar(arg, do_bar=True):
     """ Given an iterable, returns a progress bar if tqdm is installed. Otherwise, returns the iterable.
     
