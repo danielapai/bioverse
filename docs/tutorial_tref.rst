@@ -2,7 +2,17 @@
 Tutorial 3: Calculating exposure times
 ######################################
 
-The sample size of a simulated survey is often limited by the amount of observing time allotted for time-consuming spectroscopic measurements. To impose this limit, Bioverse requires a realistic estimate for the exposure time needed to conduct the measurement for a typical survey target, referred to as ``t_ref`` (see :ref:`reference-case` for details). For the time being, ``t_ref`` must be calculated separately using third-party tools, though future updates may bring this functionality into Bioverse.
+.. admonition:: Note on survey updates
+
+   Yield and exposure-time limits are now configured primarily through the
+   :class:`~bioverse.survey.Survey` API (see :doc:`module2`), including
+   :meth:`~bioverse.survey.Survey.set_reference_observation` and
+   :meth:`~bioverse.survey.Survey.compute_yield`. The PSG workflow below is still
+   useful for obtaining numeric ``t_ref`` and ``wl_eff`` values to **populate**
+   those survey settings; it does **not** replace the updated discussion of
+   measurements and yields in :doc:`module2`.
+
+The sample size of a simulated survey is often limited by the amount of observing time allotted for time-consuming spectroscopic measurements. Third-party tools such as the Planetary Spectrum Generator are still used to estimate a reference exposure time ``t_ref`` for a typical target. For historical context, older documentation referred to a ``reference-case`` section; the current survey reference parameters are described in :doc:`module2` under :ref:`scaling-relation-yield`.
 
 This example will demonstrate one method of determining ``t_ref`` for the default transit survey, for which the typical target orbits a mid-M dwarf at ~50 parsecs distance. We will use the `Planetary Spectrum Generator (PSG) <https://psg.gsfc.nasa.gov/>`_ to produce simulated spectra (and noise estimates) for our desired telescope configuration.
 
@@ -61,17 +71,23 @@ The final step is to calculate the detection SNR for the simulated 100 hr exposu
 
 Output: ``Required exposure time: 73.9 hr``
 
-To use this value in a Survey, edit the ``t_ref`` parameter of the ``has_O2`` Measurement (also specify the effective wavelength of the absorption feature as ``wl_eff``. These values should be converted into days and microns, respectively:
+To feed this value into the **current** survey configuration, pass it through
+:meth:`~bioverse.survey.Survey.set_reference_observation` together with the
+other reference keys required for :meth:`~bioverse.survey.Survey.compute_yield`
+with ``method='scaling_relation'`` (see :doc:`module2`). The snippet below
+illustrates the *numeric transfer* of ``t_ref`` and ``wl_eff``; adjust keys to
+match your survey setup:
 
 .. code-block:: python
 
     from bioverse.survey import TransitSurvey
 
     survey = TransitSurvey('default')
-    survey.measurements['has_O2'].t_ref = t_ref / 24.
-    survey.measurements['has_O2'].wl_eff = 0.6
-    survey.save()
+    survey.set_reference_observation(t_ref=t_ref / 24.0, wl_eff=0.6, ...)
+    # Provide remaining reference fields (T_st_ref, R_st_ref, D_ref, d_ref,
+    # R_pl_ref, H_ref) as needed — see module2 / Survey API.
 
-Bioverse will now scale this value to determine the exposure time required to detect (or reject) ozone for each individual planet, and prioritize planets appropriately.
+Those reference values are then used when you call ``compute_yield`` with
+``method='scaling_relation'``.
 
 

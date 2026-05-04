@@ -42,7 +42,8 @@ class Object():
                     for key in pkl.keys():
                         self[key] = pkl[key]
         else:
-            print("Created a new {:s}".format(type(self).__name__))
+            #print("Created a new {:s}".format(type(self).__name__))
+            pass
 
     def save(self, label=None):
         """ Saves the Object as a template in a .pkl file under ./<object type>s/. """
