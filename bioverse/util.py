@@ -708,6 +708,25 @@ def contrast_to_dmag(contrast):
     dmag= -2.5 * np.log10(contrast)
     return dmag
 
+def mag_to_flux(mag,zero_pt):
+    """
+    calculates flux from magnitude and zero point
+
+    Parameters
+    ------------
+    mag : float
+        object magnitude
+    zero_pt : float
+        flux zero point
+
+    Returns
+    -------------
+    F : float
+        flux (same units as zero point)
+    """
+    F= zero_pt*10**(-mag/2.5)
+    return F
+
 def DI_exposure_time_calculator(contrast, sep_mas, D, mag_star, lambda_ref=550.,
                                     F_0=10375.7, SNR=7, IWA=3.5, OWA=64.0, logcontrast_limit=-10.6,
                                     band_width=1.0/140.0):
@@ -796,3 +815,165 @@ def DI_exposure_time_calculator(contrast, sep_mas, D, mag_star, lambda_ref=550.,
     t_exp = pow(SNR, 2) * (CR_p + 2 * CR_b) / pow(CR_p, 2)  # in seconds
     t_exp= t_exp/CONST['day_to_sec']
     return t_exp
+
+#compute pixel scale, may be specific to Chronos architecture
+def pixel_scale_arcsec_per_pix(pixel_um, f_mm):
+    return 206.265 * (pixel_um / f_mm)
+
+#SNR calculator for transit observations
+#currently only tested for Gmag
+def SNR_calculator(Gmag,
+                   R=20,
+                   wl=0.621759, #um
+                   D= 50,#diameter cm
+                   f_number = 2.7, #F number of lens
+                   eta_tele=1.0,
+                   t_exp=2.0, #s
+                   n_exp=300,
+                   n_pix=108,
+                   pix_size=20.0, #um
+                   F0_G=2.503844769366081e-05, #G band zero point, erg/s/cm2/um
+                   lam_center=0.621759, #G band center wavelength, um
+                   eta_eff=1.0,
+                   read_noise= 1.0, #e-/pix
+                   dark_current=0.05 #e-/s/pix
+                   ):
+    #add logic for if Gmag, t_exp, n_exp are arrays to ensure they are same length
+
+    F_G = mag_to_flux(Gmag, F0_G)
+    dlambda = wl / R  # um
+    area = eta_tele * np.pi * (D / 2) ** 2
+
+    #calculate the focal length, use it to compute pixel scale
+    f_mm = f_number * (D * 1.0e1)
+    #this may be Chronos specific
+    pix_scale = pixel_scale_arcsec_per_pix(pix_size, f_mm) #arcsec/pix
+    solid_angle= n_pix*pix_scale**2 #arcsec^2
+
+    E_phot = CONST['h'] * CONST['c'] / (wl * 1.0e-4)  # erg
+    F_to_e_factor = eta_eff * area * n_exp * t_exp * dlambda / E_phot
+
+    N_source = F_to_e_factor * F_G
+
+    #average zodi brightness 22.5 mag / arcsec2
+    z= 22.5  #assume roughly same in G band as in V band
+    F_back = F0_G * (10**(-0.4*z)) * solid_angle
+    N_back = F_to_e_factor * F_back
+    N_optics = 0
+    N_ground = 0
+    N_D = n_pix * n_exp * (read_noise ** 2 + dark_current * t_exp)  # is this equation correct, listed in PSG documentation
+    N_tot = np.sqrt(2 * N_D + N_source + 2 * N_back + 2 * N_optics + 2 * N_ground)
+
+    SNR = N_source / N_tot
+    return SNR
+
+
+#calculate required number of exposures to achieve a given SNR
+#inverts SNR_calculator
+#assumes t_exp is fixed
+#total integration time is t_exp*n_exp
+def calc_nexp(Gmag,SNR=6,
+                   R=20,
+                   wl=0.621759, #um
+                   D= 50,#diameter cm
+                   f_number = 2.7, #F number of lens
+                   eta_tele=1.0,
+                   t_exp=2.0, #s
+                   n_pix=108,
+                   pix_size=20.0, #um
+                   F0_G=2.503844769366081e-05, #G band zero point, erg/s/cm2/um
+                   lam_center=0.621759, #G band center wavelength, um
+                   eta_eff=1.0,
+                   read_noise= 1.0, #e-/pix
+                   dark_current=0.05 #e-/s/pix
+                   ):
+    #add logic for if Gmag, t_exp, n_exp are arrays to ensure they are same length
+
+    F_G = mag_to_flux(Gmag, F0_G)
+    dlambda = wl / R  # um
+    area = eta_tele * np.pi * (D / 2) ** 2
+
+    #calculate the focal length, use it to compute pixel scale
+    f_mm = f_number * (D * 1.0e1)
+    #this may be Chronos specific
+    pix_scale = pixel_scale_arcsec_per_pix(pix_size, f_mm) #arcsec/pix
+    solid_angle= n_pix*pix_scale**2 #arcsec^2
+
+    E_phot = CONST['h'] * CONST['c'] / (wl * 1.0e-4)  # erg
+
+    Cs= eta_eff*area*t_exp*dlambda*F_G / E_phot
+
+    #average zodi brightness 22.5 mag / arcsec2
+    z= 22.5  #assume roughly same in G band as in V band
+    F_back = F0_G * (10**(-0.4*z)) * solid_angle
+    Cb= eta_eff*area*t_exp*dlambda*F_back / E_phot
+
+    #N_optics = 0
+    #N_ground = 0
+    Cd = n_pix * (read_noise ** 2 + dark_current * t_exp)  # is this equation correct, listed in PSG documentation
+
+    n_exp= ((2*Cd+Cs+2*Cb)/(Cs**2))*SNR**2
+    return n_exp
+
+RA0 = 290.67        # deg
+DEC0 = 44.5         # deg
+HALF_RA = 65.159/2      # deg  #scenario I
+HALF_DEC = 60.815 / 2  # deg #scenario I
+
+def in_geodesic_box(ra_deg, dec_deg,
+                    ra0_deg=RA0, dec0_deg=DEC0,
+                    half_ra_deg=HALF_RA,
+                    half_dec_deg=HALF_DEC):
+    """
+    Return True/False for points inside a geodesic rectangle centered at
+    (ra0, dec0), with half-sizes interpreted as GREAT-CIRCLE half-angles.
+
+    This version avoids mirrored gnomonic-projection solutions by requiring
+    the source to be on the front hemisphere of the tangent point.
+
+    credit Chia-Lung
+    """
+
+    ra_deg  = np.asanyarray(ra_deg)
+    dec_deg = np.asanyarray(dec_deg)
+
+    ra   = np.deg2rad(ra_deg)
+    dec  = np.deg2rad(dec_deg)
+    ra0  = np.deg2rad(ra0_deg)
+    dec0 = np.deg2rad(dec0_deg)
+
+    dra = ra - ra0
+
+    # Gnomonic projection denominator.
+    # This is cos(c), where c is the angular distance from the field center.
+    cosc = (
+        np.sin(dec0) * np.sin(dec)
+        + np.cos(dec0) * np.cos(dec) * np.cos(dra)
+    )
+
+    # Reject the back side of the tangent plane.
+    # This is the key part that removes mirrored solutions.
+    front = cosc > 0
+
+    # Initialize projected coordinates as NaN
+    xi  = np.full_like(ra, np.nan, dtype=float)
+    eta = np.full_like(dec, np.nan, dtype=float)
+
+    # Only project valid front-side points
+    xi[front] = (
+        np.cos(dec[front]) * np.sin(dra[front])
+        / cosc[front]
+    )
+
+    eta[front] = (
+        np.cos(dec0) * np.sin(dec[front])
+        - np.sin(dec0) * np.cos(dec[front]) * np.cos(dra[front])
+    ) / cosc[front]
+
+    xi_lim  = np.tan(np.deg2rad(half_ra_deg))
+    eta_lim = np.tan(np.deg2rad(half_dec_deg))
+
+    inside_x = np.abs(xi)  <= xi_lim
+    inside_y = np.abs(eta) <= eta_lim
+
+    return front & inside_x & inside_y

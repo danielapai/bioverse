@@ -33,9 +33,9 @@ CONST['R_Sun'] = 6.9634e10
 CONST['h_Earth'] = 8.5e5
 CONST['P_Earth'] = 101325.
 CONST['S_Earth'] = 238.         # global-averaged, top-of-atmosphere insolation of Earth in W/m2. Scaled by an assumed albedo of 0.3.
-CONST['h'] =6.6261e-27
-CONST['c']= 2.9979e10
-CONST['k']= 1.3807e-16
+CONST['h'] =6.6261e-27 #cm^2 g/s
+CONST['c']= 2.9979e10 #cm/s
+CONST['k']= 1.3807e-16 #cm^2 g s^-2 K^-1
 
 # Data types
 ARRAY_TYPES = (np.ndarray,list,tuple)
