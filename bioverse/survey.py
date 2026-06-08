@@ -15,6 +15,8 @@ class Survey(dict, Object):
     diameter: float = 15.0 # in meters
     t_max: float = 10*365.25 #max survey duration in days
     t_slew: float = 0.00347 #slew time in days
+    FOV_center: np.ndarray = None #array of center(s) of each box field of view in RA and DEC (deg) #shape (nFOV,2) or (2)
+    FOV_size: np.ndarray = None #half width of FOV in degrees, shape: (nFOV,2) or (2)
     #debias: bool = False
 
     def __post_init__(self):
@@ -27,7 +29,8 @@ class Survey(dict, Object):
 
         # Casts all parameters to the correct type
         for field in fields(self):
-            self.__dict__[field.name] = field.type(self.__dict__[field.name])
+            if field.type != np.ndarray: #fails to cast None as np array
+                self.__dict__[field.name] = field.type(self.__dict__[field.name])
 
         # Update the parent reference in all of the Survey's measurements
         for measurement in self.measurements.values():
@@ -400,36 +403,61 @@ class Survey(dict, Object):
 
         return d
 
-    #should this be moved to functions, maybe we want to call it outside of survey
-    def in_telescope_FOV(d, box_centers=np.array([[util.RA0, util.DEC0]]), box_sizes=np.array([[util.HALF_RA, util.HALF_DEC]])):
+    def in_telescope_FOV(self,d):
         '''Function to filter objects based on whether they are in telescope field of view. Applicable for
         an array of telescopes such as Nautilus or Chronos
+
+        Relies on Survey.FOV_center, Survey.FOV_size
+        required format: numpy array of shape (nFOV,2) or (2) for RA and DEC centers and widths
+
+        if these are None, return results for whole sky
 
         Parameters
         -----------
         d : Table
             Table of all objects
-        box_centers : array-like
-            array of centers of each box FOV in RA and DEC (deg)
-            shape (nboxes,2) or (2)
-        box_sizes : array-like
-            size of each box in half RA and half DEC (deg)
-            shape (nboxes,2) or (2)
 
         Returns
         -----------
         d : Table
             Table of objects in the combined FOV
         '''
-        if len(box_centers.shape) == 1:
-            box_centers = box_centers.reshape(1, 2)
+        box_centers= self.FOV_center
+        box_sizes = self.FOV_size
 
+        if (box_centers is None) or (box_sizes is None):
+            return d
+
+        #ensure box_centers in shape (N,2)
+        if len(box_centers.shape) == 1:
+            if len(box_centers) == 2:
+                box_centers = box_centers.reshape(1, 2)
+            else:
+                raise Exception("Incorrect shape for FOV_center")
+        elif len(box_centers.shape) == 2:
+            if box_centers.shape[1] != 2:
+                raise Exception("Incorrect shape for FOV_center")
+        else:
+            raise Exception("Incorrect shape for FOV_center")
+
+        #ensure box_sizes in shape (N,2)
         if len(box_sizes.shape) == 1:
-            box_sizes = box_sizes.reshape(1, 2)
+            if len(box_sizes) == 2:
+                box_sizes = box_sizes.reshape(1, 2)
+            else:
+                raise Exception("Incorrect shape for FOV_size")
+        elif len(box_sizes.shape) == 2:
+            if box_sizes.shape[1] != 2:
+                raise Exception("Incorrect shape for FOV_size")
+        else:
+            raise Exception("Incorrect shape for FOV_size")
 
         n_boxes = len(box_centers)
         if len(box_sizes) != n_boxes:
-            box_sizes = np.repeat(box_sizes, n_boxes, axis=0)
+            if len(box_sizes)==1:
+                box_sizes = np.repeat(box_sizes, n_boxes, axis=0)
+            else:
+                raise Exception("Incompatible number of boxes and sizes")
 
         for q in range(n_boxes):
             box_mask = util.in_geodesic_box(d['ra'], d['dec'], ra0_deg=box_centers[q, 0], dec0_deg=box_centers[q, 1],
@@ -665,7 +693,12 @@ class TransitSurvey(Survey):
         d['photometric_precision'] = ppm_arr  # ppm
         return d
 
-    def fixed_field_yield(self, d, n_sigma=1.0, min_num_tr=1, t_fixed=60.0, t_exp=2.0, n_pix=108, R=20, **kwargs):
+    def fixed_field_yield(self, d, n_sigma=1.0, min_num_tr=1, t_fixed=None, t_exp=2.0, n_pix=108, R=20, **kwargs):
+        if t_fixed is None:
+            t_fixed=self.t_max
+        if np.isinf(t_fixed) or np.isnan(t_fixed):
+            return d
+
         d = self.calc_photometric_precision(d, t_fixed=t_fixed, t_exp=t_exp, n_pix=n_pix, R=R, **kwargs)
         mask = (d['depth'] * 1e6) > (n_sigma * d['photometric_precision'])
 
@@ -677,8 +710,7 @@ class TransitSurvey(Survey):
 
 
     def compute_yield(self, d0, method='detectable',debias=False,zero_overhead=False,**y_kwargs):
-        """ Computes a simple estimate of the detection yield for a transit survey. Currently all detectable transiting
-        planets are considered to be detected.
+        """ Computes a simple estimate of the detection yield for a transit survey. Select between multiple yield methods.
 
         Parameters
         ----------
@@ -725,15 +757,13 @@ class TransitSurvey(Survey):
             to_observe= self.schedule_observations(d,texp_col='t_exp',N_obs_col='N_obs',debias=debias,zero_overhead=zero_overhead)
             d= d[to_observe]
         elif method == 'fixed_field':
-
+            d = self.compute_detectable(d)
+            d= self.in_telescope_FOV(d) #currently in_telescope_FOV only called for fixed field method
             d = self.fixed_field_yield(d,**y_kwargs)  # should we make specific args explicit such as t_fixed?
-            #add sky area cut here?
 
         else:
             raise Exception('Method: {} not recognized'.format(method))
 
-        #add sky area constraint
-        #survey constraint
 
         # Return the output table
         return d

@@ -816,9 +816,9 @@ def DI_exposure_time_calculator(contrast, sep_mas, D, mag_star, lambda_ref=550.,
     t_exp= t_exp/CONST['day_to_sec']
     return t_exp
 
-#compute pixel scale, may be specific to Chronos architecture
+#compute pixel scale
 def pixel_scale_arcsec_per_pix(pixel_um, f_mm):
-    return 206.265 * (pixel_um / f_mm)
+    return 206.265 * (pixel_um / f_mm)  #206265 arcsec per radian
 
 #SNR calculator for transit observations
 #currently only tested for Gmag
