@@ -29,18 +29,18 @@ We can inspect the Generator to see which functions it implements:
     generator
 
     Generator with 12 steps:
-    0: Function 'read_stellar_catalog' with 5 keyword arguments.
-    1: Function 'create_planets_SAG13' with 9 keyword arguments.
+    0: Function 'read_stellar_catalog' with 6 keyword arguments.
+    1: Function 'create_planets_SAG13' with 10 keyword arguments.
     2: Function 'assign_orbital_elements' with 4 keyword arguments.
-    3: Function 'solve_kep' with 2 keyword arguments.
+    3: Function 'solve_kep' with 4 keyword arguments.
     4: Function 'assign_mass' with 2 keyword arguments.
-    5: Function 'compute_habitable_zone_boundaries' with no keyword arguments.
+    5: Function 'compute_habitable_zone_boundaries' with 1 keyword arguments.
     6: Function 'classify_planets' with no keyword arguments.
-    7: Function 'geometric_albedo' with 2 keyword arguments.
-    8: Function 'compute_contrast' with no keyword arguments.
+    7: Function 'geometric_albedo' with 3 keyword arguments.
+    8: Function 'compute_contrast' with 2 keyword arguments.
     9: Function 'effective_values' with no keyword arguments.
-    10: Function 'Example1_water' with 3 keyword arguments.
-    11: Function 'Example2_oxygen' with 2 keyword arguments.
+    10: Function 'Example1_water' with 4 keyword arguments.
+    11: Function 'Example2_oxygen' with 3 keyword arguments.
 
 Each of these functions is documented under the :mod:`~bioverse.functions` module.
 
@@ -52,30 +52,30 @@ The transit Generator uses a different set of steps:
     generator_transit
 
     Generator with 11 steps:
-    0: Function 'create_stars_Gaia' with 3 keyword arguments.
-    1: Function 'create_planets_SAG13' with 9 keyword arguments.
+    0: Function 'create_stars_Gaia' with 9 keyword arguments.
+    1: Function 'create_planets_SAG13' with 10 keyword arguments.
     2: Function 'assign_orbital_elements' with 4 keyword arguments.
     3: Function 'compute_transit_params' with 2 keyword arguments.
     4: Function 'assign_mass' with 2 keyword arguments.
-    5: Function 'geometric_albedo' with 2 keyword arguments.
-    6: Function 'compute_habitable_zone_boundaries' with no keyword arguments.
+    5: Function 'geometric_albedo' with 3 keyword arguments.
+    6: Function 'compute_habitable_zone_boundaries' with 1 keyword arguments.
     7: Function 'classify_planets' with no keyword arguments.
     8: Function 'scale_height' with no keyword arguments.
-    9: Function 'Example1_water' with 3 keyword arguments.
-    10: Function 'Example2_oxygen' with 2 keyword arguments.
+    9: Function 'Example1_water' with 4 keyword arguments.
+    10: Function 'Example2_oxygen' with 3 keyword arguments.
 
 Passing keyword arguments
 *************************
 
-Many of the functions in the Generator accept keyword arguments that affect the properties of the simulated sample. For example, the :func:`~bioverse.functions.create_planets_SAG13` function scales the planet occurrence rates via its keyword argument ``eta_Earth``. There are two ways to change it.
+Many of the functions in the Generator accept keyword arguments that affect the properties of the simulated sample. For example, the :func:`~bioverse.functions.create_planets_SAG13` function scales the planet occurrence rates via its keyword argument ``eta_Earth``. There are two ways to change it, and both are presisted across all steps that use it:
 
-**One-time override** — pass it directly to :func:`~bioverse.generator.Generator.generate`. The change applies only to that single call:
+**Method 1** — pass it directly to :func:`~bioverse.generator.Generator.generate`.:
 
 .. code-block:: python
 
     sample = generator.generate(eta_Earth=0.15)
 
-**Persistent change** — use :meth:`~bioverse.generator.Generator.set_arg` to update the stored default across all future calls:
+**Method 2** — use :meth:`~bioverse.generator.Generator.set_arg` to update the stored default across all future calls:
 
 .. code-block:: python
 
