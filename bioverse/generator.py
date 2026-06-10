@@ -187,7 +187,10 @@ class Generator(Object):
         """
         # Update the generator to make sure all steps are up to date
         self.update_steps()
-
+        # Set any keyword arguments passed to generate() using the set_arg method
+        for key, values in kwargs.items():
+            self.set_arg(key, values)
+        
         if d is None:
             d = Table()    
         if timed:
