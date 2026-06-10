@@ -96,18 +96,3 @@ Multiprocessing
 ***************
 
 To compute the statistical power for a 20x20 parameter grid with ``N=50`` simulations in each cell requires 20,000 simulations, or approximately 5-6 hours for the example above. Fortunately, these simulations are entirely independent of each other, making parallel processing an effective solution. You can use the ``processes`` argument of :func:`~bioverse.analysis.test_hypothesis_grid` to indicate how many processes to run in parallel. Note that Bioverse can be memory-intensive, so large values of ``processes`` (e.g. greater than 10) can have diminishing returns or lead to a crash.
-
-Accuracy vs. speed
-******************
-
-When using ``method='dynesty'`` (the default), the ``nlive`` argument controls the number of live points used in nested sampling. More live points produce a more accurate evidence estimate at the cost of longer runtime. The default is ``nlive=100``:
-
-.. code-block:: python
-
-    # Faster, less accurate
-    results = analysis.test_hypothesis_grid(h_HZ, generator, survey, N=30,
-                                            f_water_habitable=0.5, nlive=50)
-
-    # Slower, more accurate
-    results = analysis.test_hypothesis_grid(h_HZ, generator, survey, N=30,
-                                            f_water_habitable=0.5, nlive=300)
