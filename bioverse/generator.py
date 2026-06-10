@@ -135,6 +135,17 @@ class Generator(Object):
             warn("multiple values for argument {:s}".format(key))
         return vals[0]
 
+    def get_args(self): 
+        '''this method spits out/return all the keyword arguments currently set in it (as a dictionary format) rather than relying solely on command-line print statements. '''
+        args = {}
+        for step in self.steps:
+            for key,val in step.args.items():
+                if key not in args:
+                    args[key] = val
+                elif args[key] != val:
+                    warn("multiple values for argument {:s}".format(key))
+        return args
+    
     def set_arg(self, key, value):
         """ Sets the default value of a keyword argument for every step it applies to. """
         for step in self.steps:
