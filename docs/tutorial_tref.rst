@@ -61,17 +61,31 @@ The final step is to calculate the detection SNR for the simulated 100 hr exposu
 
 Output: ``Required exposure time: 73.9 hr``
 
-To use this value in a Survey, edit the ``t_ref`` parameter of the ``has_O2`` Measurement (also specify the effective wavelength of the absorption feature as ``wl_eff``. These values should be converted into days and microns, respectively:
+To use this value in a Survey, supply it through a reference observation dictionary and enable the scaling relation yield method. Start from the pre-configured dictionary for the transit O2 measurement and override the ``t_ref`` value with your PSG-derived result:
 
 .. code-block:: python
 
-    from bioverse.survey import TransitSurvey
+    from bioverse.survey import TransitSurvey, read_scaling_dict, prioritize_survey
 
     survey = TransitSurvey('default')
-    survey.measurements['has_O2'].t_ref = t_ref / 24.
-    survey.measurements['has_O2'].wl_eff = 0.6
-    survey.save()
 
-Bioverse will now scale this value to determine the exposure time required to detect (or reject) ozone for each individual planet, and prioritize planets appropriately.
+    # Load the pre-configured reference parameters for transit O2
+    scaling_dict = read_scaling_dict('transit_O2')
+
+    # Override t_ref with the value calculated from PSG (convert from hours to days)
+    scaling_dict['t_ref'] = t_ref / 24.
+
+    # Apply the reference parameters and add the has_O2 measurement
+    survey.set_reference_observation(**scaling_dict)
+    survey.add_measurement('has_O2')
+
+    # Apply standard target weights for the O2 measurement
+    prioritize_survey(survey, 'transit_O2')
+
+    # Run the survey with exposure time calculations enabled
+    detected = survey.compute_yield(sample, method='scaling_relation')
+    data = survey.observe(detected)
+
+Bioverse will now scale ``t_ref`` to determine the exposure time required to detect (or reject) ozone for each individual planet, and schedule observations within the survey lifetime accordingly.
 
 

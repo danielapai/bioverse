@@ -27,32 +27,68 @@ We can inspect the Generator to see which functions it implements:
 
     # List the generator's steps
     generator
-        
-    Generator with 11 steps:
+
+    Generator with 12 steps:
     0: Function 'read_stellar_catalog' with 5 keyword arguments.
-    1: Function 'create_planets_bergsten' with 7 keyword arguments.
-    2: Function 'assign_orbital_elements' with 1 keyword arguments.
-    3: Function 'impact_parameter' with 1 keyword arguments.
-    4: Function 'assign_mass' with no keyword arguments.
+    1: Function 'create_planets_SAG13' with 9 keyword arguments.
+    2: Function 'assign_orbital_elements' with 4 keyword arguments.
+    3: Function 'solve_kep' with 2 keyword arguments.
+    4: Function 'assign_mass' with 2 keyword arguments.
     5: Function 'compute_habitable_zone_boundaries' with no keyword arguments.
     6: Function 'classify_planets' with no keyword arguments.
     7: Function 'geometric_albedo' with 2 keyword arguments.
-    8: Function 'effective_values' with no keyword arguments.
-    9: Function 'Example1_water' with 3 keyword arguments.
-    10: Function 'Example2_oxygen' with 2 keyword arguments.
+    8: Function 'compute_contrast' with no keyword arguments.
+    9: Function 'effective_values' with no keyword arguments.
+    10: Function 'Example1_water' with 3 keyword arguments.
+    11: Function 'Example2_oxygen' with 2 keyword arguments.
 
 Each of these functions is documented under the :mod:`~bioverse.functions` module.
+
+The transit Generator uses a different set of steps:
+
+.. code-block:: python
+
+    generator_transit = Generator('transit')
+    generator_transit
+
+    Generator with 11 steps:
+    0: Function 'create_stars_Gaia' with 3 keyword arguments.
+    1: Function 'create_planets_SAG13' with 9 keyword arguments.
+    2: Function 'assign_orbital_elements' with 4 keyword arguments.
+    3: Function 'compute_transit_params' with 2 keyword arguments.
+    4: Function 'assign_mass' with 2 keyword arguments.
+    5: Function 'geometric_albedo' with 2 keyword arguments.
+    6: Function 'compute_habitable_zone_boundaries' with no keyword arguments.
+    7: Function 'classify_planets' with no keyword arguments.
+    8: Function 'scale_height' with no keyword arguments.
+    9: Function 'Example1_water' with 3 keyword arguments.
+    10: Function 'Example2_oxygen' with 2 keyword arguments.
 
 Passing keyword arguments
 *************************
 
-Many of the functions in the Generator accept keyword arguments that affect the properties of the simulated sample. For example, the :func:`~bioverse.functions.create_planets_bergsten` function scales the planet occurrence rates uniformly in response to its keyword argument ``f_eta``. To change the value of ``f_eta``, simply pass it to :func:`~bioverse.generator.Generator.generate` as follows:
+Many of the functions in the Generator accept keyword arguments that affect the properties of the simulated sample. For example, the :func:`~bioverse.functions.create_planets_SAG13` function scales the planet occurrence rates via its keyword argument ``eta_Earth``. There are two ways to change it.
+
+**One-time override** — pass it directly to :func:`~bioverse.generator.Generator.generate`. The change applies only to that single call:
 
 .. code-block:: python
-    
-    sample = generator.generate(f_eta=1.5)
 
-Note that this value will be passed to any function in the generator for which ``f_eta`` is an argument. This can be useful for sharing arguments across multiple functions, but be careful not to accidentally use the same keywords for two different functions.
+    sample = generator.generate(eta_Earth=0.15)
+
+**Persistent change** — use :meth:`~bioverse.generator.Generator.set_arg` to update the stored default across all future calls:
+
+.. code-block:: python
+
+    generator.set_arg('eta_Earth', 0.15)
+    sample = generator.generate()
+
+:meth:`~bioverse.generator.Generator.set_arg` sets the value for every step in the generator that accepts that keyword argument. To set multiple arguments at once, use :meth:`~bioverse.generator.Generator.set_args`:
+
+.. code-block:: python
+
+    generator.set_args(eta_Earth=0.15, zero_ecc=True)
+
+Note that keyword arguments are matched by name across all steps, so be careful not to accidentally use the same keyword in two different functions with conflicting meanings.
 
 Transit mode
 ************
@@ -61,9 +97,10 @@ One of Bioverse's main functions is to evaluate the sample size of a transiting 
 
 .. code-block:: python
 
-    sample = generator.generate(transit_mode=True)
+    generator.set_arg('transit_mode', True)
+    sample = generator.generate()
 
-If ``True``, then only planets that transit their stars are simulated.
+If ``True``, then only planets that transit their stars are simulated. Note that ``transit_mode`` is already set to ``True`` by default in the transit Generator, so this is only necessary if you are building a custom generator. When using :class:`~bioverse.survey.TransitSurvey`, ``transit_mode`` is set automatically.
 
 .. _adding-steps:
 

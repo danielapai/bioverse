@@ -10,6 +10,7 @@ The output of :meth:`~bioverse.generator.Generator.generate` is a :class:`~biove
 The survey simulation module is implemented by the :class:`~bioverse.survey.Survey` class [#f1]_ and its children classes :class:`~bioverse.survey.ImagingSurvey` and :class:`~bioverse.survey.TransitSurvey`. The Survey describes several key components of an exoplanet survey including:
 
 - ``diameter``: the diameter of the telescope primary in meters (or the area-equivalent diameter for a telescope array)
+- ``t_max``: maximum survey duration in days
 - ``t_slew``: slew time between observations, in days
 - :class:`~bioverse.survey.ImagingSurvey`
     - ``inner_working_angle`` and ``outer_working_angle``: IWA/OWA of the coronagraphic imager
@@ -17,10 +18,10 @@ The survey simulation module is implemented by the :class:`~bioverse.survey.Surv
 
 - :class:`~bioverse.survey.TransitSurvey`
     - ``N_obs_max``: maximum allowable number of transit observations per target
-    - ``t_max``: maximum amount of time across which to combine transit observations, in days
-    
-- ``T_st_ref``, ``R_st_ref``, and ``d_ref``: temperature (Kelvin), radius (:math:`R_\odot`), and distance (parsec) of the reference star (see :ref:`reference-case`)
-- ``D_ref``: diameter of the reference telescope, in meters
+    - ``d_max``: maximum distance for planet detections, in parsecs
+    - ``P_max``: maximum orbital period for planet detections, in days. Planets with longer periods transit less frequently; setting ``P_max`` reflects the practical limit imposed by survey duration and the minimum number of transits required for confirmation.
+    - ``min_depth``: minimum transit depth for planet detections
+    - ``m_G_max``: maximum Gaia G-band magnitude for host star detections
 
 Each type of survey "ships" with a default configuration:
 
@@ -35,8 +36,7 @@ The default imaging survey is modeled after `LUVOIR-A <https://arxiv.org/abs/191
 Which planets are detectable?
 *****************************
 
-Given a simulated set of planets to observe, the Survey first determines which of these are detectable. For a :class:`~bioverse.survey.TransitSurvey`, this set consists of all transiting planets, while for an :class:`~bioverse.survey.ImagingSurvey`, it consists of all planets within the coronagraphic IWA/OWA and brighter than the limiting contrast. This can be invoked as follows
-
+Given a simulated set of planets to observe, the Survey first determines which of these are detectable. For a :class:`~bioverse.survey.TransitSurvey`, this set consists of all transiting planets satisfying the detection filters above, while for an :class:`~bioverse.survey.ImagingSurvey`, it consists of all planets within the coronagraphic IWA/OWA and brighter than the limiting contrast. This can be invoked as follows:
 
 .. code-block:: python
 
@@ -48,13 +48,22 @@ Conducting measurements
 The Survey will conduct a series of measurements on the detectable planet sample, each defined by a :class:`~bioverse.survey.Measurement` object. A Measurement's parameters include:
 
 - ``key``: the name of the planet property to be measured
-- ``precision``: the relative or absolute precision of the measurement (e.g. 10% or 0.1 AU)
-- ``t_ref``: the amount of time in days required to conduct this measurement for a typical target (see below)
-- ``t_total``: the amount of survey time in days allocated toward this measurement
-- ``wl_eff``: the effective wavelength of observation in microns
-- ``priority``: a set of rules describing how targets are prioritized (described below)
+- ``survey``: the Survey object associated with this Measurement
+- ``precision``: the relative or absolute precision of the measurement (e.g. ``'10%'`` or ``0.1``)
 
-To conduct these measurements and produce a dataset:
+To add a measurement to a survey:
+
+.. code-block:: python
+
+    survey.add_measurement('R', precision='5%')
+
+To add multiple measurements at once:
+
+.. code-block:: python
+
+    survey.add_measurements(R='5%', M_st='5%', age='30%')
+
+To conduct all measurements and produce a dataset:
 
 .. code-block:: python
 
@@ -83,20 +92,32 @@ The last three lines can be combined into the following:
 
     sample, detected, data = survey.quickrun(generator, eta_Earth=0.15)
 
-:meth:`~bioverse.survey.Survey.quickrun` will pass any keyword arguments to the :meth:`~bioverse.generator.Generator.generate` method, and will by default pass ``transit_mode=True`` for a :class:`~bioverse.survey.TransitSurvey`.
+:meth:`~bioverse.survey.Survey.quickrun` will pass any keyword arguments to the :meth:`~bioverse.generator.Generator.generate` method. For a :class:`~bioverse.survey.TransitSurvey`, ``transit_mode=True`` is automatically applied to the generator via ``set_arg()`` before generating.
 
 .. _reference-case:
 
 Exposure time calculations
 **************************
 
-Spectroscopic observations of exoplanets are time-consuming, and for some surveys the amount of time required to conduct them will be a limiting factor on sample size. To accomodate this, Bioverse calculates the exposure time :math:`t_i` required to conduct the spectroscopic measurement for each planet, then prioritizes each planet according to :math:`t_i` as well as its weight parameter (see :ref:`target-prioritization`). In the simulated dataset, planets that could not be observed within the total allotted time ``t_total`` will have ``nan`` values for the measured value.
+Spectroscopic observations of exoplanets are time-consuming, and for some surveys the amount of time required to conduct them will be a limiting factor on sample size. To accommodate this, Bioverse calculates the exposure time :math:`t_i` required to conduct the spectroscopic measurement for each planet and schedules observations within the survey lifetime. Planets that cannot be observed within the total survey time will be excluded from the yield.
 
-A Measurement's "reference time", ``t_ref``, is the exposure time required to perform the measurement for an Earth-like planet (receiving the same flux as Earth) orbiting a typical star (whose properties are defined by the Survey parameters ``T_st_ref``, ``R_st_ref``, and ``d_ref``), with a telescope of diameter ``D_ref``. For the default imaging survey, the typical target orbits a Sun-like star at a distance of 10 pc, while for the transit survey, the host star is a mid-M dwarf.
+To enable exposure time calculations, pass ``method='scaling_relation'`` to :meth:`~bioverse.survey.Survey.compute_yield` and supply a dictionary of reference parameters via :meth:`~bioverse.survey.Survey.set_reference_observation`. The convenience function :func:`~bioverse.survey.read_scaling_dict` provides pre-configured reference dictionaries for the standard survey modes:
 
-Bioverse uses ``t_ref``, along the wavelength of observation ``wl_eff``, to determine the exposure time ``t_i`` required for each individual planet with the following equation:
+.. code-block:: python
 
-    
+    from bioverse.survey import TransitSurvey, read_scaling_dict
+
+    survey = TransitSurvey('default')
+    survey.set_reference_observation(**read_scaling_dict('transit_H2O'))
+    survey.add_measurement('has_H2O')
+
+    detected = survey.compute_yield(sample, method='scaling_relation')
+    data = survey.observe(detected)
+
+Available labels for :func:`~bioverse.survey.read_scaling_dict` are ``'imaging_H2O'``, ``'imaging_O2'``, ``'transit_H2O'``, and ``'transit_O2'``.
+
+Bioverse uses the reference parameters to determine the exposure time :math:`t_i` required for each individual planet with the following equation:
+
 .. math::
 
     \frac{t_i}{t_\text{ref}} = f_i
@@ -111,68 +132,63 @@ Bioverse uses ``t_ref``, along the wavelength of observation ``wl_eff``, to dete
 
     f_i^\text{imaging} &= \left(\frac{\zeta_i}{\zeta_\oplus}\right)^{-1}
 
-    f_i^\text{transit} &= 
+    f_i^\text{transit} &=
     \left(\frac{h_{i}}{h_\oplus}\right)^{-2}
     \left(\frac{R_{p,i}}{R_\oplus}\right)^{-2}
     \left(\frac{R_{*,i}}{R_{*, \text{ref}}}\right)^4
 
-Importantly, this calculation is conducted for each Measurement with a different value of ``t_ref``. **Therefore, the same planet may have real values for one Measurement and ``nan`` for another.** This is particularly relevant for the transit survey, where the total number of transiting planets for which e.g. planet size and orbital period can be measured is much larger than the number that can be spectroscopically characterized. To return just the subset of detected planets that were observed for a given Measurement, use the :meth:`~bioverse.classes.Table.observed` method:
-
-.. code-block:: python
-
-    observed = data.observed('has_O2')
-
-The determination of ``t_ref`` often relies on radiative transfer and instrument noise estimates that are generally not done in Bioverse. It can be accomplished by citing relevant studies in the literature or using third-party tools such as the `Planetary Spectrum Generator <https://psg.gsfc.nasa.gov/>`_. One method of calculating ``t_ref`` for the transit survey is demonstrated in :doc:`tutorial_tref`.
-
-Bioverse can calculate ``t_ref`` given two simulated spectra files - one with and one without the targeted absorption feature - both of which contain measurements for wavelength, flux, and flux uncertainty as the first three columns. You must also specify the simulated exposure time and the minimum and maximum wavelengths for the absorption feature. The :func:`~bioverse.util.compute_t_ref` function will then determine the exposure time required for a 5-sigma detection (in the same units as the input exposure time).
-
-.. code-block:: python
-
-    from bioverse.util import compute_t_ref
-
-    # Scales from simulated spectra for a combined 100 hr exposure time, targeting the O3 feature near 0.6 microns.
-    t_ref = compute_t_ref(filenames=('spectrum_O3.dat', 'spectrum_noO3.dat'), t_exp=100, wl_min=0.4, wl_max=0.8)
-    print("Required exposure time: {:.1f} hr".format(t_ref))
-
-Output: ``Required exposure time: 73.9 hr``
-
-Finally, change the ``t_ref`` and ``wl_eff`` attributes of the associated Measurement object, using units of days and microns respectively:
-
-.. code-block:: python
-
-    survey = TransitSurvey('default')
-    survey.measurements['has_O2'].t_ref = 73.9/24
-    survey.measurements['has_O2'].wl_eff = 0.6
+The determination of ``t_ref`` often relies on radiative transfer and instrument noise estimates. One method of calculating ``t_ref`` for the transit survey using the Planetary Spectrum Generator is demonstrated in :doc:`tutorial_tref`.
 
 .. _target-prioritization:
 
 Target prioritization
 *********************
 
-For measurements where ``t_total`` is finite and ``t_ref`` is non-zero, targets must be prioritized in case there is insufficient time to characterize all of them. In Bioverse, target prioritization depends both on the target's scientific interest (quantified by the weight parameter ``w_i``) and the amount of time ``t_i`` required to properly characterize it. Each target's priority is calculated as follows:
+When using ``method='scaling_relation'``, targets are prioritized by the ratio of scientific weight to required exposure time:
 
-    :math:`p_i = w_i/t_i`
+    :math:`p_i = w_i / t_i`
 
-Bioverse will observe targets in order of decreasing ``p_i`` until ``t_total`` has been exhausted. The resulting dataset will fill in ``nan`` values for any targets that were not observed.
+Bioverse observes targets in order of decreasing :math:`p_i` until the survey lifetime is exhausted.
 
-By default, ``w_i = 1`` for all targets, but it can be raised or lowered for planets that meet certain criteria. For example, to assign ``w_i = 5`` for targets with radii between 1-2 :math:`R_\oplus`:
-
-.. code-block:: python
-
-    m = survey.measurement['has_O2']
-    m.set_weight('R', weight=5, min=1, max=2)
-
-To exclude a set of targets, set ``w_i = 0``. For example, to restrict a measurement to exo-Earth candidates only:
+By default, ``w_i = 1`` for all targets, but it can be raised or lowered using :meth:`~bioverse.survey.Survey.set_weight`. For example, to assign ``w_i = 5`` for targets with radii between 1–2 :math:`R_\oplus`:
 
 .. code-block:: python
 
-    m.set_weight('EEC', weight=0, value=False)
+    survey.set_weight('R', weight=5, min=1, max=2)
 
-In transit mode, targets are weighted by :math:`a/R_*` to correct the detection bias toward shorter period planets. To disable this feature:
+To exclude a set of targets entirely, set ``w_i = 0``. For example, to restrict observations to exo-Earth candidates only:
 
 .. code-block:: python
 
-    m.debias = False
+    survey.set_weight('EEC', weight=0, value=False)
+
+The convenience function :func:`~bioverse.survey.prioritize_survey` applies the standard target weights used in the Bioverse example analyses:
+
+.. code-block:: python
+
+    from bioverse.survey import prioritize_survey
+    prioritize_survey(survey, 'transit_H2O')
+
+Available labels are ``'imaging_H2O'``, ``'imaging_O2'``, ``'transit_H2O'``, and ``'transit_O2'``.
+
+In transit mode, the ``debias`` option in :meth:`~bioverse.survey.TransitSurvey.compute_yield` applies a weighting of :math:`a/R_*` to correct the detection bias toward shorter period planets:
+
+.. code-block:: python
+
+    detected = survey.compute_yield(sample, method='scaling_relation', debias=True)
+
+Visualizing the yield
+*********************
+
+The :func:`~bioverse.plots.plot_yield_summary` function produces a summary figure of the survey yield, showing the instellation-radius distribution of detected planets colored by exposure time, along with histograms of key parameters:
+
+.. code-block:: python
+
+    from bioverse.plots import plot_yield_summary
+
+    fig = plot_yield_summary(detected)
+
+This requires that ``method='scaling_relation'`` was used in :meth:`~bioverse.survey.Survey.compute_yield`, so that ``t_exp`` and ``N_obs`` columns are present in the table.
 
 .. rubric:: Footnotes
 
