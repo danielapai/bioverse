@@ -836,7 +836,9 @@ def SNR_calculator(Gmag,
                    lam_center=0.621759, #G band center wavelength, um
                    eta_eff=1.0,
                    read_noise= 1.0, #e-/pix
-                   dark_current=0.05 #e-/s/pix
+                   dark_current=0.05, #e-/s/pix
+                   background_noise=True,
+                   detector_noise=True
                    ):
     #add logic for if Gmag, t_exp, n_exp are arrays to ensure they are same length
 
@@ -857,12 +859,18 @@ def SNR_calculator(Gmag,
 
     #average zodi brightness 22.5 mag / arcsec2
     z= 22.5  #assume roughly same in G band as in V band
-    F_back = F0_G * (10**(-0.4*z)) * solid_angle
-    N_back = F_to_e_factor * F_back
+    if background_noise:
+        F_back = F0_G * (10**(-0.4*z)) * solid_angle
+        N_back = F_to_e_factor * F_back
+    else:
+        N_back = 0
     N_optics = 0
     N_ground = 0
-    N_D = n_pix * n_exp * (read_noise ** 2 + dark_current * t_exp)  # is this equation correct, listed in PSG documentation
-    N_tot = np.sqrt(2 * N_D + N_source + 2 * N_back + 2 * N_optics + 2 * N_ground)
+    if detector_noise:
+        N_D = n_pix * n_exp * (read_noise ** 2 + dark_current * t_exp)  # is this equation correct, listed in PSG documentation
+    else:
+        N_D = 0
+    N_tot = np.sqrt(2 * N_D + N_source + 2 * N_back + 2 * N_optics + 2 * N_ground) #factor of 2 from typical ON-OFF observation, see psg documentation
 
     SNR = N_source / N_tot
     return SNR
@@ -885,7 +893,9 @@ def calc_nexp(Gmag,SNR=6,
                    lam_center=0.621759, #G band center wavelength, um
                    eta_eff=1.0,
                    read_noise= 1.0, #e-/pix
-                   dark_current=0.05 #e-/s/pix
+                   dark_current=0.05, #e-/s/pix
+                   background_noise=True,
+                   detector_noise=True
                    ):
     #add logic for if Gmag, t_exp, n_exp are arrays to ensure they are same length
 
@@ -905,12 +915,18 @@ def calc_nexp(Gmag,SNR=6,
 
     #average zodi brightness 22.5 mag / arcsec2
     z= 22.5  #assume roughly same in G band as in V band
-    F_back = F0_G * (10**(-0.4*z)) * solid_angle
-    Cb= eta_eff*area*t_exp*dlambda*F_back / E_phot
+    if background_noise:
+        F_back = F0_G * (10**(-0.4*z)) * solid_angle
+        Cb= eta_eff*area*t_exp*dlambda*F_back / E_phot
+    else:
+        Cb= 0
 
     #N_optics = 0
     #N_ground = 0
-    Cd = n_pix * (read_noise ** 2 + dark_current * t_exp)  # is this equation correct, listed in PSG documentation
+    if detector_noise:
+        Cd = n_pix * (read_noise ** 2 + dark_current * t_exp)
+    else:
+        Cd = 0
 
     n_exp= ((2*Cd+Cs+2*Cb)/(Cs**2))*SNR**2
     return n_exp
