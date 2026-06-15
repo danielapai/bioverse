@@ -177,18 +177,6 @@ In transit mode, the ``debias`` option in :meth:`~bioverse.survey.TransitSurvey.
 
     detected = survey.compute_yield(sample, method='scaling_relation', debias=True)
 
-Visualizing the yield
-*********************
-
-The :func:`~bioverse.plots.plot_yield_summary` function produces a summary figure of the survey yield, showing the instellation-radius distribution of detected planets colored by exposure time, along with histograms of key parameters:
-
-.. code-block:: python
-
-    from bioverse.plots import plot_yield_summary
-
-    fig = plot_yield_summary(detected)
-
-This requires that ``method='scaling_relation'`` was used in :meth:`~bioverse.survey.Survey.compute_yield`, so that ``t_exp`` and ``N_obs`` columns are present in the table.
 
 .. rubric:: Footnotes
 
