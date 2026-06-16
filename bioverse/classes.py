@@ -173,8 +173,16 @@ class Table(dict):
      
     def get_stars(self):
         """ Returns just the first entry for each star in the Table. """
-        idxes = np.array([np.where(self['starID']==idx)[0][0] for idx in np.unique(self['starID'])])
-        return self[idxes]
+        unique_stars, idx = np.unique(self['starID'], return_index=True)
+        return self[idx]
+    
+    def get_eecs(self):
+        """ Returns the rows of planets that are Earth-like (i.e. have EEC == True). """
+        return self[self['EEC']]
+
+    def get_eecs_sum(self):
+        """ Returns the number of Earth-like planets in the Table. """
+        return np.sum(self['EEC'])
 
     def legend(self, keys=None, filename=DATA_DIR+'legend.dat'):
         """ Prints the description of parameter(s) in the Table.
