@@ -28,7 +28,7 @@ We can inspect the Generator to see which functions it implements:
     # List the generator's steps
     generator
 
-    Generator with 12 steps:
+    Generator with 10 steps:
     0: Function 'read_stellar_catalog' with 6 keyword arguments.
     1: Function 'create_planets_SAG13' with 10 keyword arguments.
     2: Function 'assign_orbital_elements' with 4 keyword arguments.
@@ -39,8 +39,6 @@ We can inspect the Generator to see which functions it implements:
     7: Function 'geometric_albedo' with 3 keyword arguments.
     8: Function 'compute_contrast' with 2 keyword arguments.
     9: Function 'effective_values' with no keyword arguments.
-    10: Function 'Example1_water' with 4 keyword arguments.
-    11: Function 'Example2_oxygen' with 3 keyword arguments.
 
 Each of these functions is documented under the :mod:`~bioverse.functions` module.
 
@@ -51,7 +49,7 @@ The transit Generator uses a different set of steps:
     generator_transit = Generator('transit')
     generator_transit
 
-    Generator with 11 steps:
+    Generator with 9 steps:
     0: Function 'create_stars_Gaia' with 9 keyword arguments.
     1: Function 'create_planets_SAG13' with 10 keyword arguments.
     2: Function 'assign_orbital_elements' with 4 keyword arguments.
@@ -61,13 +59,11 @@ The transit Generator uses a different set of steps:
     6: Function 'compute_habitable_zone_boundaries' with 1 keyword arguments.
     7: Function 'classify_planets' with no keyword arguments.
     8: Function 'scale_height' with no keyword arguments.
-    9: Function 'Example1_water' with 4 keyword arguments.
-    10: Function 'Example2_oxygen' with 3 keyword arguments.
 
 Passing keyword arguments
 *************************
 
-Many of the functions in the Generator accept keyword arguments that affect the properties of the simulated sample. For example, the :func:`~bioverse.functions.create_planets_SAG13` function scales the planet occurrence rates via its keyword argument ``eta_Earth``. There are two ways to change it, and both are presisted across all steps that use it:
+Many of the functions in the Generator accept keyword arguments that affect the properties of the simulated sample. For example, the :func:`~bioverse.functions.create_planets_SAG13` function scales the planet occurrence rates via its keyword argument ``eta_Earth``. There are two ways to change it:
 
 **Method 1** — pass it directly to :func:`~bioverse.generator.Generator.generate`.:
 
@@ -87,6 +83,10 @@ Many of the functions in the Generator accept keyword arguments that affect the 
 .. code-block:: python
 
     generator.set_args(eta_Earth=0.15, zero_ecc=True)
+    
+    # Alternatively, using a dictionary
+    args = {'eta_Earth': 0.15, 'zero_ecc': True}
+    generator.set_args(**args)
 
 Note that keyword arguments are matched by name across all steps, so be careful not to accidentally use the same keyword in two different functions with conflicting meanings.
 
@@ -165,7 +165,7 @@ Saving and loading
 You can save the modified version of a Generator under a new name:
 
 .. code-block:: python
-    
+
     generator.save('imaging_with_oceans')
 
 and load it as follows:
@@ -173,3 +173,28 @@ and load it as follows:
 .. code-block:: python
 
     generator = Generator('imaging_with_oceans')
+
+Using Pre_Generator to speed up repeated runs
+**********************************************
+
+Some generator steps — such as reading a stellar catalog — are computationally expensive but produce the same output every time. If you need to run a generator repeatedly (e.g., to scan over different values of ``eta_Earth``), re-running those steps on every iteration wastes time.
+
+The :class:`~bioverse.generator.Pre_Generator` class addresses this. It is a :class:`~bioverse.generator.Generator` subclass intended to be run *once* to produce a base :class:`~bioverse.classes.Table`, which is then passed as the starting point for subsequent generator runs. This separates the one-time, expensive steps from the steps that vary between runs.
+
+For example, with the transit Generator the first step (``create_stars_Gaia``) is the most expensive. We can run it once with a ``Pre_Generator`` and reuse the result:
+
+.. code-block:: python
+
+    from bioverse.generator import Generator, Pre_Generator
+
+    # Run the expensive stellar catalog step once
+    pre_gen = Pre_Generator()
+    pre_gen.insert_step('create_stars_Gaia')
+    stars = pre_gen.generate()
+
+    # Load the transit generator and start from step 1, skipping create_stars_Gaia
+    generator = Generator('transit')
+    for eta in [0.1, 0.15, 0.2]:
+        sample = generator.generate(d=stars, idx_start=1, eta_Earth=eta)
+
+The ``d`` parameter of :meth:`~bioverse.generator.Generator.generate` accepts a pre-existing :class:`~bioverse.classes.Table` to use as input, and ``idx_start`` controls which step the generator begins from. Together they allow you to resume generation from any intermediate result, whether that result comes from a ``Pre_Generator`` or was saved from a previous run.
