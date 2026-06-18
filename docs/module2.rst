@@ -31,92 +31,49 @@ Each type of survey "ships" with a default configuration:
     survey_imaging = ImagingSurvey('default')
     survey_transit = TransitSurvey('default')
 
-The default imaging survey is modeled after `LUVOIR-A <https://arxiv.org/abs/1912.06219>`_, with a coronagraphic imager and 15-meter primary aperture. The default transit survey is modeled after the Nautilus Space Observatory, with a 50-meter equivalent light-collecting area.
+The default imaging survey is modeled after `LUVOIR-A <https://arxiv.org/abs/1912.06219>`_, with a coronagraphic imager and 15-meter primary aperture (Updated HWO configurations are also available). The default transit survey is modeled after the Nautilus Space Observatory - a satellite constellation with a 50-meter equivalent light-collecting area.
 
-Which planets are detectable?
+Which planets are observable?
 *****************************
 
-Given a simulated set of planets to observe, the Survey first determines which of these are detectable. For a :class:`~bioverse.survey.TransitSurvey`, this set consists of all transiting planets satisfying the detection filters above, while for an :class:`~bioverse.survey.ImagingSurvey`, it consists of all planets within the coronagraphic IWA/OWA and brighter than the limiting contrast. This can be invoked as follows:
+Given a simulated set of planets to observe, the Survey computes which of these are detectable using the ``compute_yield()`` function
 
 .. code-block:: python
 
-    detected = survey_imaging.compute_yield(sample)
+    detected = survey_imaging.compute_yield(sample, method='detectable')
 
-Conducting measurements
-************************************
 
-The Survey will conduct a series of measurements on the detectable planet sample, each defined by a :class:`~bioverse.survey.Measurement` object. A Measurement's parameters include:
+There are many different methods for computing the yield of exoplanets detected by a survey which can be specified with the ``method`` keyword argument. These differ depending on the survey type and availability of planet properties in the Table object. The currently implemented methods of computing the yield are as follows:
 
-- ``key``: the name of the planet property to be measured
-- ``survey``: the Survey object associated with this Measurement
-- ``precision``: the relative or absolute precision of the measurement (e.g. ``'10%'`` or ``0.1``)
+- ``detectable``: All planets which meet threshold criteria for detectability are observed. For a :class:`~bioverse.survey.TransitSurvey`, this consists of all transiting planets satisfying the arguments used to define the survey such as the minimum transit depth, maximum magnitude, period etc. For a :class:`~bioverse.survey.ImagingSurvey`, planets are selected if they are within the Inner and Outer working angles of the coronagraph and are brighter than a limiting contrast value. This method does not consider the exposure or integration time required to observe each target or the total mission lifetime. As such, this method provides a set of all the targets that could be potentially observable, which is likely a significantly larger sample than the number of planets a mission would actually be able to observe.
 
-To add a measurement to a survey:
+- ``blind_survey`` or ``exp_time`` (Currently only for Imaging survey): Simulate a survey where planetary targets are not known a priori, and will be discovered over the course of a survey. This is the case for direct imaging missions such as HWO, which will be the first mission capable of imaging exoEarths in the habitable zone, so the planets it wants to observe have not been detected yet. This method works by allocating a set exposure time to each star based on the time it would take to characterize a hypothetical Earth-sized planet in the habitable zone. This allocation needs to be performed early in the generator or pre_generator steps using the ``schedule_DI_survey`` function. After planet generation, the exposure time required to characterize each planet is calculated. If the time allocated to observing the star exceeds the required exposure time for planet characterization, it is considered to be observed.  Exposure times are calculated using a direct imaging exposure time calculator based on that of `Stark et al. (2014) <https://ui.adsabs.harvard.edu/abs/2014ApJ...795..122S/abstract>`_.
 
-.. code-block:: python
+- ``scaling_relation``: Use the scaling relation of `Bixel and Apai (2021) <https://ui.adsabs.harvard.edu/abs/2021AJ....161..228B/abstract>`_ to calculate exposure times based on a reference calculation. These scaling relations are described in more detail in the following section. Typical reference calculations use NASA's Planetary Spectrum Generator or equivalent radiative transfer codes to calculate the exposure time required to recover a given spectral feature.  For each planet exposure times are calculated using this scaling relation, and planets are selected for survey based on their assigned priority (see section on Target Prioritization) until the total survey duration is reached.
 
-    survey.add_measurement('R', precision='5%')
 
-To add multiple measurements at once:
+Scaling Relations
+----------------------------
 
-.. code-block:: python
+In yield calculations with ``method='scaling_relation'`` exposure times are approximated using a scaling relation in planet and stellar properties. These exposure times are scaled relative to a reference value, :math:`t_{\text{ref}}`, for the exposure time necessary to recover the features of interest in the spectrum a specified planet type (Such as oxygen in the atmosphere of an exoEarth). The determination of ``t_ref`` often relies on radiative transfer and instrument noise estimates. One method of calculating ``t_ref`` for the transit survey using the Planetary Spectrum Generator is demonstrated in :doc:`tutorial_tref`.
 
-    survey.add_measurements(R='5%', M_st='5%', age='30%')
-
-To conduct all measurements and produce a dataset:
+To set the reference observation for a survey, supply a dictionary of reference parameters via :meth:`~bioverse.survey.Survey.set_reference_observation`. The reference dictionary is typically in the form:
 
 .. code-block:: python
 
-    data = survey_imaging.observe(detected)
+    scaling_dict = {
+            't_ref': 0.1, #exposure time required (days)
+            'wl_eff': 0.7, #effective wavelength in um
+            'T_st_ref': 5788., #Stellar temperature (K)
+            'R_st_ref': 1.0, #stellar radius (R_sun)
+            'D_ref': 15.0, # Telescope diameter (m)
+            'd_ref': 10.0, #distance to star (pc)
+            'R_pl_ref': 1.0, #planet radius (R_earth)
+            'H_ref': 9} #atmospheric scale height (km)
 
-Quick-run
-*********
+See the description of :meth:`~bioverse.survey.Survey.exp_time_scaling_relation` for more details.
 
-In total, to produce a simulated sample of planets, determine which planets are detectable, and produce a mock dataset requires the following:
-
-.. code-block:: python
-
-    from bioverse.generator import Generator
-    from bioverse.survey import ImagingSurvey
-
-    generator = Generator('imaging')
-    survey = ImagingSurvey('default')
-
-    sample = generator.generate(eta_Earth=0.15)
-    detected = survey.compute_yield(sample)
-    data = survey.observe(detected)
-
-The last three lines can be combined into the following:
-
-.. code-block:: python
-
-    sample, detected, data = survey.quickrun(generator, eta_Earth=0.15)
-
-:meth:`~bioverse.survey.Survey.quickrun` will pass any keyword arguments to the :meth:`~bioverse.generator.Generator.generate` method. For a :class:`~bioverse.survey.TransitSurvey`, ``transit_mode=True`` is automatically applied to the generator via ``set_arg()`` before generating.
-
-.. _reference-case:
-
-Exposure time calculations
-**************************
-
-Spectroscopic observations of exoplanets are time-consuming, and for some surveys the amount of time required to conduct them will be a limiting factor on sample size. To accommodate this, Bioverse calculates the exposure time :math:`t_i` required to conduct the spectroscopic measurement for each planet and schedules observations within the survey lifetime. Planets that cannot be observed within the total survey time will be excluded from the yield.
-
-To enable exposure time calculations, pass ``method='scaling_relation'`` to :meth:`~bioverse.survey.Survey.compute_yield` and supply a dictionary of reference parameters via :meth:`~bioverse.survey.Survey.set_reference_observation`. The convenience function :func:`~bioverse.survey.read_scaling_dict` provides pre-configured reference dictionaries for the standard survey modes:
-
-.. code-block:: python
-
-    from bioverse.survey import TransitSurvey, read_scaling_dict
-
-    survey = TransitSurvey('default')
-    survey.set_reference_observation(**read_scaling_dict('transit_H2O'))
-    survey.add_measurement('has_H2O')
-
-    detected = survey.compute_yield(sample, method='scaling_relation')
-    data = survey.observe(detected)
-
-Available labels for :func:`~bioverse.survey.read_scaling_dict` are ``'imaging_H2O'``, ``'imaging_O2'``, ``'transit_H2O'``, and ``'transit_O2'``.
-
-Bioverse uses the reference parameters to determine the exposure time :math:`t_i` required for each individual planet with the following equation:
+Bioverse uses these reference parameters to determine the exposure time :math:`t_i` required for each individual planet with the following equation:
 
 .. math::
 
@@ -137,7 +94,37 @@ Bioverse uses the reference parameters to determine the exposure time :math:`t_i
     \left(\frac{R_{p,i}}{R_\oplus}\right)^{-2}
     \left(\frac{R_{*,i}}{R_{*, \text{ref}}}\right)^4
 
-The determination of ``t_ref`` often relies on radiative transfer and instrument noise estimates. One method of calculating ``t_ref`` for the transit survey using the Planetary Spectrum Generator is demonstrated in :doc:`tutorial_tref`.
+
+The convenience function :func:`~bioverse.survey.read_scaling_dict` provides pre-configured reference dictionaries for the characterization of select spectral features in exoEarth atmospheres for the standard survey modes. Available labels for :func:`~bioverse.survey.read_scaling_dict` are ``'imaging_H2O'``, ``'imaging_O2'``, ``'transit_H2O'``, and ``'transit_O2'``.
+
+The following is an example for how the scaling relation method can be used:
+
+.. code-block:: python
+
+    from bioverse.survey import TransitSurvey, read_scaling_dict
+    from bioverse.generator import Generator
+
+    #use default transit generator
+    gen= Generator('transit')
+    #add a step to calculate whether a planet has water (see example 1)
+    gen.insert_step('Example1_water')
+
+    #generate planets using this generator
+    sample=gen.generate()
+
+    #load the default transit survey
+    survey = TransitSurvey('default')
+    #read a dictionary of prebuilt scaling parameters for the case of detecting water
+    #   in the atmosphere of a transiting exoEarth
+    scale_dict=read_scaling_dict('transit_H2O')
+    #set the survey's reference observation using this dictionary
+    survey.set_reference_observation(**scale_dict)
+    #add the measurement of water to the list of properties that will be measured
+    survey.add_measurement('has_H2O')
+
+    #determine which planets in the sample have been detected
+    detected = survey.compute_yield(sample, method='scaling_relation')
+    data = survey.observe(detected)
 
 .. _target-prioritization:
 
@@ -176,6 +163,69 @@ In transit mode, the ``debias`` option in :meth:`~bioverse.survey.TransitSurvey.
 .. code-block:: python
 
     detected = survey.compute_yield(sample, method='scaling_relation', debias=True)
+
+
+
+Conducting measurements
+************************************
+
+The Survey will conduct a series of measurements on the detectable planet sample, each defined by a :class:`~bioverse.survey.Measurement` object. A Measurement's parameters include:
+
+- ``key``: the name of the planet property to be measured
+- ``survey``: the Survey object associated with this Measurement
+- ``precision``: the relative or absolute precision of the measurement (e.g. ``'10%'`` or ``0.1``)
+
+To add a measurement to a survey:
+
+.. code-block:: python
+
+    survey.add_measurement('R', precision='5%')
+
+To add multiple measurements at once:
+
+.. code-block:: python
+
+    survey.add_measurements(R='5%', M_st='5%', age='30%')
+
+Or alternatively
+
+.. code-block:: python
+
+    measure_dict={'R':'5%','M_st':'5%','age':'30%'}
+    survey.add_measurements(**measure_dict)
+
+To conduct all measurements and produce a dataset:
+
+.. code-block:: python
+
+    data = survey_imaging.observe(detected)
+
+Quick-run
+*********
+
+In total, to produce a simulated sample of planets, determine which planets are detectable, and produce a mock dataset requires the following:
+
+.. code-block:: python
+
+    from bioverse.generator import Generator
+    from bioverse.survey import ImagingSurvey
+
+    generator = Generator('imaging')
+    survey = ImagingSurvey('default')
+
+    sample = generator.generate(eta_Earth=0.15)
+    detected = survey.compute_yield(sample)
+    data = survey.observe(detected)
+
+The last three lines can be combined into the following:
+
+.. code-block:: python
+
+    sample, detected, data = survey.quickrun(generator, eta_Earth=0.15)
+
+:meth:`~bioverse.survey.Survey.quickrun` will pass any keyword arguments to the :meth:`~bioverse.generator.Generator.generate` method. For a :class:`~bioverse.survey.TransitSurvey`, ``transit_mode=True`` is automatically applied to the generator via ``set_arg()`` before generating.
+
+.. _reference-case:
 
 
 .. rubric:: Footnotes
