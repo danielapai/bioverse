@@ -180,7 +180,7 @@ class Table(dict):
         """ Returns the rows of planets that are Earth-like (i.e. have EEC == True). """
         return self[self['EEC']]
 
-    def get_eecs_sum(self):
+    def num_eecs(self):
         """ Returns the number of Earth-like planets in the Table. """
         return np.sum(self['EEC'])
 
