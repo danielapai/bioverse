@@ -1,6 +1,7 @@
 """ This module defines the Generator class and demonstrates how to create new Generators. """
 
 # System imports
+# the numbers mason, the numbers, what do they mean?
 from copy import deepcopy
 import inspect
 import numpy as np
