@@ -237,10 +237,6 @@ class Survey(dict, Object):
         t_exp = copy.deepcopy(d[texp_col]) #needs deepcopy or edits d in place
 
         t_over= np.zeros_like(t_exp) if zero_overhead else self.compute_overhead_time(d)
-        # if zero_overhead:
-        #     t_over= np.zeros_like(t_exp)
-        # else:
-        #     t_over = self.compute_overhead_time(d)
 
         t_total= self.t_max
         if t_total is None:
@@ -278,6 +274,7 @@ class Survey(dict, Object):
             if t_sum > t_total:
                 break
 
+            #this is inefficient
             if self.mode == 'imaging':
                 same_system= (d['starID'] == d['starID'][i])
                 t_exp[same_system] -= t_exp[i]
@@ -693,14 +690,26 @@ class TransitSurvey(Survey):
         d['photometric_precision'] = ppm_arr  # ppm
         return d
 
-    def fixed_field_yield(self, d, n_sigma=1.0, min_num_tr=1, t_fixed=None, t_exp=2.0, n_pix=108, R=20, **kwargs):
+    #d: table
+    #n_sigma: number of standard deviations in transit depth necessary for detection/characterization
+    #min_num_tr: minimum number of transits for a detection
+    #t_fixed: duration to observe field, set to survey duration by default (day)
+    #t_exp: time per ccd exposure (s)
+    #n_pix: number of pixels used on ccd
+    #R: spectral resolution
+    #feature_col: column with feature strength by default set to planet transit depth
+    #feature_ppm: is feature strength given in ppm, false says feauture strength is a ratio
+    def fixed_field_yield(self, d, n_sigma=1.0, min_num_tr=1, t_fixed=None, t_exp=2.0, n_pix=108, R=20,
+                          feature_col='depth', feature_ppm=False,**kwargs):
         if t_fixed is None:
             t_fixed=self.t_max
         if np.isinf(t_fixed) or np.isnan(t_fixed):
             return d
 
         d = self.calc_photometric_precision(d, t_fixed=t_fixed, t_exp=t_exp, n_pix=n_pix, R=R, **kwargs)
-        mask = (d['depth'] * 1e6) > (n_sigma * d['photometric_precision'])
+
+        mult= 1.0 if feature_ppm else 1e6
+        mask = (d[feature_col] * mult) > (n_sigma * d['photometric_precision'])
 
         # limit planet detection to planets with multiple transits
         mask2 = (d['N_obs'] >= min_num_tr)

@@ -26,9 +26,10 @@ CONST['yr_to_day'] = 365.2422
 CONST['day_to_sec']=86400.0
 CONST['AU_to_solRad'] = 215.03215567054767
 CONST['rho_Earth'] = 5.51
-CONST['g_Earth'] = 980.7
+CONST['g_Earth'] = 980.7 #cm/s^2
 CONST['amu_to_kg'] = 1.66054e-27
-CONST['R_Earth'] = 6.371e8
+CONST['R_Earth'] = 6.371e8 #cm
+CONST['M_Earth'] = 5.9722e27 #g
 CONST['R_Sun'] = 6.9634e10
 CONST['h_Earth'] = 8.5e5
 CONST['P_Earth'] = 101325.
@@ -36,6 +37,7 @@ CONST['S_Earth'] = 238.         # global-averaged, top-of-atmosphere insolation 
 CONST['h'] =6.6261e-27 #cm^2 g/s
 CONST['c']= 2.9979e10 #cm/s
 CONST['k']= 1.3807e-16 #cm^2 g s^-2 K^-1
+CONST['G']= 6.67430e-8 #cgs units
 
 # Data types
 ARRAY_TYPES = (np.ndarray,list,tuple)

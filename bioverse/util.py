@@ -993,3 +993,9 @@ def in_geodesic_box(ra_deg, dec_deg,
     inside_y = np.abs(eta) <= eta_lim
 
     return front & inside_x & inside_y
+
+def compute_logg(M,R):
+    M=M*CONST['M_Earth'] #to g
+    R=R* CONST['R_Earth'] #to cm
+    g=CONST['G']*M / R**2
+    return np.log10(g)
