@@ -7,13 +7,13 @@ The :class:`~bioverse.generator.Generator` class
 
 Bioverse uses the :class:`~bioverse.generator.Generator` class to generate planetary systems in the solar neighborhood. A Generator object specifies a list of functions to be performed in sequential order onto a shared :class:`~bioverse.classes.Table`. For example, a simple generator might implement this algorithm:
 
-- Function 1: Return the `Gaia DR2 <https://www.cosmos.esa.int/web/gaia/dr2>`_ catalog of all stars within 30 parsecs with effective temperatures above 4000 K.
+- Function 1: Return the `Gaia DR3 <https://www.cosmos.esa.int/web/gaia/data-release-3>`_ catalog of all stars within 30 parsecs with effective temperatures above 4000 K.
 - Function 2: Simulate one or more planets around each star according to the occurrence rate estimates in `Bergsten et al. 2022 <https://ui.adsabs.harvard.edu/link_gateway/2022AJ....164..190B/doi:10.3847/1538-3881/ac8fea>`_.
 - Function 3: Evaluate the mass of each planet based on its radius and the mass-radius relationship published by `Wolfgang et al. (2016) <https://ui.adsabs.harvard.edu/abs/2016ApJ...825...19W/abstract>`_.
 
 The generator will feed the output of Function 1 into Function 2, then the output of Function 2 into Function 3, and finally will return the output of Function 3 (i.e. a table of planets with known masses, radii, orbital properties, and host star properties).
 
-Bioverse "ships" with two Generators: one for transit mode, and the other for imaging mode. The primary differences between the two are the planetary properties that are simulated. The default transit generator computes properties such as the transit depth, impact parameter and transit duration while the imaging generator focuses on computing the planet-star contrast, angular separation and illumination phase. Another difference between these default generators is the stellar target list used to generate host stars. By default the transit mode generates a population of stars consistent with Gaia DR3, while the imaging mode uses a host star catalog for the LUVOIR direct imaging mission concept (see the `LUVOIR Final Report <https://arxiv.org/abs/1912.06219>`_). The following code demonstrates how to simulate a sample of planets using the imaging mode Generator:
+Bioverse "ships" with two Generators: one for transit mode, and the other for imaging mode. One of the main differences between these generators is the set of planetary properties that are simulated. The default transit generator includes steps that compute properties which affect the observability of transiting exoplanets, such as the transit depth, impact parameter and transit duration. The imaging generator instead focuses on computing planetary properties that influence their observability with direct imaging, including the planet-star contrast, angular separation and illumination phase. Another difference between these default generators is the stellar target list used to generate host stars. By default the transit mode generates a population of stars consistent with Gaia DR3, while the imaging mode uses a host star catalog for the LUVOIR direct imaging mission concept (see the `LUVOIR Final Report <https://arxiv.org/abs/1912.06219>`_). The following code demonstrates how to simulate a sample of planets using the imaging mode Generator:
 
 .. code-block:: python
 
@@ -65,7 +65,7 @@ Passing keyword arguments
 
 Many of the functions in the Generator accept keyword arguments that affect the properties of the simulated sample. For example, the :func:`~bioverse.functions.create_planets_SAG13` function scales the planet occurrence rates via its keyword argument ``eta_Earth``. There are two ways to change it:
 
-**Method 1** — pass it directly to :func:`~bioverse.generator.Generator.generate`.:
+**Method 1** — pass it directly to :func:`~bioverse.generator.Generator.generate`:
 
 .. code-block:: python
 
@@ -154,8 +154,11 @@ You might also want to replace an existing step in the Generator with your own a
 .. code-block:: python
 
     # Remove step 4 and replace it with the new mass-radius relationship
-    del generator.steps[4]
+    generator.remove_step(idx=4)
     generator.insert_step('Weiss_Marcy_2014', 4)
+
+    #or equivalently
+    generator.replace_step('Weiss_Marcy_2014', 4)
     
 Note that the function :func:`Weiss_Marcy_2014` should also compute the density and surface gravity of each planet as :func:`~bioverse.functions.assign_mass` currently does.
 

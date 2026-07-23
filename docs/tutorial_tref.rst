@@ -61,19 +61,24 @@ The final step is to calculate the detection SNR for the simulated 100 hr exposu
 
 Output: ``Required exposure time: 73.9 hr``
 
-To use this value in a Survey, supply it through a reference observation dictionary and enable the scaling relation yield method. Start from the pre-configured dictionary for the transit O2 measurement and override the ``t_ref`` value with your PSG-derived result:
+To use this value in a Survey, supply it through a reference observation dictionary and enable the scaling relation yield method:
 
 .. code-block:: python
 
-    from bioverse.survey import TransitSurvey, read_scaling_dict, prioritize_survey
+    from bioverse.survey import TransitSurvey, prioritize_survey
 
     survey = TransitSurvey('default')
 
-    # Load the pre-configured reference parameters for transit O2
-    scaling_dict = read_scaling_dict('transit_O2')
+    # create a dictionary for the scaling relation
+    scaling_dict = {}
 
-    # Override t_ref with the value calculated from PSG (convert from hours to days)
+    # Set t_ref with the value calculated from PSG (convert from hours to days)
     scaling_dict['t_ref'] = t_ref / 24.
+
+    #set effective wavelength in microns
+    scaling_dict['wl_eff'] = 0.6
+
+    #by default the other scaling factors not specified in the dictionary will have their default values
 
     # Apply the reference parameters and add the has_O2 measurement
     survey.set_reference_observation(**scaling_dict)
