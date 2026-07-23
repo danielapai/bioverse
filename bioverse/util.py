@@ -847,8 +847,8 @@ def SNR_calculator(Gmag,
     area = eta_tele * np.pi * (D / 2) ** 2
 
     #calculate the focal length, use it to compute pixel scale
+    #f number required fot background noise
     f_mm = f_number * (D * 1.0e1)
-    #this may be Chronos specific
     pix_scale = pixel_scale_arcsec_per_pix(pix_size, f_mm) #arcsec/pix
     solid_angle= n_pix*pix_scale**2 #arcsec^2
 

@@ -699,6 +699,7 @@ class TransitSurvey(Survey):
     #R: spectral resolution
     #feature_col: column with feature strength by default set to planet transit depth
     #feature_ppm: is feature strength given in ppm, false says feauture strength is a ratio
+    #kwargs: keyword args for calc_photometric_precision
     def fixed_field_yield(self, d, n_sigma=1.0, min_num_tr=1, t_fixed=None, t_exp=2.0, n_pix=108, R=20,
                           feature_col='depth', feature_ppm=False,**kwargs):
         if t_fixed is None:
