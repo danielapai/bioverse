@@ -1551,3 +1551,170 @@ def plot_yield_summary(
     )
 
     return fig
+
+
+def plot_histogram(d, column, log_x=False, bins=30, xlabel=None, ax=None, fig=None, **kwargs):
+    """ Generic histogram of a column in a Table.
+
+    Parameters
+    ----------
+    d : Table
+        Table of simulated planets or stars.
+    column : str
+        Name of the column to plot.
+    log_x : bool, optional
+        If True, plot the log10 of the column values on the x axis. Default is False.
+    bins : int or array, optional
+        Number of bins or bin edges. Default is 30.
+    xlabel : str, optional
+        Custom label for the x axis. If not given, defaults to the column name
+        (or its log10 form if log_x is True).
+    ax : Axes, optional
+        Matplotlib Axes to plot on. If not given, a new figure is created.
+    fig : Figure, optional
+        Matplotlib Figure. If not given, a new figure is created.
+    **kwargs
+        Additional keyword arguments passed to ax.hist.
+    """
+    if ax is None:
+        show = True
+        fig, ax = plt.subplots(figsize=(8, 5))
+    else:
+        show = False
+
+    values = d[column]
+    mask = ~np.isnan(values.astype(float))
+    values = values[mask]
+
+    if xlabel is None:
+        xlabel = column
+        if log_x:
+            xlabel = r'$\log_{10}$(' + column + ')'
+    if log_x:
+        values = np.log10(values)
+
+    ax.hist(values, bins=bins, **kwargs)
+    ax.set_xlabel(xlabel, fontsize=labelfontsize)
+    ax.set_ylabel('Count', fontsize=labelfontsize)
+
+    plt.subplots_adjust(bottom=0.2, left=0.15)
+    if show:
+        plt.show()
+    return fig, ax
+
+
+def plot_HR_diagram(d, xlim=None, ylim=None, ax=None, fig=None, **kwargs):
+    """ Hertzsprung-Russell diagram: stellar effective temperature vs. luminosity.
+
+    Both axes are logarithmic. The x axis is displayed in reverse order (high T on
+    the left) following astronomical convention.
+
+    Parameters
+    ----------
+    d : Table
+        Table of simulated planets or stars. Stellar rows are extracted via get_stars().
+    xlim : tuple, optional
+        limits for the effective temperature axis.
+    ylim : tuple, optional
+        Limits for the luminosity axis.
+    ax : Axes, optional
+        Matplotlib Axes to plot on. If not given, a new figure is created.
+    fig : Figure, optional
+        Matplotlib Figure. If not given, a new figure is created.
+    **kwargs
+        Additional keyword arguments passed to ax.scatter.
+    """
+    if ax is None:
+        show = True
+        fig, ax = plt.subplots(figsize=(8, 6))
+    else:
+        show = False
+
+    st = d.get_stars()
+    T = st['T_eff_st']
+    L = st['L_st']
+
+    ax.scatter(T, L, **kwargs)
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+
+    if xlim is None:
+        xlim = (np.nanmax(T) * 1.05, np.nanmin(T) * 0.95)
+    ax.set_xlim(xlim)
+    if ylim is not None:
+        ax.set_ylim(ylim)
+        
+    ax.xaxis.set_major_formatter(ScalarFormatter())
+    ax.xaxis.set_minor_formatter(ScalarFormatter())
+    ax.tick_params(axis='x', which='minor', labelsize=labelfontsize - 4)
+
+    ax.set_xlabel(r'Effective Temperature, $T_\mathrm{eff}$ (K)', fontsize=labelfontsize)
+    ax.set_ylabel(r'Luminosity ($L_\odot$)', fontsize=labelfontsize)
+    ax.set_title('Hertzsprung-Russell Diagram', fontsize=labelfontsize)
+
+    plt.subplots_adjust(bottom=0.15, left=0.15)
+    if show:
+        plt.show()
+    return fig, ax
+
+
+def plot_distance_luminosity(d, colorbar=False, color_column='t_exp', cmap='viridis',
+                              ax=None, fig=None, **kwargs):
+    """ Scatter plot of stellar distance vs. luminosity.
+
+    The luminosity axis is logarithmic. Points can optionally be colored by the
+    log10 of a chosen column (e.g. exposure time, t_exp).
+
+    Parameters
+    ----------
+    d : Table
+        Table of simulated planets or stars.
+    colorbar : bool, optional
+        If True, color points by log10(color_column) and display a colorbar.
+        Default is False.
+    color_column : str, optional
+        Name of the column used for the colorbar when colorbar is True.
+        Default is 't_exp'.
+    cmap : str, optional
+        Colormap used for the colorbar. Default is 'viridis'.
+    ax : Axes, optional
+        Matplotlib Axes to plot on. If not given, a new figure is created.
+    fig : Figure, optional
+        Matplotlib Figure. If not given, a new figure is created.
+    **kwargs
+        Additional keyword arguments passed to ax.scatter.
+    """
+    if ax is None:
+        show = True
+        fig, ax = plt.subplots(figsize=(8, 6))
+    else:
+        show = False
+        if fig is None:
+            fig = ax.figure
+
+    dist = d['d']
+    L = d['L_st']
+    kwargs.setdefault('s', 2) 
+
+    if colorbar:
+        if color_column not in d:
+            raise KeyError(
+                f"'{color_column}' not found in table. To compute exposure times, use "
+                "method='scaling_relation' in compute_yield() after calling "
+                "survey.set_reference_observation(). Alternatively, pass colorbar=False "
+                "or a different color_column."
+            )
+        sc = ax.scatter(dist, L, c=np.log10(d[color_column]), cmap=cmap, **kwargs)
+        cb = fig.colorbar(sc, ax=ax)
+        cb.set_label(r'$\log_{10}$(' + color_column + ')', fontsize=labelfontsize)
+    else:
+        ax.scatter(dist, L, **kwargs)
+
+    ax.set_yscale('log')
+    ax.set_xlabel('Distance (pc)', fontsize=labelfontsize)
+    ax.set_ylabel(r'Luminosity ($L_\odot$)', fontsize=labelfontsize)
+
+    plt.subplots_adjust(bottom=0.15, left=0.15)
+    if show:
+        plt.show()
+    return fig, ax
