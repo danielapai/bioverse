@@ -4,6 +4,7 @@ import dynesty
 import emcee
 import numpy as np
 import pandas as pd
+from concurrent.futures import ProcessPoolExecutor
 from scipy.stats import mannwhitneyu
 from scipy.interpolate import interp1d
 from warnings import warn
@@ -11,6 +12,21 @@ from warnings import warn
 # Bioverse modules
 from .util import is_bool, as_tuple
 from .constants import CONST, DATA_DIR
+from bioverse.generator import Generator
+
+
+def _run_dynesty_sampler(lnlike, tfprior, ndim, X, Y, sigma, nlive, dlogz, verbose):
+    """ Runs one dynesty nested-sampling job and returns the results as a plain dict.
+
+    Defined at module level (rather than nested inside a method) so that it can be
+    pickled and sent to a worker process. Returns a dict instead of dynesty's own
+    Results object because that is what can safely cross a process boundary.
+    """
+    sampler = dynesty.NestedSampler(lnlike, tfprior, ndim, logl_args=(X, Y, sigma), nlive=nlive)
+    sampler.run_nested(print_progress=verbose, dlogz=dlogz)
+    r = sampler.results
+    return {'logz': r.logz, 'samples': r.samples, 'logl': r.logl}
+
 
 class Hypothesis():
     """ Describes a Bayesian hypothesis.
@@ -146,22 +162,37 @@ class Hypothesis():
             print(x, y)
         return lnlk + lnpr, lnlk
     
-    def sample_posterior_dynesty(self, X, Y, sigma, nlive=100, nburn=None, verbose=False, sampler_results=False):
-        """ Uses dynesty to sample the parameter posterior distributions and compute the log-evidence."""
+    def sample_posterior_dynesty(self, X, Y, sigma, nlive=100, nburn=None, verbose=False, sampler_results=False,
+                                 processes=1):
+        """ Uses dynesty to sample the parameter posterior distributions and compute the log-evidence.
+
+        Parameters
+        ----------
+        processes : int, optional
+            If 2 (or more), the main-hypothesis and null-hypothesis samplers run concurrently
+            in separate processes instead of back-to-back. Since the two runs are otherwise
+            independent, this roughly halves the wall time of this method.
+        """
         # If not explicitly set, nburn=10
         nburn = 10 if nburn is None else nburn
 
-        # Sample the posterior distribution
-        sampler = dynesty.NestedSampler(self.lnlike, self.tfprior, self.nparams, logl_args=(X, Y, sigma), nlive=nlive)
-        sampler.run_nested(print_progress=verbose, dlogz=0.2)
+        main_args = (self.lnlike, self.tfprior, self.nparams, X, Y, sigma, nlive, 0.2, verbose)
+        null_args = (self.h_null.lnlike, self.h_null.tfprior, Y.shape[1], X, Y, sigma, 300, 0.1, verbose)
 
-        # Sample the null hypothesis
-        sampler_null = dynesty.NestedSampler(self.h_null.lnlike, self.h_null.tfprior, Y.shape[1], logl_args=(X, Y, sigma), nlive=300)
-        sampler_null.run_nested(print_progress=verbose, dlogz=0.1)
+        if processes >= 2:
+            # Run both samplers concurrently; wall time becomes max(t_main, t_null) instead of their sum
+            with ProcessPoolExecutor(max_workers=2) as executor:
+                future_main = executor.submit(_run_dynesty_sampler, *main_args)
+                future_null = executor.submit(_run_dynesty_sampler, *null_args)
+                r_main, r_null = future_main.result(), future_null.result()
+        else:
+            r_main = _run_dynesty_sampler(*main_args)
+            r_null = _run_dynesty_sampler(*null_args)
 
         # Return the posterior distribution samples and logZ difference
-        lnZ = sampler.results.logz[-1] - sampler_null.results.logz[-1]
-        return sampler.results.samples[nburn:, :], sampler.results.logl[nburn:], lnZ, sampler.results if sampler_results else None
+        lnZ = r_main['logz'][-1] - r_null['logz'][-1]
+        results_out = (r_main, r_null) if sampler_results else None
+        return r_main['samples'][nburn:, :], r_main['logl'][nburn:], lnZ, results_out
 
     def sample_posterior_emcee(self, x, y, sigma, nsteps=500, nwalkers=32, nburn=100, autocorr=False):
         """ Uses emcee to sample the parameter posterior distributions. """
@@ -199,7 +230,8 @@ class Hypothesis():
         return X, Y, sigma
 
     def fit(self, data, nsteps=500, nwalkers=16, nburn=100, nlive=100, return_chains=False,
-            verbose=False, method='dynesty', mw_alternative='greater', return_data=False, sampler_results=False):
+            verbose=False, method='dynesty', mw_alternative='greater', return_data=False, sampler_results=False,
+            processes=1):
         """
         Sample the posterior distribution of h(theta | x, y) using a simulated data set, and compare
         to the null hypothesis via a model comparison metric.
@@ -236,6 +268,9 @@ class Hypothesis():
             Wether or not to return the data
         sampler_results : bool
             Wether or not to return the whole results object from dynesty runs
+        processes : int, optional
+            If 2 (or more) and method includes 'dynesty', runs the main and null-hypothesis
+            samplers concurrently. See `sample_posterior_dynesty` for details.
 
         Returns
         -------
@@ -272,7 +307,8 @@ class Hypothesis():
         # Sample the posterior distribution (dynesty)
         if 'dynesty' in method:
             chains, loglikes, dlnZ, sampler_results = self.sample_posterior_dynesty(X, Y, sigma, nlive=nlive, nburn=nburn,
-                                                                   verbose=verbose, sampler_results=sampler_results)
+                                                                   verbose=verbose, sampler_results=sampler_results,
+                                                                   processes=processes)
 
         # Sample the posterior distribution (emcee)
         # If both emcee and dynesty are used, then emcee will override the posterior distribution
@@ -433,7 +469,6 @@ def compute_avg_deltaR_deltaRho(stars_args, planets_args, transiting_only=True, 
         DataFrame containing the average radius/density differences.
 
     """
-    from bioverse.generator import Generator
     wrr_grid = [0.0001, 0.001, 0.005, 0.01, 0.02, 0.03, 0.04, 0.05]
     avg_deltaR_deltaRho = []
 

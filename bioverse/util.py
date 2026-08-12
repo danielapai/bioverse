@@ -85,21 +85,34 @@ def as_tuple(x):
         return tuple(x)
 
 # Imports a function given the filename and the name of the function
-def import_function_from_file(function_name, file_path):
-        # split the file path into the folder path and the file name
-        module_folder_path, module_file = os.path.split(file_path)
-        # extract the package name from the folder path
-        package_name = os.path.basename(module_folder_path)
-        # extract the module name from the file name (stripping the .py extension)
-        module_name = os.path.splitext(module_file)[0]
+# Modules loaded by import_function_from_file, keyed by file path. Each entry stores
+# (modification time, module) so a module is only re-executed when its file changes
+# on disk — e.g. when a user edits custom.py mid-session. Without this cache, every
+# generator step of every simulation re-executed the whole module from scratch,
+# which is slow (especially on network filesystems) and resets any module-level
+# caches the functions rely on.
+_module_cache = {}
 
-        # Import the module
-        spec = importlib.util.spec_from_file_location(package_name +'.' + module_name, file_path)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
+def import_function_from_file(function_name, file_path):
+        mtime = os.path.getmtime(file_path)
+        cached = _module_cache.get(file_path)
+
+        if cached is None or cached[0] != mtime:
+            # split the file path into the folder path and the file name
+            module_folder_path, module_file = os.path.split(file_path)
+            # extract the package name from the folder path
+            package_name = os.path.basename(module_folder_path)
+            # extract the module name from the file name (stripping the .py extension)
+            module_name = os.path.splitext(module_file)[0]
+
+            # Import the module
+            spec = importlib.util.spec_from_file_location(package_name +'.' + module_name, file_path)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            _module_cache[file_path] = (mtime, mod)
 
         # Return the function
-        return mod.__dict__[function_name]
+        return _module_cache[file_path][1].__dict__[function_name]
 
 # Returns the "colors" of a planet based on its class and orbit
 def get_planet_colors(d):
