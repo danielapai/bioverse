@@ -54,7 +54,7 @@ def luminosity_evolution(d):
     return d
 
 sch_gcns= pl.Schema({'star_name': str, 'd': float,'ra': float, 'dec': float,'M_G': float, 'M_st': float,
-                    'R_st': float, 'L_st': float,'T_eff_st': int, 'SpT': str,'subSpT': str, 'binary': bool,
+                    'R_st': float, 'L_st': float,'T_eff_st': float, 'SpT': str,'subSpT': str, 'binary': bool,
                      'RV': float})
 
 def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, M_st_max=2.0, R_st_min=0.095,
