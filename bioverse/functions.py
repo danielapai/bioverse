@@ -26,6 +26,10 @@ def luminosity_evolution(d):
     """
     Computes age-dependent luminosities based on the stellar evolution tracks in Baraffe et al. (2015).
 
+    For each star, finds the track with the nearest tabulated mass, then within that track finds
+    the row with the nearest tabulated age, and assigns that row's luminosity. Both nearest-neighbor
+    lookups are vectorized across all stars at once rather than looping star-by-star.
+
     Parameters
     ----------
     d : Table
@@ -34,22 +38,28 @@ def luminosity_evolution(d):
     -------
     d : Table containing age-dependent luminosities.
 
-
     """
     lum_tracks = glob.glob(DATA_DIR + 'luminosity_tracks/' + "Lum_m*.txt")
     lum_tracks.sort()
-    star_masses = [float(filename[-7:-4]) for filename in lum_tracks]
-    tracks = {}
-    for star_mass, lum_track in zip(star_masses, lum_tracks):
-        tracks[star_mass] = pd.read_csv(lum_track)
-
-    tracks = pd.concat(tracks, keys=tracks.keys(), axis=0)
+    star_masses = np.array([float(filename[-7:-4]) for filename in lum_tracks])
+    tracks = {mass: pd.read_csv(track) for mass, track in zip(star_masses, lum_tracks)}
 
     df = d.to_pandas()
-    for i, star in df.iterrows():
-        star_mass_bin = min(star_masses, key=lambda x: abs(x - star['M_st']))
-        closest_age_id = ((tracks.loc[star_mass_bin]['age'] - star['age']).abs()).idxmin()
-        df.at[i, 'L_st'] = tracks.loc[star_mass_bin].iloc[closest_age_id]['lum']
+
+    # Nearest mass track for every star at once: (n_stars x n_mass_tracks) distance matrix, then
+    # argmin per row, instead of a per-star min() call.
+    mass_diffs = np.abs(df['M_st'].to_numpy()[:, None] - star_masses[None, :])
+    df['mass_bin'] = star_masses[np.argmin(mass_diffs, axis=1)]
+
+    # Nearest age within each mass bin, for every star in that bin at once. This loop runs once
+    # per unique mass bin (small, fixed by the number of track files), not once per star.
+    df['L_st'] = np.nan
+    for mass_bin, group in df.groupby('mass_bin'):
+        track = tracks[mass_bin]
+        age_diffs = np.abs(group['age'].to_numpy()[:, None] - track['age'].to_numpy()[None, :])
+        nearest_age_idx = np.argmin(age_diffs, axis=1)
+        df.loc[group.index, 'L_st'] = track['lum'].to_numpy()[nearest_age_idx]
+
     d['L_st'] = df['L_st']
     return d
 
@@ -427,9 +437,9 @@ def read_stellar_catalog(d, filename='LUVOIR_targets.dat', d_max=30., T_min=0., 
 
     np.random.seed(seed)
 
-    # Read the catalog with column names
+    # Read the catalog with column names (cached: read from disk once per process)
     path = filename if os.path.exists(filename) else DATA_DIR + '/' + filename
-    catalog = np.genfromtxt(path,unpack=False,names=True,dtype=None,encoding=None)
+    catalog = _genfromtxt_cached(path)
     for name in catalog.dtype.names:
         d[name.strip()] = list(catalog[name])*int(mult)
 
@@ -1018,7 +1028,7 @@ def assign_mass(d, mr_relation='Wolfgang2016',seed=42):
 
     elif mr_relation.lower() in ['mgsio3', 'silicate', 'zeng2016']:    # 'zeng2016' for backward compability
         # read pure silicate mass-radius table from Zeng+2016 and interpolate
-        purerock = pd.read_csv(DATA_DIR + 'mass-radius_relationships_mgsio3_Zeng2016.txt')
+        purerock = _read_csv_cached(DATA_DIR + 'mass-radius_relationships_mgsio3_Zeng2016.txt')
         f_mr = interp1d(purerock.radius, purerock.mass, fill_value='extrapolate')
 
         # separate planet radius range into small and large
@@ -1033,7 +1043,7 @@ def assign_mass(d, mr_relation='Wolfgang2016',seed=42):
 
     elif mr_relation.lower() in ['earth', 'earth-like', 'earthlike']:
         # read Earth-like mass-radius table from Zeng+2016 and interpolate (32.5% Fe + 67.5% MgSiO3)
-        earthlike = pd.read_csv(DATA_DIR + 'mass-radius_relationships_Earthlike_Zeng2016.txt')
+        earthlike = _read_csv_cached(DATA_DIR + 'mass-radius_relationships_Earthlike_Zeng2016.txt')
         f_mr = interp1d(earthlike.radius, earthlike.mass, fill_value='extrapolate')
 
         # separate planet radius range into small and large
@@ -1599,9 +1609,9 @@ def magma_ocean(d, wrr=0.005, S_thresh=280., simplified=False, diff_frac=0.54, f
             d['R'] = R
         else:
             # mass-radius relations for pure rock (Zeng et al. 2016) and w/ steam atmosphere (Turbet et al. 2020)
-            purerock = pd.read_csv(DATA_DIR + 'mass-radius_relationships_mgsio3_Zeng2016.txt')
-            purerock.loc[:, 'wrr'] = 0.
-            turbet2020 = pd.read_csv(DATA_DIR + 'mass-radius_relationships_STEAM_TURBET2020_FIG2b.dat', comment='#')
+            # .assign() derives a new frame with wrr=0 instead of mutating the shared cached one
+            purerock = _read_csv_cached(DATA_DIR + 'mass-radius_relationships_mgsio3_Zeng2016.txt').assign(wrr=0.)
+            turbet2020 = _read_csv_cached(DATA_DIR + 'mass-radius_relationships_STEAM_TURBET2020_FIG2b.dat', comment='#')
             mass_radius = pd.concat([purerock, turbet2020], ignore_index=True)
 
             mass_radius = mass_radius[mass_radius.wrr == wrr]
@@ -1629,8 +1639,8 @@ def magma_ocean(d, wrr=0.005, S_thresh=280., simplified=False, diff_frac=0.54, f
             R = d['R']
             mask = d['has_magmaocean']
 
-            # Read radius differences from DL21 Fig. 3b
-            delta_R = pd.read_csv(DATA_DIR + 'deltaR_DornLichtenberg21_Fig3b.csv', comment='#')
+            # Read radius differences from DL21 Fig. 3b (cached: read from disk once per process)
+            delta_R = _read_csv_cached(DATA_DIR + 'deltaR_DornLichtenberg21_Fig3b.csv', comment='#')
 
             # interpolate within planet masses for the given water mass fraction wrr
             dr_wrr = delta_R.iloc[(delta_R['wrr'] - wrr).abs().argsort()[0], :][1:]
