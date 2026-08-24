@@ -791,11 +791,15 @@ class Measurement():
     precision : str or float, optional
         Precision of measurement, e.g. '10%' or 0.10 units. Default is zero.
     """
-    def __init__(self, key, survey, precision=0.):
+    def __init__(self, key, survey, precision=0.,bounds=[]):
         # Save the keyword values
         self.key = key
         self.survey = survey
         self.precision = precision
+        if (bounds is not None) and (bounds!=[]):
+            if len(bounds) != 2:
+                raise Exception('Bounds must contain upper and lower bounds or be None or []')
+        self.bounds = bounds
 
     def __repr__(self):
         s = "Measures parameter '{:s}'".format(self.key)
@@ -882,6 +886,12 @@ class Measurement():
 
         # Restrict measurements to +- 5 sigma
         xmin, xmax = x-5*sig, x+5*sig
+
+        # set minimum and maximum values to be in bounds
+        if len(self.bounds) == 2:
+            xmin=np.maximum(xmin, self.bounds[0])
+            xmax=np.minimum(xmax, self.bounds[1])
+
 
         # Return draw from bounded normal distribution plus uncertainty
         return util.normal(x, sig, xmin=xmin, xmax=xmax, size=len(x)), sig
