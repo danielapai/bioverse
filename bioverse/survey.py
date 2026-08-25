@@ -58,7 +58,7 @@ class Survey(dict, Object):
         **kwargs
             Keyword arguments passed to Measurement.__init__().
         """
-        self.measurements[key] = Measurement(key, self, **kwargs)
+        self.measurements[key] = Measurement(key, **kwargs)
         if idx is not None:
             self.move_measurement(key, idx)
 
@@ -72,8 +72,9 @@ class Survey(dict, Object):
         """
 
         for key, val in m_kwargs.items():
-            self.measurements[key]=Measurement(key,self,precision=val)
-    
+            self.measurements[key]=Measurement(key,precision=val)
+
+    #outdated, order of measurements no longer matters
     def move_measurement(self, key, idx):
         """ Moves a Measurement to the designated position in the sequence.
         
@@ -786,15 +787,15 @@ class Measurement():
     ----------
     key : str
         Name of the parameter that will be measured.
-    survey : Survey
-        Survey associated with this Measurement.
     precision : str or float, optional
         Precision of measurement, e.g. '10%' or 0.10 units. Default is zero.
+    bounds : list or np.ndarray, optional
+        Upper and lower bounds of measurement, e.g. [0.0, 1.0]. Default is [] (unbounded)
     """
-    def __init__(self, key, survey, precision=0.,bounds=[]):
+    def __init__(self, key, precision=0.,bounds=[]):
         # Save the keyword values
         self.key = key
-        self.survey = survey
+        #self.survey = survey
         self.precision = precision
         if (bounds is not None) and (bounds!=[]):
             if len(bounds) != 2:
