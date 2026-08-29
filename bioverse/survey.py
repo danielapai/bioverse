@@ -664,7 +664,7 @@ class TransitSurvey(Survey):
 
     def calc_photometric_precision(self, d, t_fixed=60.0, t_exp=2.0, n_pix=108, R=20, **kwargs):
         '''
-        Function to calculate the photometric precision of a survey
+        Function to calculate the photometric precision of a survey assuming all transits in a fixed duration are observed
 
         :param survey: bioverse survey object
         :param d: bioverse table of planets
@@ -689,6 +689,29 @@ class TransitSurvey(Survey):
         SNR_arr = util.SNR_calculator(d['Gmag'], D=D, t_exp=t_exp, R=R, n_exp=nexp, n_pix=n_pix, **kwargs)
         ppm_arr = 1 / SNR_arr * 1e6
         d['photometric_precision'] = ppm_arr  # ppm
+        return d
+
+
+    def calc_integration_time(self, d, target_precision=100, t_exp=2.0, mag_col='Gmag', **kwargs):
+        '''
+        Function to calculation integration time (days) to obtain a target photometric precision in ppm
+
+        :param d: bioverse table of planets
+        :param target_precision: target photometric precision in ppm
+        :param t_exp: time for individual exposure in seconds
+        :param kwargs: additional keyword arguments for util.calc_nexp function
+        '''
+
+        D = self.diameter * 100.0  # cm
+        SNR_target = 1 / (target_precision / 1e6)
+
+        if mag_col not in d.keys():
+            raise KeyError('Column {} not found in d'.format(mag_col))
+
+        num_exp = util.calc_nexp(d[mag_col], SNR=SNR_target, D=D, t_exp=t_exp, **kwargs)
+        t_int = t_exp * num_exp  # integration time in seconds
+        d['t_req'] = t_int / CONST['day_to_sec']  # convert to days
+        d['photometric_precision'] = target_precision * np.ones_like(t_int)
         return d
 
     #d: table
@@ -719,8 +742,39 @@ class TransitSurvey(Survey):
         # could also add a minimum number of transits observed here
         return d[mask & mask2]
 
+    def target_precision_yield(self, d, target_precision=100, n_sigma=1.0, feature_ppm=False, feature_col='depth',
+                               t_exp=2.0, mag_col='Gmag', zero_overhead=True, **kwargs):
+        '''
+        Function to calculate the yield of a survey where stars are observed to a given target photometric precision
+        Stars are selected based on the integration time to obtain that precision, prioritized base off 1 over the required
+        integration time until all the survey duration is allocated
 
-    def compute_yield(self, d0, method='detectable',debias=False,zero_overhead=False,**y_kwargs):
+        :param d: bioverse table of planets
+        :param target_precision: target photometric precision in ppm
+        :param n_sigma: number of standard deviations in transit depth necessary for detection/characterization
+        :param feature_ppm: boolean, are feature strengths given in units of ppm (parts per million) as opposed to a ratio
+        :param feature_col: column name of feature to use
+        :param t_exp: time for individual exposure in seconds
+        :param mag_col: column name of stellar apparent magnitude to use
+        :param zero_overhead: boolean, whether to include zero overhead time in survey scheduling
+        '''
+
+        d = self.calc_integration_time(d, target_precision=target_precision, t_exp=t_exp, mag_col=mag_col, **kwargs)
+        N_tr = np.ceil(d['t_req'] / d['T_dur'])
+        d['N_obs'] = N_tr
+
+        #schedule observations to meet precision requirements
+        #rank targets according to 1/t_req until survey duration used up
+        to_obs = self.schedule_observations(d, texp_col='t_req', N_obs_col='N_obs', zero_overhead=zero_overhead)
+        d0 = d[to_obs]  # save as different variable or it overwrites d outside function
+        # d0['t_req'].sum() confirmed to be nearly survey duration
+
+        #compare the actual strength of features to the photometric precision to see if they are detected
+        mult = 1.0 if feature_ppm else 1e6
+        mask = (d0[feature_col] * mult) > (n_sigma * d0['photometric_precision'])
+        return d0[mask]
+
+    def compute_yield(self, d0, method='detectable',debias=False,zero_overhead=True,**y_kwargs):
         """ Computes a simple estimate of the detection yield for a transit survey. Select between multiple yield methods.
 
         Parameters
@@ -729,9 +783,15 @@ class TransitSurvey(Survey):
             Table of all simulated planets which the survey could attempt to observe.
         method : str, optional
             Method used for yield calculation.
-                "detectable" implies all detectable planets are observed without consideration of exposure time
-                and total mission duration.
-                "scaling_relation" uses estimated exposure times from PSG and a scaling relation
+                "detectable": implies all detectable planets are observed without consideration of exposure time
+                    and total mission duration.
+                "scaling_relation": uses estimated exposure times from PSG and a scaling relation
+                "fixed_field": assumes that all stars in a field of view are observed for a given duration,
+                    features in planetary spectra are assumed to be observed if the photometric precision is smaller than
+                    the feature depth (times n_sigma)
+                "target_precision": Stars are selected for survey based on the integration time required to obtain a
+                    specified photometric precision. If the planet feature strength is above this threshold features are
+                    consider to be detected.
         debias : bool, optional
             Apply debias correction for transiting planets.
         zero_overhead : bool, optional
@@ -740,6 +800,7 @@ class TransitSurvey(Survey):
             keyword arges for specific yield method
             for "scaling relation": sets reference observation, updates self.reference
             for "fixed field": kwargs for SNR calculator
+            for "target precision":kwargs for util.calc_nexp
 
         Returns
         -------
@@ -771,10 +832,13 @@ class TransitSurvey(Survey):
             d = self.compute_detectable(d)
             d= self.in_telescope_FOV(d) #currently in_telescope_FOV only called for fixed field method
             d = self.fixed_field_yield(d,**y_kwargs)  # should we make specific args explicit such as t_fixed?
+        elif method == 'target_precision':
+            d = self.compute_detectable(d)
+            d= self.in_telescope_FOV(d)
+            d = self.target_precision_yield(d,debias=debias,zero_overhead=zero_overhead,**y_kwargs)
 
         else:
             raise Exception('Method: {} not recognized'.format(method))
-
 
         # Return the output table
         return d

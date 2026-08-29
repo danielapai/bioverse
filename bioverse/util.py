@@ -929,7 +929,7 @@ def calc_nexp(Gmag,SNR=6,
         Cd = 0
 
     n_exp= ((2*Cd+Cs+2*Cb)/(Cs**2))*SNR**2
-    return n_exp
+    return np.ceil(n_exp)
 
 RA0 = 290.67        # deg
 DEC0 = 44.5         # deg
