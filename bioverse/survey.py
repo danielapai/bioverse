@@ -743,7 +743,7 @@ class TransitSurvey(Survey):
         return d[mask & mask2]
 
     def target_precision_yield(self, d, target_precision=100, n_sigma=1.0, feature_ppm=False, feature_col='depth',
-                               t_exp=2.0, mag_col='Gmag', zero_overhead=True, **kwargs):
+                               t_exp=2.0, mag_col='Gmag', zero_overhead=True, debias=False, **kwargs):
         '''
         Function to calculate the yield of a survey where stars are observed to a given target photometric precision
         Stars are selected based on the integration time to obtain that precision, prioritized base off 1 over the required
@@ -765,7 +765,7 @@ class TransitSurvey(Survey):
 
         #schedule observations to meet precision requirements
         #rank targets according to 1/t_req until survey duration used up
-        to_obs = self.schedule_observations(d, texp_col='t_req', N_obs_col='N_obs', zero_overhead=zero_overhead)
+        to_obs = self.schedule_observations(d, texp_col='t_req', N_obs_col='N_obs', zero_overhead=zero_overhead,debias=debias)
         d0 = d[to_obs]  # save as different variable or it overwrites d outside function
         # d0['t_req'].sum() confirmed to be nearly survey duration
 
