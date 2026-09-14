@@ -282,7 +282,7 @@ class Table(dict):
             if self.error:
                 self.error['S'] = self['S'] * np.sqrt((self.error['L_st']/self['L_st'])**2 + (2*self.error['a']/self['a'])**2)
 
-            # add absolute instellation in W/m2 (assuming dayside-average)
+            # add absolute instellation in W/m2
             self['S_abs'] = self['S']*CONST['S_Earth']
 
         elif key == 'R':

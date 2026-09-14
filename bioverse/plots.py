@@ -1704,7 +1704,7 @@ def plot_yield_summary_sn(
     )
 
     ax_text.text(
-        0.05, 0.97,
+        0.00, 0.97,
         "\n".join(lines),
         va="top", ha="left",
         fontsize=label_fontsize - 2,
