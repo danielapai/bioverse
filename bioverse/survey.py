@@ -62,7 +62,7 @@ class Survey(dict, Object):
         if idx is not None:
             self.move_measurement(key, idx)
 
-    def add_measurements(self, **m_kwargs):
+    def add_measurements(self, noise_model=None,**m_kwargs):
         """ Adds Multiple Measurement to the Survey.
 
         Parameters
@@ -72,7 +72,7 @@ class Survey(dict, Object):
         """
 
         for key, val in m_kwargs.items():
-            self.measurements[key]=Measurement(key,precision=val)
+            self.measurements[key]=Measurement(key,precision=val,noise_model=noise_model)
 
     #outdated, order of measurements no longer matters
     def move_measurement(self, key, idx):
@@ -855,12 +855,16 @@ class Measurement():
         Precision of measurement, e.g. '10%' or 0.10 units. Default is zero.
     bounds : list or np.ndarray, optional
         Upper and lower bounds of measurement, e.g. [0.0, 1.0]. Default is [] (unbounded)
+    noise_model : str, optional
+        Name of noise model to use. Current choices are truncated Gaussian and Gaussian. If not
+        specified, defaults to 'trunc_gaussian'.
     """
-    def __init__(self, key, precision=0.,bounds=[]):
+    def __init__(self, key, precision=0.,bounds=[],noise_model=None):
         # Save the keyword values
         self.key = key
         #self.survey = survey
         self.precision = precision
+        self.noise_model = noise_model
         if (bounds is not None) and (bounds!=[]):
             if len(bounds) != 2:
                 raise Exception('Bounds must contain upper and lower bounds or be None or []')
@@ -941,25 +945,34 @@ class Measurement():
         if isinstance(x[0], (STR_TYPES, BOOL_TYPES)):
             return x, None
 
+        # Don't calculate noise if measurements are exact
+        if self.precision == 0.:
+            return x, None
+
         # Percentage-based precision
         if type(self.precision) is str and '%' in self.precision:
             sig = x*float(self.precision.strip('%'))/100.
-            
         # Absolute precision
         else:
             sig = float(self.precision)
 
-        # Restrict measurements to +- 5 sigma
-        xmin, xmax = x-5*sig, x+5*sig
+        if (self.noise_model is None) or (self.noise_model == 'trunc_gaussian'):
+            # Restrict measurements to +- 5 sigma
+            xmin, xmax = x-5*sig, x+5*sig
 
-        # set minimum and maximum values to be in bounds
-        if len(self.bounds) == 2:
-            xmin=np.maximum(xmin, self.bounds[0])
-            xmax=np.minimum(xmax, self.bounds[1])
+            # set minimum and maximum values to be in bounds
+            if len(self.bounds) == 2:
+                xmin=np.maximum(xmin, self.bounds[0])
+                xmax=np.minimum(xmax, self.bounds[1])
+
+            #draw from bounded normal distribution
+            res= util.normal(x, sig, xmin=xmin, xmax=xmax, size=len(x))
+        elif (self.noise_model=='gaussian') or (self.noise_model=='normal'):
+            res = np.random.normal(x,sig,size=len(x))
 
 
-        # Return draw from bounded normal distribution plus uncertainty
-        return util.normal(x, sig, xmin=xmin, xmax=xmax, size=len(x)), sig
+        # Return vals and uncertainty
+        return res, sig
 
 def reset_imaging_survey():
     """ Re-creates the default imaging survey. """
