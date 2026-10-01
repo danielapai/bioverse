@@ -57,9 +57,15 @@ sch_gcns= pl.Schema({'star_name': str, 'd': float,'ra': float, 'dec': float,'M_G
                     'R_st': float, 'L_st': float,'T_eff_st': float, 'SpT': str,'subSpT': str, 'binary': bool,
                      'RV': float})
 
-def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, M_st_max=2.0, R_st_min=0.095,
+sch_400pc= pl.Schema({'star_name':str,'d':float,'ra':float, 'dec':float, 'Gmag':float,'M_G':float, 'M_st':float,
+            'R_st':float, 'L_st':float,'T_eff_st':float, 'SpT':str,'subSpT':str, 'binary':pl.Int8})
+
+sch_dict={'gcns_catalog.dat':sch_gcns,
+          'gaia_400pc_catalog.dat':sch_400pc}
+
+def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=None, M_st_min=0.075, M_st_max=2.0, R_st_min=0.095,
                     R_st_max=2.15, a_min=0., a_max=10., inc_binary=0, SpT=None, seed=42, m_G_max = None,M_G_max=None,
-                    lum_evo=False, fill_missing=True, ecliptic_coords=False, schema=sch_gcns,xyz=False, generate_RV=False):
+                    lum_evo=False, fill_missing=True, ecliptic_coords=False, schema=None,xyz=False, generate_RV=False):
     """ Reads a list of stellar properties from a catalog of nearby Gaia stars.
 
     Parameters
@@ -125,119 +131,72 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
     else:
         path = DATA_DIR + '/' + filename
 
-    try:
-        # Use lazy evaluation with scan_csv for better memory efficiency with large files
-        # Read without schema first to be flexible with different file formats
-        query = pl.scan_csv(path, separator=' ', has_header=True,schema=schema)
 
-        # Strip whitespace from column names
-        # Use collect_schema() to avoid performance warning
-        if schema is not None:
-            col_names = schema.names()
+    # Use lazy evaluation with scan_csv for better memory efficiency with large files
+    # Read without schema first to be flexible with different file formats
+    if schema is None:
+        if filename in sch_dict.keys():
+            schema = sch_dict[filename]
         else:
-            col_names = list(query.collect_schema().keys())
+            raise Exception("No Schema defined for importing catalog in polars. Define using schema kwarg. ")
 
-        #is this step still necessary, do any col names contain extra whitespace?
-        rename_dict = {col: col.strip() for col in col_names}
-        query = query.rename(rename_dict)
+    query = pl.scan_csv(path, separator=' ', has_header=True,schema=schema)
 
-        # Apply filters in Polars (lazy evaluation - more efficient for large files)
-        filter_conditions = []
-        col_names_stripped = [col.strip() for col in col_names]
+    # Strip whitespace from column names
+    # Use collect_schema() to avoid performance warning
+    if schema is not None:
+        col_names = schema.names()
+    else:
+        col_names = list(query.collect_schema().keys())
 
-        #compute Gmag if specified or if used in query
-        #if (compute_m_G or (m_G_max is not None)) and ('Gmag' not in col_names_stripped):
-        #    if ('d' in col_names_stripped) and ('M_G' in col_names_stripped):
-        #        query=query.with_columns((pl.col('M_G')+5*np.log10(pl.col('d'))-5).alias('Gmag'))
+    #is this step still necessary, do any col names contain extra whitespace?
+    rename_dict = {col: col.strip() for col in col_names}
+    query = query.rename(rename_dict)
 
-        if d_max and ('d' in col_names_stripped):
-            filter_conditions.append(pl.col('d') < d_max)
+    # Apply filters in Polars (lazy evaluation - more efficient for large files)
+    filter_conditions = []
+    col_names_stripped = [col.strip() for col in col_names]
 
-        if m_G_max and ('Gmag' in col_names_stripped):
-            filter_conditions.append(pl.col('Gmag') < m_G_max)
+    if d_max and ('d' in col_names_stripped):
+        filter_conditions.append(pl.col('d') < d_max)
 
-        if M_G_max and ('M_G' in col_names_stripped):
-            filter_conditions.append(pl.col('M_G') < M_G_max)
+    if m_G_max and ('Gmag' in col_names_stripped):
+        filter_conditions.append(pl.col('Gmag') < m_G_max)
 
-        if M_st_min and M_st_max and ('M_st' in col_names_stripped):
-            filter_conditions.append((pl.col('M_st') > M_st_min) & (pl.col('M_st') < M_st_max))
+    if M_G_max and ('M_G' in col_names_stripped):
+        filter_conditions.append(pl.col('M_G') < M_G_max)
 
-        if R_st_min and R_st_max  and ('R_st' in col_names_stripped):
-            filter_conditions.append((pl.col('R_st') > R_st_min) & (pl.col('R_st') < R_st_max))
+    if M_st_min and M_st_max and ('M_st' in col_names_stripped):
+        filter_conditions.append((pl.col('M_st') > M_st_min) & (pl.col('M_st') < M_st_max))
 
-        if inc_binary == 0 and 'binary' in col_names_stripped:
-            # Handle both int (0/1) and bool binary columns
-            filter_conditions.append(pl.col('binary') == 0)
+    if R_st_min and R_st_max  and ('R_st' in col_names_stripped):
+        filter_conditions.append((pl.col('R_st') > R_st_min) & (pl.col('R_st') < R_st_max))
 
-        if SpT and 'SpT' in col_names_stripped:
-            filter_conditions.append(pl.col('SpT').is_in(SpT))
+    if inc_binary == 0 and 'binary' in col_names_stripped:
+        # Handle both int (0/1) and bool binary columns
+        filter_conditions.append(pl.col('binary') == 0)
 
-        # Apply all filters at once
-        if filter_conditions:
-            combined_filter = filter_conditions[0]
-            for condition in filter_conditions[1:]:
-                combined_filter = combined_filter & condition
-            query = query.filter(combined_filter)
+    if SpT and 'SpT' in col_names_stripped:
+        filter_conditions.append(pl.col('SpT').is_in(SpT))
 
-        # Collect the lazy query into a DataFrame (this is where actual I/O happens)
-        cat = query.collect()
+    # Apply all filters at once
+    if filter_conditions:
+        combined_filter = filter_conditions[0]
+        for condition in filter_conditions[1:]:
+            combined_filter = combined_filter & condition
+        query = query.filter(combined_filter)
 
-        # Convert Polars DataFrame to Table using to_dict() method (fast and efficient)
-        # This converts the DataFrame to a dict of column_name -> list/array
-        cat_dict = cat.to_dict(as_series=False)
+    # Collect the lazy query into a DataFrame (this is where actual I/O happens)
+    cat = query.collect()
 
-        # Populate Table object from the dictionary
-        # Convert lists to numpy arrays (Table expects numpy arrays)
-        for col_name, col_values in cat_dict.items():
-            d[col_name] = np.array(col_values)
+    # Convert Polars DataFrame to Table using to_dict() method (fast and efficient)
+    # This converts the DataFrame to a dict of column_name -> list/array
+    cat_dict = cat.to_dict(as_series=False)
 
-    except Exception as e:
-        # Fallback to pandas if Polars fails
-        warnings.warn(f"Polars read failed ({e}), falling back to pandas", UserWarning)
-        # Use the same path resolution for pandas fallback
-        if not os.path.exists(path):
-            if os.path.exists(ROOT_DIR + '/' + filename):
-                path = ROOT_DIR + '/' + filename
-            elif os.path.exists(DATA_DIR + filename):
-                path = DATA_DIR + filename
-            else:
-                path = DATA_DIR + '/' + filename
-        cat_pd = pd.read_csv(path, sep=' ', header=0, dtype={'star_name': str, 'd': float,
-                                                             'ra': float, 'dec': float,
-                                                             'M_G': float, 'M_st': float,
-                                                             'R_st': float, 'L_st': float,
-                                                             'T_eff_st': int, 'SpT': str,
-                                                             'subSpT': str, 'binary': bool,
-                                                             'RV': float})
-
-        # Apply filters (pandas approach)
-        # Enforce a maximum distance
-        if d_max and ('d' in cat_pd.columns):
-            cat_pd = cat_pd[cat_pd['d'] < d_max]
-
-        if m_G_max and ('Gmag' in cat_pd.columns):
-            cat_pd = cat_pd[cat_pd['Gmag'] < m_G_max]
-        # Apply magnitude limit
-        if M_G_max and ('M_G' in cat_pd.columns):
-            cat_pd = cat_pd[cat_pd['M_G'] < M_G_max]
-
-        # Enforce a min/max mass & radius
-        if M_st_min and M_st_max and ('M_st' in cat_pd.columns):
-            cat_pd = cat_pd[(cat_pd['M_st'] > M_st_min) & (cat_pd['M_st'] < M_st_max)]
-        if R_st_min and R_st_max and ('R_st' in cat_pd.columns):
-            cat_pd = cat_pd[(cat_pd['R_st'] > R_st_min) & (cat_pd['R_st'] < R_st_max)]
-
-        # Include/exclude stars in binary systems
-        if inc_binary == 0 and 'binary' in cat_pd.columns:
-            cat_pd = cat_pd[cat_pd['binary'] == False]
-
-        # Include only specific spectral types
-        if SpT and 'SpT' in cat_pd.columns:
-            cat_pd = cat_pd[cat_pd['SpT'].isin(SpT)]
-
-        # Populate Table object from pandas DataFrame
-        for col_name in cat_pd.columns:
-            d[col_name.strip()] = np.array(cat_pd[col_name])
+    # Populate Table object from the dictionary
+    # Convert lists to numpy arrays (Table expects numpy arrays)
+    for col_name, col_values in cat_dict.items():
+        d[col_name] = np.array(col_values)
 
     # Missing values
     if fill_missing:

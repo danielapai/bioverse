@@ -375,7 +375,7 @@ def reset_imaging_generator():
 def reset_transit_generator():
     """ Re-creates the default Generator for transit surveys. """
     g_transit = Generator(label=None)
-    g_transit.insert_step('create_stars_Gaia')
+    g_transit.insert_step('read_stars_Gaia')
     g_transit.insert_step('create_planets_SAG13')
     g_transit.insert_step('assign_orbital_elements')
     g_transit.insert_step('compute_transit_params')
