@@ -1619,7 +1619,7 @@ def plot_yield_summary_sn(
 
     required_keys = [
         "S", "R", "P", "M_st", "t_req", "N_obs", "T_dur",
-        "d", "T_eff_st", "L_st",
+        "d", "T_eff_st", "L_st", "Gmag"
     ]
     for key in required_keys:
         if key not in d:
@@ -1639,13 +1639,13 @@ def plot_yield_summary_sn(
     ax_text = fig.add_subplot(gs[0, 2])    # text / summary panel
     ax_text.axis("off")
 
-    columns = [ "M_st", "P",  "T_dur",    "N_obs",  "t_req", "X_H2O"
+    columns = [ "M_st", "P",  "T_dur",    "Gmag",  "t_req", "X_H2O"
     ]
     xlabels = [
         r"Stellar Mass ($M_\odot$)",
         "Period (days)",
         "Transit Duration (days)",
-        "Number of Observed Transits",
+        "Stellar G mag",
         "Integration Time (days)",
         "Atm Water Mass Fraction"
     ]
