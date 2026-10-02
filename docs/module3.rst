@@ -57,7 +57,7 @@ In order to test the evidence in favor of ``h_mass_radius``, we must define an a
         return np.full(shape, theta)
     
     bounds_null = np.array([[0.01, 100]])
-    h_mass_radius.h_null = Hypothesis(f_null, bounds, params=('M_random',), log=(True,))
+    h_mass_radius.h_null = Hypothesis(f_null, bounds_null, params=('M_random',), log=(True,))
 
 Testing the hypothesis
 **********************
