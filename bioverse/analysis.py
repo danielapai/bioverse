@@ -197,18 +197,58 @@ def compare_methods(h, data, methods=['dynesty', 'emcee'], **kwargs):
         results[method]['h'] = h
     return results
 
-def number_vs_time(h, generator, survey, t_total, N=30, average=True, **kwargs):
-    """ Determines how many planets are characterized by the simulated survey versus time budget. """
+### Helper Methods
+def _count_by_class(observed):
+    """ Counts detected planets by class for one simulated observation. Shared by the
+    number_vs_* worker functions below. """
+    row = {'all': len(observed), 'EEC': int(observed['EEC'].sum())}
+    for key in ['hot', 'warm', 'cold']:
+        row[key] = int((observed['class1'] == key).sum())
+    return row
+
+def _number_vs_time_worker(generator, survey, h, t_total, seed, kwargs):
+    """ Runs one simulation (fixed seed) and sweeps it over every value of t_total.
+    Defined at module level so it can be sent to a worker process. """
+    np.random.seed(seed)
+    sample, detected, _ = survey.quickrun(generator, seed=seed, **kwargs)
+    categories = ['all', 'EEC', 'hot', 'warm', 'cold']
+    row = {key: np.zeros(len(t_total), dtype=int) for key in categories}
+    for i, t in enumerate(t_total):
+        data = survey.observe(detected, t_total={label: t for label in h.labels})
+        observed = detected[h.get_observed(data)]
+        counts = _count_by_class(observed)
+        for key in categories:
+            row[key][i] = counts[key]
+    return row
+
+def number_vs_time(h, generator, survey, t_total, N=30, average=True, processes=1, **kwargs):
+    """ Determines how many planets are characterized by the simulated survey versus time budget.
+
+    Parameters
+    ----------
+    processes : int, optional
+        Number of worker processes. Each of the N simulations is independent, so they run
+        concurrently across `processes` workers; the sweep over `t_total` within each
+        simulation stays serial since it reuses that simulation's result. Default is 1
+        (serial, original behavior).
+    """
     categories = ['all', 'EEC', 'hot', 'warm', 'cold']
     N_pl = {key:np.zeros((len(t_total), N), dtype=int) for key in categories}
-    for j in util.bar(range(N)):
-        sample, detected, _ = survey.quickrun(generator, **kwargs)
-        for i, t in enumerate(t_total):
-            data = survey.observe(detected, t_total={label:t for label in h.labels})
-            observed = detected[h.get_observed(data)]
-            N_pl['all'][i, j], N_pl['EEC'][i, j] = len(observed), observed['EEC'].sum()
-            for key in ['hot', 'warm', 'cold']:
-                N_pl[key][i, j] = (observed['class1'] == key).sum()
+
+    seeds = np.random.randint(0, 1e9, size=N)
+    args = [(generator, survey, h, t_total, seeds[j], kwargs) for j in range(N)]
+
+    if processes > 1:
+        pool = mp.Pool(processes)
+        procs = [pool.apply_async(_number_vs_time_worker, a) for a in args]
+        rows = [procs[j].get() for j in util.bar(range(N))]
+        pool.close()
+    else:
+        rows = [_number_vs_time_worker(*a) for a in util.bar(args)]
+
+    for j, row in enumerate(rows):
+        for key in categories:
+            N_pl[key][:, j] = row[key]
 
     if average:
         for key, val in N_pl.items():
@@ -218,42 +258,73 @@ def number_vs_time(h, generator, survey, t_total, N=30, average=True, **kwargs):
 
     return N_pl
 
-def number_vs_eta(h, generator, survey, eta_Earth, N=30, average=True, **kwargs):
-    """ Determines how many planets are characterized by the simulated survey versus eta Earth. """
+def _number_vs_param_worker(generator, survey, h, param_name, param_val, seed, kwargs):
+    """ Runs one simulation with `param_name` set to `param_val` (e.g. eta_Earth or d_max).
+    Defined at module level so it can be sent to a worker process. """
+    np.random.seed(seed)
+    call_kwargs = dict(kwargs)
+    call_kwargs[param_name] = param_val
+    sample, detected, data = survey.quickrun(generator, seed=seed, **call_kwargs)
+    observed = detected[h.get_observed(data)]
+    return _count_by_class(observed)
+
+def _number_vs_param(h, generator, survey, param_name, param_grid, N, average, processes, kwargs):
+    """ Shared implementation for number_vs_eta and number_vs_distance: both sweep N
+    independent simulations over a 1-D parameter grid, and every (i, j) combination is
+    independent of every other. """
     categories = ['all', 'EEC', 'hot', 'warm', 'cold']
-    N_pl = {key:np.zeros((len(eta_Earth), N), dtype=int) for key in categories}
-    for j in util.bar(range(N)):
-        for i, e in enumerate(eta_Earth):
-            sample, detected, data = survey.quickrun(generator, eta_Earth=e, **kwargs)
-            observed = detected[h.get_observed(data)]
-            N_pl['all'][i, j], N_pl['EEC'][i, j] = len(observed), observed['EEC'].sum()
-            for key in ['hot', 'warm', 'cold']:
-                N_pl[key][i, j] = (observed['class1'] == key).sum()
+    N_pl = {key: np.zeros((len(param_grid), N), dtype=int) for key in categories}
+
+    seeds = np.random.randint(0, 1e9, size=N * len(param_grid))
+    args = [
+        (generator, survey, h, param_name, val, seeds[j * len(param_grid) + i], kwargs)
+        for j in range(N) for i, val in enumerate(param_grid)
+    ]
+
+    if processes > 1:
+        pool = mp.Pool(processes)
+        procs = [pool.apply_async(_number_vs_param_worker, a) for a in args]
+        rows = [procs[idx].get() for idx in util.bar(range(len(args)))]
+        pool.close()
+    else:
+        rows = [_number_vs_param_worker(*a) for a in util.bar(args)]
+
+    idx = 0
+    for j in range(N):
+        for i in range(len(param_grid)):
+            counts = rows[idx]
+            idx += 1
+            for key in categories:
+                N_pl[key][i, j] = counts[key]
 
     if average:
         for key, val in N_pl.items():
             N_pl[key] = np.mean(val, axis=1)
 
+    return N_pl
+
+def number_vs_eta(h, generator, survey, eta_Earth, N=30, average=True, processes=1, **kwargs):
+    """ Determines how many planets are characterized by the simulated survey versus eta Earth.
+
+    Parameters
+    ----------
+    processes : int, optional
+        Number of worker processes. All N*len(eta_Earth) simulations are independent, so they
+        run concurrently across `processes` workers. Default is 1 (serial, original behavior).
+    """
+    N_pl = _number_vs_param(h, generator, survey, 'eta_Earth', eta_Earth, N, average, processes, kwargs)
     N_pl['eta_Earth'] = eta_Earth
+    return N_pl
 
-    return N_pl            
+def number_vs_distance(h, generator, survey, d_max, N=30, average=True, processes=1, **kwargs):
+    """ Determines how many planets are characterized by the simulated survey versus d_max.
 
-def number_vs_distance(h, generator, survey, d_max, N=30, average=True, **kwargs):
-    """ Determines how many planets are characterized by the simulated survey versus d_max. """
-    categories = ['all', 'EEC', 'hot', 'warm', 'cold']
-    N_pl = {key:np.zeros((len(d_max), N), dtype=int) for key in categories}
-    for j in util.bar(range(N)):
-        for i, d in enumerate(d_max):
-            sample, detected, data = survey.quickrun(generator, d_max=d, **kwargs)
-            observed = detected[h.get_observed(data)]
-            N_pl['all'][i, j], N_pl['EEC'][i, j] = len(observed), observed['EEC'].sum()
-            for key in ['hot', 'warm', 'cold']:
-                N_pl[key][i, j] = (observed['class1'] == key).sum()
-
-    if average:
-        for key, val in N_pl.items():
-            N_pl[key] = np.mean(val, axis=1)
-
+    Parameters
+    ----------
+    processes : int, optional
+        Number of worker processes. All N*len(d_max) simulations are independent, so they
+        run concurrently across `processes` workers. Default is 1 (serial, original behavior).
+    """
+    N_pl = _number_vs_param(h, generator, survey, 'd_max', d_max, N, average, processes, kwargs)
     N_pl['d_max'] = d_max
-
-    return N_pl     
+    return N_pl
