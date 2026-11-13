@@ -1560,6 +1560,7 @@ def plot_yield_summary_sn(
     cmap="viridis_r",
     hist_color="steelblue",
     marker_size=30,
+    alpha=0.85,
     label_fontsize=16,
     tick_fontsize=13,
 ):
@@ -1604,6 +1605,8 @@ def plot_yield_summary_sn(
     tick_fontsize : int, optional
         Font size for axis tick labels.
         Default is 13.
+    alpha : float, optional
+        Opacity of points in the scatter plot.
 
     Returns
     -------
@@ -1662,7 +1665,7 @@ def plot_yield_summary_sn(
         d["S"], d["R"],
         s=marker_size,
         cmap=cmap,
-        alpha=0.85,
+        alpha=alpha,
     )
     #c = np.log10(d["t_exp"]),
 
