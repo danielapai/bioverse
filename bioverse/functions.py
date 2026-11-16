@@ -54,7 +54,7 @@ def luminosity_evolution(d):
     return d
 
 sch_gcns= pl.Schema({'star_name': str, 'd': float,'ra': float, 'dec': float,'M_G': float, 'M_st': float,
-                    'R_st': float, 'L_st': float,'T_eff_st': int, 'SpT': str,'subSpT': str, 'binary': bool,
+                    'R_st': float, 'L_st': float,'T_eff_st': float, 'SpT': str,'subSpT': str, 'binary': bool,
                      'RV': float})
 
 def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, M_st_max=2.0, R_st_min=0.095,
@@ -255,6 +255,8 @@ def read_stars_Gaia(d, filename='gcns_catalog.dat', d_max=120., M_st_min=0.075, 
             d['star_name'] = np.char.array(np.full(len(d), 'REAL-')) + np.char.array(np.arange(len(d)).astype(str))
         if generate_RV and('RV' not in d.keys()):
             d['RV'] = np.random.uniform(-200, 200, size=len(d))
+        if ('Gmag' not in d.keys()) and ('M_G' in d.keys()):
+            d['Gmag']=  d['M_G']+ 5*np.log10(d['d']) - 5 #extinction not included
 
     # Assign stellar IDs and names
     d['starID'] = np.arange(len(d), dtype=int)
@@ -393,6 +395,9 @@ def create_stars_Gaia(d, d_max=150, M_st_min=0.075, M_st_max=2.0, T_min=0., T_ma
 
     # Draw a random age for each system
     d['age'] = np.random.uniform(T_min, T_max, len(d))
+
+    #calculate G magnitude ignoring extinction
+    d['Gmag'] = d['M_G'] + 5 * np.log10(d['d']) - 5
 
     # Assign a starID to each system
     d['starID'] = np.arange(len(d), dtype=int)

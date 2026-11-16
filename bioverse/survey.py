@@ -15,6 +15,8 @@ class Survey(dict, Object):
     diameter: float = 15.0 # in meters
     t_max: float = 10*365.25 #max survey duration in days
     t_slew: float = 0.00347 #slew time in days
+    FOV_center: np.ndarray = None #array of center(s) of each box field of view in RA and DEC (deg) #shape (nFOV,2) or (2)
+    FOV_size: np.ndarray = None #half width of FOV in degrees, shape: (nFOV,2) or (2)
     #debias: bool = False
 
     def __post_init__(self):
@@ -27,7 +29,8 @@ class Survey(dict, Object):
 
         # Casts all parameters to the correct type
         for field in fields(self):
-            self.__dict__[field.name] = field.type(self.__dict__[field.name])
+            if field.type != np.ndarray: #fails to cast None as np array
+                self.__dict__[field.name] = field.type(self.__dict__[field.name])
 
         # Update the parent reference in all of the Survey's measurements
         for measurement in self.measurements.values():
@@ -55,11 +58,11 @@ class Survey(dict, Object):
         **kwargs
             Keyword arguments passed to Measurement.__init__().
         """
-        self.measurements[key] = Measurement(key, self, **kwargs)
+        self.measurements[key] = Measurement(key, **kwargs)
         if idx is not None:
             self.move_measurement(key, idx)
 
-    def add_measurements(self, **m_kwargs):
+    def add_measurements(self, noise_model=None,**m_kwargs):
         """ Adds Multiple Measurement to the Survey.
 
         Parameters
@@ -69,8 +72,9 @@ class Survey(dict, Object):
         """
 
         for key, val in m_kwargs.items():
-            self.measurements[key]=Measurement(key,self,precision=val)
-    
+            self.measurements[key]=Measurement(key,precision=val,noise_model=noise_model)
+
+    #outdated, order of measurements no longer matters
     def move_measurement(self, key, idx):
         """ Moves a Measurement to the designated position in the sequence.
         
@@ -221,6 +225,7 @@ class Survey(dict, Object):
         debias = d['a']/d['R_st']
         return debias
 
+
     def schedule_observations(self, d, texp_col='t_exp', N_obs_col='N_obs',debias=False,zero_overhead=False):
         if not hasattr(self, 'mode'):
             raise KeyError("No mode was specified for this survey.")
@@ -231,22 +236,18 @@ class Survey(dict, Object):
         weights = self.compute_weights(d)
 
         t_exp = copy.deepcopy(d[texp_col]) #needs deepcopy or edits d in place
-        if zero_overhead:
-            t_over= np.zeros_like(t_exp)
-        else:
-            t_over = self.compute_overhead_time(d)
+
+        t_over= np.zeros_like(t_exp) if zero_overhead else self.compute_overhead_time(d)
 
         t_total= self.t_max
         if t_total is None:
             raise Exception("Total Survey duration needs to be defined")
 
-        if self.mode == 'imaging':
-            pass
-        elif self.mode == 'transit':
+        #for transit missions: ensure that measurements don't exceed the maximum number of observations and survey duration
+        if self.mode == 'transit':
             if N_obs_col not in d:
                 raise KeyError("No N_obs column found in Table.")
             N_obs= d[N_obs_col]
-            # ensure that measurements don't exceed the maximum number of observations and survey duration
             weights[N_obs > self.N_obs_max]= 0
             weights[(N_obs*d['P']) > t_total] = 0
 
@@ -274,6 +275,7 @@ class Survey(dict, Object):
             if t_sum > t_total:
                 break
 
+            #this is inefficient
             if self.mode == 'imaging':
                 same_system= (d['starID'] == d['starID'][i])
                 t_exp[same_system] -= t_exp[i]
@@ -399,6 +401,72 @@ class Survey(dict, Object):
 
         return d
 
+    def in_telescope_FOV(self,d):
+        '''Function to filter objects based on whether they are in telescope field of view. Applicable for
+        an array of telescopes such as Nautilus or Chronos
+
+        Relies on Survey.FOV_center, Survey.FOV_size
+        required format: numpy array of shape (nFOV,2) or (2) for RA and DEC centers and widths
+
+        if these are None, return results for whole sky
+
+        Parameters
+        -----------
+        d : Table
+            Table of all objects
+
+        Returns
+        -----------
+        d : Table
+            Table of objects in the combined FOV
+        '''
+        box_centers= self.FOV_center
+        box_sizes = self.FOV_size
+
+        if (box_centers is None) or (box_sizes is None):
+            return d
+
+        #ensure box_centers in shape (N,2)
+        if len(box_centers.shape) == 1:
+            if len(box_centers) == 2:
+                box_centers = box_centers.reshape(1, 2)
+            else:
+                raise Exception("Incorrect shape for FOV_center")
+        elif len(box_centers.shape) == 2:
+            if box_centers.shape[1] != 2:
+                raise Exception("Incorrect shape for FOV_center")
+        else:
+            raise Exception("Incorrect shape for FOV_center")
+
+        #ensure box_sizes in shape (N,2)
+        if len(box_sizes.shape) == 1:
+            if len(box_sizes) == 2:
+                box_sizes = box_sizes.reshape(1, 2)
+            else:
+                raise Exception("Incorrect shape for FOV_size")
+        elif len(box_sizes.shape) == 2:
+            if box_sizes.shape[1] != 2:
+                raise Exception("Incorrect shape for FOV_size")
+        else:
+            raise Exception("Incorrect shape for FOV_size")
+
+        n_boxes = len(box_centers)
+        if len(box_sizes) != n_boxes:
+            if len(box_sizes)==1:
+                box_sizes = np.repeat(box_sizes, n_boxes, axis=0)
+            else:
+                raise Exception("Incompatible number of boxes and sizes")
+
+        for q in range(n_boxes):
+            box_mask = util.in_geodesic_box(d['ra'], d['dec'], ra0_deg=box_centers[q, 0], dec0_deg=box_centers[q, 1],
+                                       half_ra_deg=box_sizes[q, 0], half_dec_deg=box_sizes[q, 1])
+            if q == 0:
+                mask = box_mask
+            else:
+                mask = mask | box_mask
+
+        return d[mask]
+
 @dataclass(repr=False)
 class ImagingSurvey(Survey):
     inner_working_angle: float = 3.5
@@ -486,7 +554,7 @@ class ImagingSurvey(Survey):
         elif (method == 'exp_time') or (method=='blind_survey'): #may want to change name to blind_survey
             #assumes scheduling function has been run in generator
             if 't_req' not in d:
-                raise Exception("'t_ref' not found in Table. Be sure to run schedule survey before calling this function")
+                raise Exception("'t_req' not found in Table. Be sure to run schedule survey before calling this function")
 
             if 'ang_sep_mas' not in d:
                 d['ang_sep_mas'] = d['a'] / d['d'] * 1000
@@ -502,7 +570,6 @@ class ImagingSurvey(Survey):
 
             if 'Vmag' not in d:
                 raise KeyError("Missing V band, this function has only been tested to work for V band")
-                return
 
             d = self.call_exposure_time_calculator(d, SNR=SNR, band_width=band_width, band='Vmag',
                                                    C_col='contrast', sep_col='ang_sep_mas',
@@ -595,10 +662,120 @@ class TransitSurvey(Survey):
 
         return d[mask]
 
+    def calc_photometric_precision(self, d, t_fixed=60.0, t_exp=2.0, n_pix=108, R=20, **kwargs):
+        '''
+        Function to calculate the photometric precision of a survey assuming all transits in a fixed duration are observed
 
-    def compute_yield(self, d0, method='detectable',debias=False,zero_overhead=False,**ref_kwargs):
-        """ Computes a simple estimate of the detection yield for a transit survey. Currently all detectable transiting
-        planets are considered to be detected.
+        :param survey: bioverse survey object
+        :param d: bioverse table of planets
+        :param t_fixed: fixed field survey duration in days
+        :param t_exp: time for individual exposure in seconds
+        :param n_pix: number of pixels on detector
+        :param R: spectral resolution
+        :param kwargs: keyword arguments for SNR calculation/ fixed field yield function
+        :return: d
+        '''
+
+        D = self.diameter * 100  # in cm
+        N_tr = np.ceil(t_fixed / d['P'])  # maybe have t_fixed as an attribute of survey
+        t_int = d['T_dur'] * N_tr
+
+        d['N_obs'] = N_tr  # number of transits observed
+        d['t_int'] = t_int  # total in transit integration time (days)
+
+        t_int = t_int * CONST['day_to_sec']
+        nexp = t_int // t_exp
+
+        SNR_arr = util.SNR_calculator(d['Gmag'], D=D, t_exp=t_exp, R=R, n_exp=nexp, n_pix=n_pix, **kwargs)
+        ppm_arr = 1 / SNR_arr * 1e6
+        d['photometric_precision'] = ppm_arr  # ppm
+        return d
+
+
+    def calc_integration_time(self, d, target_precision=100, t_exp=2.0, mag_col='Gmag', **kwargs):
+        '''
+        Function to calculation integration time (days) to obtain a target photometric precision in ppm
+
+        :param d: bioverse table of planets
+        :param target_precision: target photometric precision in ppm
+        :param t_exp: time for individual exposure in seconds
+        :param kwargs: additional keyword arguments for util.calc_nexp function
+        '''
+
+        D = self.diameter * 100.0  # cm
+        SNR_target = 1 / (target_precision / 1e6)
+
+        if mag_col not in d.keys():
+            raise KeyError('Column {} not found in d'.format(mag_col))
+
+        num_exp = util.calc_nexp(d[mag_col], SNR=SNR_target, D=D, t_exp=t_exp, **kwargs)
+        t_int = t_exp * num_exp  # integration time in seconds
+        d['t_req'] = t_int / CONST['day_to_sec']  # convert to days
+        d['photometric_precision'] = target_precision * np.ones_like(t_int)
+        return d
+
+    #d: table
+    #n_sigma: number of standard deviations in transit depth necessary for detection/characterization
+    #min_num_tr: minimum number of transits for a detection
+    #t_fixed: duration to observe field, set to survey duration by default (day)
+    #t_exp: time per ccd exposure (s)
+    #n_pix: number of pixels used on ccd
+    #R: spectral resolution
+    #feature_col: column with feature strength by default set to planet transit depth
+    #feature_ppm: is feature strength given in ppm, false says feauture strength is a ratio
+    #kwargs: keyword args for calc_photometric_precision
+    def fixed_field_yield(self, d, n_sigma=1.0, min_num_tr=1, t_fixed=None, t_exp=2.0, n_pix=108, R=20,
+                          feature_col='depth', feature_ppm=False,**kwargs):
+        if t_fixed is None:
+            t_fixed=self.t_max
+        if np.isinf(t_fixed) or np.isnan(t_fixed):
+            return d
+
+        d = self.calc_photometric_precision(d, t_fixed=t_fixed, t_exp=t_exp, n_pix=n_pix, R=R, **kwargs)
+
+        mult= 1.0 if feature_ppm else 1e6
+        mask = (d[feature_col] * mult) > (n_sigma * d['photometric_precision'])
+
+        # limit planet detection to planets with multiple transits
+        mask2 = (d['N_obs'] >= min_num_tr)
+
+        # could also add a minimum number of transits observed here
+        return d[mask & mask2]
+
+    def target_precision_yield(self, d, target_precision=100, n_sigma=1.0, feature_ppm=False, feature_col='depth',
+                               t_exp=2.0, mag_col='Gmag', zero_overhead=True, debias=False, **kwargs):
+        '''
+        Function to calculate the yield of a survey where stars are observed to a given target photometric precision
+        Stars are selected based on the integration time to obtain that precision, prioritized base off 1 over the required
+        integration time until all the survey duration is allocated
+
+        :param d: bioverse table of planets
+        :param target_precision: target photometric precision in ppm
+        :param n_sigma: number of standard deviations in transit depth necessary for detection/characterization
+        :param feature_ppm: boolean, are feature strengths given in units of ppm (parts per million) as opposed to a ratio
+        :param feature_col: column name of feature to use
+        :param t_exp: time for individual exposure in seconds
+        :param mag_col: column name of stellar apparent magnitude to use
+        :param zero_overhead: boolean, whether to include zero overhead time in survey scheduling
+        '''
+
+        d = self.calc_integration_time(d, target_precision=target_precision, t_exp=t_exp, mag_col=mag_col, **kwargs)
+        N_tr = np.ceil(d['t_req'] / d['T_dur'])
+        d['N_obs'] = N_tr
+
+        #schedule observations to meet precision requirements
+        #rank targets according to 1/t_req until survey duration used up
+        to_obs = self.schedule_observations(d, texp_col='t_req', N_obs_col='N_obs', zero_overhead=zero_overhead,debias=debias)
+        d0 = d[to_obs]  # save as different variable or it overwrites d outside function
+        # d0['t_req'].sum() confirmed to be nearly survey duration
+
+        #compare the actual strength of features to the photometric precision to see if they are detected
+        mult = 1.0 if feature_ppm else 1e6
+        mask = (d0[feature_col] * mult) > (n_sigma * d0['photometric_precision'])
+        return d0[mask]
+
+    def compute_yield(self, d0, method='detectable',debias=False,zero_overhead=True,**y_kwargs):
+        """ Computes a simple estimate of the detection yield for a transit survey. Select between multiple yield methods.
 
         Parameters
         ----------
@@ -606,15 +783,24 @@ class TransitSurvey(Survey):
             Table of all simulated planets which the survey could attempt to observe.
         method : str, optional
             Method used for yield calculation.
-                "detectable" implies all detectable planets are observed without consideration of exposure time
-                and total mission duration.
-                "scaling_relation" uses estimated exposure times from PSG and a scaling relation
+                "detectable": implies all detectable planets are observed without consideration of exposure time
+                    and total mission duration.
+                "scaling_relation": uses estimated exposure times from PSG and a scaling relation
+                "fixed_field": assumes that all stars in a field of view are observed for a given duration,
+                    features in planetary spectra are assumed to be observed if the photometric precision is smaller than
+                    the feature depth (times n_sigma)
+                "target_precision": Stars are selected for survey based on the integration time required to obtain a
+                    specified photometric precision. If the planet feature strength is above this threshold features are
+                    consider to be detected.
         debias : bool, optional
             Apply debias correction for transiting planets.
         zero_overhead : bool, optional
             set overhead to zero
-        ref_kwargs : dict, optional
-            sets reference observation, updates self.reference
+        y_kwargs : dict, optional
+            keyword arges for specific yield method
+            for "scaling relation": sets reference observation, updates self.reference
+            for "fixed field": kwargs for SNR calculator
+            for "target precision":kwargs for util.calc_nexp
 
         Returns
         -------
@@ -630,7 +816,7 @@ class TransitSurvey(Survey):
             #adapt alex's target prioritization here + overheads
             #originally in measurement object
 
-            self.reference.update({**ref_kwargs})
+            self.reference.update({**y_kwargs})
 
             #ensure that scaling law has dictionary of reference values
             req_keys={'t_ref', 'wl_eff', 'T_st_ref', 'R_st_ref', 'D_ref', 'd_ref', 'R_pl_ref', 'H_ref'}
@@ -642,18 +828,21 @@ class TransitSurvey(Survey):
             d= self.exp_time_scaling_relation(d,**self.reference)
             to_observe= self.schedule_observations(d,texp_col='t_exp',N_obs_col='N_obs',debias=debias,zero_overhead=zero_overhead)
             d= d[to_observe]
+        elif method == 'fixed_field':
+            d = self.compute_detectable(d)
+            d= self.in_telescope_FOV(d) #currently in_telescope_FOV only called for fixed field method
+            d = self.fixed_field_yield(d,**y_kwargs)  # should we make specific args explicit such as t_fixed?
+        elif method == 'target_precision':
+            d = self.compute_detectable(d)
+            d= self.in_telescope_FOV(d)
+            d = self.target_precision_yield(d,debias=debias,zero_overhead=zero_overhead,**y_kwargs)
+
         else:
             raise Exception('Method: {} not recognized'.format(method))
-
-        #add sky area constraint
-        #survey constraint
 
         # Return the output table
         return d
 
-
-
-#needs major work after recent changes
 class Measurement():
     """
     Class describing a simple measurement to be applied to a set of planets detected by a Survey.
@@ -662,16 +851,24 @@ class Measurement():
     ----------
     key : str
         Name of the parameter that will be measured.
-    survey : Survey
-        Survey associated with this Measurement.
     precision : str or float, optional
         Precision of measurement, e.g. '10%' or 0.10 units. Default is zero.
+    bounds : list or np.ndarray, optional
+        Upper and lower bounds of measurement, e.g. [0.0, 1.0]. Default is [] (unbounded)
+    noise_model : str, optional
+        Name of noise model to use. Current choices are truncated Gaussian and Gaussian. If not
+        specified, defaults to 'trunc_gaussian'.
     """
-    def __init__(self, key, survey, precision=0.):
+    def __init__(self, key, precision=0.,bounds=[],noise_model=None):
         # Save the keyword values
         self.key = key
-        self.survey = survey
+        #self.survey = survey
         self.precision = precision
+        self.noise_model = noise_model
+        if (bounds is not None) and (bounds!=[]):
+            if len(bounds) != 2:
+                raise Exception('Bounds must contain upper and lower bounds or be None or []')
+        self.bounds = bounds
 
     def __repr__(self):
         s = "Measures parameter '{:s}'".format(self.key)
@@ -707,9 +904,6 @@ class Measurement():
             #moved this from outside if statement
             data['planetID'] = detected['planetID']
             data['starID'] = detected['starID']
-        
-        # Determine which planets are valid targets and can be observed in the allotted time
-        #observable = self.compute_observable_targets(data, t_total)
 
         # Simulate a measurement for each observable planet
         x, dx = self.perform_measurement(detected[self.key])
@@ -751,19 +945,34 @@ class Measurement():
         if isinstance(x[0], (STR_TYPES, BOOL_TYPES)):
             return x, None
 
+        # Don't calculate noise if measurements are exact
+        if self.precision == 0.:
+            return x, None
+
         # Percentage-based precision
         if type(self.precision) is str and '%' in self.precision:
             sig = x*float(self.precision.strip('%'))/100.
-            
         # Absolute precision
         else:
             sig = float(self.precision)
 
-        # Restrict measurements to +- 5 sigma
-        xmin, xmax = x-5*sig, x+5*sig
+        if (self.noise_model is None) or (self.noise_model == 'trunc_gaussian'):
+            # Restrict measurements to +- 5 sigma
+            xmin, xmax = x-5*sig, x+5*sig
 
-        # Return draw from bounded normal distribution plus uncertainty
-        return util.normal(x, sig, xmin=xmin, xmax=xmax, size=len(x)), sig
+            # set minimum and maximum values to be in bounds
+            if len(self.bounds) == 2:
+                xmin=np.maximum(xmin, self.bounds[0])
+                xmax=np.minimum(xmax, self.bounds[1])
+
+            #draw from bounded normal distribution
+            res= util.normal(x, sig, xmin=xmin, xmax=xmax, size=len(x))
+        elif (self.noise_model=='gaussian') or (self.noise_model=='normal'):
+            res = np.random.normal(x,sig,size=len(x))
+
+
+        # Return vals and uncertainty
+        return res, sig
 
 def reset_imaging_survey():
     """ Re-creates the default imaging survey. """
