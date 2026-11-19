@@ -18,11 +18,11 @@ sys.path.insert(0, os.path.abspath('../bioverse/'))
 # -- Project information -----------------------------------------------------
 
 project = 'Bioverse'
-copyright = '2021, Alex Bixel'
-author = 'Alex Bixel'
+copyright = '2026, Bioverse Team'
+author = 'Alex Bixel and the Bioverse Team'
 
 # The full version, including alpha/beta/rc tags
-release = '1.1.1'
+release = '1.2.0'
 
 
 # -- General configuration ---------------------------------------------------

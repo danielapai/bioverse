@@ -798,9 +798,9 @@ class TransitSurvey(Survey):
             set overhead to zero
         y_kwargs : dict, optional
             keyword arges for specific yield method
-            for "scaling relation": sets reference observation, updates self.reference
-            for "fixed field": kwargs for SNR calculator
-            for "target precision":kwargs for util.calc_nexp
+            for "scaling_relation": sets reference observation, updates self.reference
+            for "fixed_field": kwargs for SNR calculator
+            for "target_precision":kwargs for util.calc_nexp
 
         Returns
         -------

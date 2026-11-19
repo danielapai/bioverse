@@ -13,7 +13,7 @@ Bioverse uses the :class:`~bioverse.generator.Generator` class to generate plane
 
 The generator will feed the output of Function 1 into Function 2, then the output of Function 2 into Function 3, and finally will return the output of Function 3 (i.e. a table of planets with known masses, radii, orbital properties, and host star properties).
 
-Bioverse "ships" with two Generators: one for transit mode, and the other for imaging mode. One of the main differences between these generators is the set of planetary properties that are simulated. The default transit generator includes steps that compute properties which affect the observability of transiting exoplanets, such as the transit depth, impact parameter and transit duration. The imaging generator instead focuses on computing planetary properties that influence their observability with direct imaging, including the planet-star contrast, angular separation and illumination phase. Another difference between these default generators is the stellar target list used to generate host stars. By default the transit mode generates a population of stars consistent with Gaia DR3, while the imaging mode uses a host star catalog for the LUVOIR direct imaging mission concept (see the `LUVOIR Final Report <https://arxiv.org/abs/1912.06219>`_). The following code demonstrates how to simulate a sample of planets using the imaging mode Generator:
+Bioverse "ships" with two pre-built Generators: one for transit mode, and the other for imaging mode. One of the main differences between these generators is the set of planetary properties that are simulated. The default transit generator includes steps that compute properties which affect the observability of transiting exoplanets, such as the transit depth, impact parameter and transit duration. The imaging generator instead focuses on computing planetary properties that influence their observability with direct imaging, including the planet-star contrast, angular separation and illumination phase. Another difference between these default generators is the stellar target list used to generate host stars. By default the transit mode generates a population of stars consistent with Gaia DR3, while the imaging mode uses a host star catalog of targets selected for the LUVOIR direct imaging mission concept (see the `LUVOIR Final Report <https://arxiv.org/abs/1912.06219>`_), though other options such as the HWO Preliminary Input Catalog (HPIC) are also available. The following code demonstrates how to simulate a sample of planets using the imaging mode Generator:
 
 .. code-block:: python
 
@@ -93,7 +93,7 @@ Note that keyword arguments are matched by name across all steps, so be careful 
 Transit mode
 ************
 
-One of Bioverse's main functions is to evaluate the sample size of a transiting exoplanet survey. However, most planets do not transit their stars, so simulating their properties would be inefficient. The argument ``transit_mode`` can be used to address this:
+One of Bioverse's main capabilities is to evaluate the sample size of a transiting exoplanet survey. However, most planets do not transit their stars, so simulating their properties would be inefficient. The argument ``transit_mode`` can be used to address this:
 
 .. code-block:: python
 
@@ -200,4 +200,4 @@ For example, with the transit Generator the first step (``create_stars_Gaia``) i
     for eta in [0.1, 0.15, 0.2]:
         sample = generator.generate(d=stars, idx_start=1, eta_Earth=eta)
 
-The ``d`` parameter of :meth:`~bioverse.generator.Generator.generate` accepts a pre-existing :class:`~bioverse.classes.Table` to use as input, and ``idx_start`` controls which step the generator begins from. Together they allow you to resume generation from any intermediate result, whether that result comes from a ``Pre_Generator`` or was saved from a previous run.
+The ``d`` parameter of :meth:`~bioverse.generator.Generator.generate` accepts a pre-existing :class:`~bioverse.classes.Table` to use as input, and ``idx_start`` controls which step the generator begins from (this is important as the default transit generator would otherwise include the  ``create_stars_Gaia`` step again). Together they allow you to resume generation from any intermediate result, whether that result comes from a ``Pre_Generator`` or was saved from a previous run.
