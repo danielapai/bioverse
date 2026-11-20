@@ -2,10 +2,13 @@
 Hypothesis testing
 ##########################
 
+The combined results of the first two modules is are simulated dataset representing the output of the exoplanet survey. The third module addresses the power of that dataset for testing statistical hypotheses. Due to the wide variety of hypotheses that can be formulated about the planet population, this step is often performed outside Bioverse. However, Bioverse includes a built in functionality to test hypotheses that take the form of a functional relationship between output properties of Bioverse simulations in the form ``Y = f(X | theta)``. The section below describes the built-in module to test hypotheses of this form. For examples of other types of hypothesis testing (such as comparing the distributions of two samples) see the list of previous Bioverse papers.
+
 The :class:`~bioverse.hypothesis.Hypothesis` class
 **************************************************
 
-The combined result of the first two modules is a simulated dataset representing the output of the exoplanet survey. The third module addresses the power of that dataset for testing statistical hypotheses. The first step in this exercise involves defining the hypotheses you want to test, and in Bioverse this is done via a :class:`~bioverse.hypothesis.Hypothesis` object. To define a Hypothesis requires:
+
+Defining the hypotheses you want to test is done via a :class:`~bioverse.hypothesis.Hypothesis` object. To define a Hypothesis requires:
 
 - a set of dependent variable(s) ``X``, called features
 - a set of independent variable(s) ``Y``, called labels
