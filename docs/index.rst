@@ -1,7 +1,7 @@
 Bioverse
 ========
 
-Bioverse is a Python package for simulating the results of a statistical survey of the properties of nearby terrestrial exoplanets via direct imaging or transit spectroscopy. An in-depth outline of the underlying statistical framework and examples of how it can be applied to astrophysics mission concepts is given in `Bixel & Apai (2021) <https://ui.adsabs.harvard.edu/abs/2021AJ....161..228B/abstract>`_. **Readers are strongly encouraged to review this paper before proceeding.** This documentation covers the Python implementation of Bioverse, but does not review many of its underlying statistical assumptions.
+Bioverse is a Python package for simulating the results of a statistical survey of the properties of nearby exoplanets via direct imaging or transit spectroscopy. An in-depth outline of the underlying statistical framework and examples of how it can be applied to astrophysics mission concepts is given in `Bixel & Apai (2021) <https://ui.adsabs.harvard.edu/abs/2021AJ....161..228B/abstract>`_. **Readers are strongly encouraged to review this paper before proceeding.** This documentation covers the Python implementation of Bioverse, but does not review many of its underlying statistical assumptions.
 
 The :doc:`Overview<overview>` section describes the code's structure and primary classes and should be reviewed first. Following that, the :doc:`Examples<Notebooks/Tutorial1>` section offers step-by-step examples for producing some of the results published in the paper, as well as ways to modify and expand upon the code. Most of these examples are also available as interactive Jupyter notebooks in the ``Notebooks`` directory of the GitHub repository.
 
@@ -34,8 +34,10 @@ Bioverse is compatible with Python 3.7+. It has the following dependencies, all 
 - ``numpy``
 - ``scipy``
 - ``tqdm`` (optional: provides a progress bar for long processes)
-- ``pandas`` (optional: used for data visualization)
+- ``pandas``
 - ``PyQt5`` (optional: enables configuration GUI)
+- ``astropy``
+- ``polars``
 
 .. toctree::
    :maxdepth: 2
@@ -48,7 +50,6 @@ Bioverse is compatible with Python 3.7+. It has the following dependencies, all 
    module2
    module3
    module4
-   gui
    
 .. toctree::
    :maxdepth: 2
