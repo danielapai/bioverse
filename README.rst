@@ -14,6 +14,43 @@ Bioverse is a Python package for simulating the results of a statistical survey 
 
 For documentation, see https://bioverse.readthedocs.io/.
 
+Installation
+************
+
+The recommended way to install the latest stable version of Bioverse is via pip:
+
+.. code-block:: bash
+
+    pip install bioverse
+
+Alternatively, Bioverse can be cloned from its `GitHub repository <https://github.com/danielapai/bioverse/>`_:
+
+.. code-block:: bash
+
+    git clone https://www.github.com/danielapai/bioverse/
+    cd bioverse
+    pip install .
+
+Dependencies
+************
+Bioverse is compatible with Python 3.7+. It has the following dependencies, all of which can be installed using ``pip``:
+
+- ``astroquery``
+- ``dynesty``
+- ``emcee``
+- ``matplotlib``
+- ``numpy``
+- ``scipy``
+- ``tqdm`` (optional: provides a progress bar for long processes)
+- ``pandas``
+- ``PyQt5`` (optional: enables configuration GUI)
+- ``astropy``
+- ``polars``
+
+Feedback & Development
+**********************
+Bioverse is open source and in active development. We welcome all feedback, bug reports, or feature requests. Feel free to open a pull request if you'd like to contribute! If you think you found a bug, please raise an `issue <https://github.com/danielapai/bioverse/issues/>`_.
+
 Version Updates & Notifications
 ********************************
 
@@ -28,7 +65,7 @@ Sign up here <https://uarizona.co1.qualtrics.com/jfe/form/SV_dbU3Fb4VUYTX9s2> to
 
 References & Acknowledgments
 ****************************
-Papers making use of Bioverse should stay up to date with the lastest version and cite `Bixel & Apai (2021) <https://ui.adsabs.harvard.edu/abs/2021AJ....161..228B/abstract>`_, `Hardegree-Ullman et al. (2023) <https://ui.adsabs.harvard.edu/abs/2023AJ....165..267H/abstract>`_, and `Schlecker et al. (2024) <https://ui.adsabs.harvard.edu/abs/2024PSJ.....5....3S/abstract>`_. ::
+Papers making use of Bioverse should cite `Bixel & Apai (2021) <https://ui.adsabs.harvard.edu/abs/2021AJ....161..228B/abstract>`_, as well as the Bioverse papers that introduce the features most relevant to their project. A list of Bioverse papers can be found in this `ADS library <https://scixplorer.org/public-libraries/qecchKDBQKC1p7n_snWjoA>`_. Bibtex citations are shown below: ::
 
  @ARTICLE{2021AJ....161..228B,
    author = {{Bixel}, Alex and {Apai}, D{\'a}niel},
@@ -91,49 +128,73 @@ Papers making use of Bioverse should stay up to date with the lastest version an
    adsnote = {Provided by the SAO/NASA Astrophysics Data System}
  }
 
+::
+
+ @ARTICLE{2025AJ....169..171H,
+    author = {{Hardegree-Ullman}, Kevin K. and {Apai}, D{\'a}niel and {Haffert}, Sebastiaan Y. and {Schlecker}, Martin and {Kasper}, Markus and {Kammerer}, Jens and {Wagner}, Kevin},
+   title = "{Bioverse: Giant Magellan Telescope and Extremely Large Telescope Direct Imaging and High-resolution Spectroscopy Assessment{\textemdash}Surveying Exo-Earth O$_{2}$ and Testing the Habitable Zone Oxygen Hypothesis}",
+   journal = {\aj},
+   keywords = {Exoplanet systems, Exoplanets, Exoplanet atmospheres, Biosignatures, Astrobiology, Habitable zone, Habitable planets, Astronomical simulations, Bayesian statistics, Parametric hypothesis tests, Astrophysics - Earth and Planetary Astrophysics, Astrophysics - Instrumentation and Methods for Astrophysics},
+   year = 2025,
+   month = mar,
+   volume = {169},
+   number = {3},
+   eid = {171},
+   pages = {171},
+   doi = {10.3847/1538-3881/adb02f},
+   archivePrefix = {arXiv},
+   eprint = {2405.11423},
+   primaryClass = {astro-ph.EP},
+   adsurl = {https://scixplorer.org/abs/2025AJ....169..171H},
+   adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+ }
+
+::
+
+ @ARTICLE{2025ApJ...987...24S,
+    author = {{Schlecker}, Martin and {Apai}, D{\'a}niel and {Affholder}, Antonin and {Ranjan}, Sukrit and {Ferri{\`e}re}, R{\'e}gis and {Hardegree-Ullman}, Kevin K. and {Lichtenberg}, Tim and {Mazevet}, St{\'e}phane},
+    title = "{Bioverse: Potentially Observable Exoplanet Biosignature Patterns under the UV Threshold Hypothesis for the Origin of Life}",
+    journal = {\apj},
+    keywords = {Astrobiology, Biosignatures, Pre-biotic astrochemistry, Near ultraviolet astronomy, Bayesian statistics, Astrostatistics strategies, Habitable planets, Extrasolar rocky planets, Transit photometry, Transits, Parametric hypothesis tests, Astronomical simulations, Earth and Planetary Astrophysics},
+    year = 2025,
+    month = jul,
+    volume = {987},
+    number = {1},
+    eid = {24},
+    pages = {24},
+    doi = {10.3847/1538-4357/adc8a9},
+    archivePrefix = {arXiv},
+    eprint = {2504.04261},
+    primaryClass = {astro-ph.EP},
+    adsurl = {https://scixplorer.org/abs/2025ApJ...987...24S},
+    adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+ }
+
+::
+
+ @ARTICLE{2025AJ....170..271T,
+    author = {{Tuchow}, Noah W. and {Stark}, Christopher C. and {Apai}, D{\'a}niel and {Schlecker}, Martin and {Hardegree-Ullman}, Kevin K.},
+    title = "{Bioverse: Assessing the Ability of Direct Imaging Surveys to Empirically Constrain the Habitable Zone via Trends in Albedo}",
+    journal = {\aj},
+    keywords = {Exoplanets, Habitable planets, Astrobiology, Astrostatistics, Exoplanet atmospheres, Habitable zone, Earth and Planetary Astrophysics, Instrumentation and Methods for Astrophysics},
+    year = 2025,
+    month = nov,
+    volume = {170},
+    number = {5},
+    eid = {271},
+    pages = {271},
+    doi = {10.3847/1538-3881/ae0588},
+    archivePrefix = {arXiv},
+    eprint = {2509.07297},
+    primaryClass = {astro-ph.EP},
+    adsurl = {https://scixplorer.org/abs/2025AJ....170..271T},
+    adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+ }
 
 
 If you make use of the integrated hypothesis testing and parameter fitting, you should also include references to the `emcee <https://github.com/dfm/emcee>`_ and `dynesty <https://github.com/joshspeagle/dynesty>`_ packages.
 
+Bioverse was developed with support from the National Aeronautics and Space Administration under Agreement No. 80NSSC21K0593 for the program “Alien Earths” as well as the NASA Earth and Space Science Fellowship Program (grant No. 80NSSC17K0470).
+The development of this code benefited from collaborations and/or information exchange within NASA’s Nexus for Exoplanet System Science (NExSS) research coordination network sponsored by NASA’s Science Mission Directorate.
 
 
-Bioverse was developed with support from the following grants and collaborations:
-
-- `Alien Earths <https://alienearths.space/>`_ and Earths in Other Solar Systems
-- NASA Earth and Space Science Fellowship Program (grant No. 80NSSC17K0470)
-- NASA's Nexus for Exoplanet System Science (NExSS) 
-
-Installation
-************
-
-The recommended way to install the latest stable version of Bioverse is via pip:
-
-.. code-block:: bash
-
-    pip install bioverse
-
-Alternatively, Bioverse can be cloned from its `GitHub repository <https://github.com/danielapai/bioverse/>`_:
-
-.. code-block:: bash
-
-    git clone https://www.github.com/danielapai/bioverse/
-    cd bioverse
-    pip install .
-
-Dependencies
-************
-Bioverse is compatible with Python 3.7+. It has the following dependencies, all of which can be installed using ``pip``:
-
-- ``astroquery``
-- ``dynesty``
-- ``emcee``
-- ``matplotlib``
-- ``numpy``
-- ``scipy``
-- ``tqdm`` (optional: provides a progress bar for long processes)
-- ``pandas`` (optional: used for data visualization)
-- ``PyQt5`` (optional: enables configuration GUI)
-
-Feedback & Development
-**********************
-Bioverse is open source and in active development. We welcome all feedback, bug reports, or feature requests. Feel free to open a pull request if you'd like to contribute! If you think you found a bug, please raise an `issue <https://github.com/danielapai/bioverse/issues/>`_.

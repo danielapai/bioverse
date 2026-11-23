@@ -2,22 +2,36 @@
 Computing statistical power
 ####################################
 
-Consider the "habitable zone hypothesis", which proposes that habitable planets with atmospheric water vapor will be more common within the semi-major axis range ``a_inner`` < ``a_eff`` < ``a_outer`` (see Section 6 of the paper and Example 1 for more details). In Bioverse, this effect is injected into the simulated sample by the :func:`~bioverse.functions.Example1_water` function, and tested using the ``h_HZ`` Hypothesis. To test this hypothesis using a LUVOIR-like direct imaging survey:
+Consider the "habitable zone hypothesis", which proposes that habitable planets with atmospheric water vapor will be more common within the semi-major axis range ``a_inner`` < ``a_eff`` < ``a_outer`` (see Section 6 of the Bixel and Apai 2021 paper and Example 1 for more details). In Bioverse, this effect is injected into the simulated sample by the :func:`~bioverse.functions.Example1_water` function, and tested using the ``h_HZ`` Hypothesis. To test this hypothesis using a LUVOIR-like direct imaging survey:
 
 .. code-block:: python
 
     from bioverse.generator import Generator
-    from bioverse.survey import ImagingSurvey
+    from bioverse.survey import ImagingSurvey, read_scaling_dict, prioritize_survey
     from bioverse.hypothesis import h_HZ
     
     # Load the Generator and Survey objects
     generator = Generator('imaging')
+    #add step to compute atmospheric water
+    generator.insert_step('Example1_water')
+
     survey = ImagingSurvey('default')
+
+    #load a dictionary of precomputed reference parameters for an exposure time calculation
+    #    to identify water in exoEarth atmospheres via direct imaging
+    scaling_rel= read_scaling_dict('imaging_H2O')
+    #set this as the survey's reference value for exposure time calculation
+    survey.set_reference_observation(**scaling_rel)
+    #add the measurement of water to the list of properties that will be measured
+    survey.add_measurement('has_H2O')
+
+    #apply premade target prioritization scheme for this observation
+    prioritize_survey(survey,'imaging_H2O')
     
     # Generate a set of planetary systems and a simulated dataset as observed by an imaging survey
     # Assume 50% of EECs are habitable (f_water_habitable=0.5)
     # Assume 1% of non-habitable planets have water vapor (f_water_nonhabitable=0.01)
-    sample, detected, data = survey.quickrun(generator, f_water_habitable=0.5, f_water_nonhabitable=0.01)
+    sample, detected, data = survey.quickrun(generator,method='scaling_relation', f_water_habitable=0.5, f_water_nonhabitable=0.01)
 
     # Test the habitable zone hypothesis from this dataset
     results = h_HZ.fit(data)

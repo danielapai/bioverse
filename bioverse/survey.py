@@ -798,9 +798,9 @@ class TransitSurvey(Survey):
             set overhead to zero
         y_kwargs : dict, optional
             keyword arges for specific yield method
-            for "scaling relation": sets reference observation, updates self.reference
-            for "fixed field": kwargs for SNR calculator
-            for "target precision":kwargs for util.calc_nexp
+            for "scaling_relation": sets reference observation, updates self.reference
+            for "fixed_field": kwargs for SNR calculator
+            for "target_precision":kwargs for util.calc_nexp
 
         Returns
         -------
@@ -990,12 +990,6 @@ def reset_imaging_survey():
                         'a': '10%',
                         'age': '10%'}
 
-    #margs['t_ref'] = {'has_H2O': 0.035,
-    #                'has_O2': 0.1}
-
-    #margs['wl_eff'] = {'has_H2O': 1.4,
-    #                   'has_O2': 0.7}
-
     # Add the measurements to s_imaging
     for mkey in mkeys:
         kwargs = {}
@@ -1038,12 +1032,6 @@ def reset_transit_survey():
                         'M_st': '5%',
                         'age': '30%',
                         'P': 0.001}
-
-    # margs['t_ref'] = {'has_H2O': 7.5,
-    #                 'has_O2': 3.1}
-    #
-    # margs['wl_eff'] = {'has_H2O': 1.7,
-    #                    'has_O2': 0.6}
 
     # Add the measurements to s_transit
     for mkey in mkeys:
